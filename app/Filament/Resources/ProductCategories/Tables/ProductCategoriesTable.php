@@ -16,6 +16,7 @@ class ProductCategoriesTable
         return $table
             ->columns([
                 TextColumn::make('nama')->label('Nama')->searchable()->sortable(),
+                TextColumn::make('deskripsi')->label('Deskripsi')->searchable()->sortable(),
                 IconColumn::make('is_active')->label('Aktif')->boolean(),
                 TextColumn::make('created_at')->label('Dibuat')->dateTime()->sortable(),
             ])

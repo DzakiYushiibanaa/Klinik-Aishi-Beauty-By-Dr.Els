@@ -18,9 +18,12 @@ class ProductsTable
             ->columns([
                 ImageColumn::make('foto_path')->label('Foto')->disk('public')->circular(),
                 TextColumn::make('nama')->label('Nama')->searchable()->sortable(),
+                TextColumn::make('deskripsi')->label('Deskripsi')->searchable()->sortable(),
                 TextColumn::make('category.nama')->label('Kategori')->sortable(),
                 TextColumn::make('harga')->label('Harga')->money('IDR', true)->sortable(),
+                TextColumn::make('berat_gram')->label('Berat(gram)')->sortable(),
                 TextColumn::make('stok')->label('Stok')->sortable(),
+                TextColumn::make('tanggal_kadaluarsa')->label('Expiry Date')->sortable(),
                 IconColumn::make('is_active')->label('Aktif')->boolean(),
             ])
             ->filters([
