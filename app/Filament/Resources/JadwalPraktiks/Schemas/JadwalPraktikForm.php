@@ -7,6 +7,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Schema;
+use Illuminate\Database\Eloquent\Builder;
 
 class JadwalPraktikForm
 {
@@ -16,7 +17,11 @@ class JadwalPraktikForm
             ->components([
                 Select::make('user_id')
                     ->label('Tenaga Medis (Dokter/Terapis)')
-                    ->relationship('tenagaMedis', 'name')
+                    ->relationship(
+                        name: 'tenagaMedis',
+                        titleAttribute: 'name',
+                        modifyQueryUsing: fn (Builder $query) => $query->role(['dokter', 'terapis'])
+                    )
                     ->searchable()
                     ->preload()
                     ->required(),
