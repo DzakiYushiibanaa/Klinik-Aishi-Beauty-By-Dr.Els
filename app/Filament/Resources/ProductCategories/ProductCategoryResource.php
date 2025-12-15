@@ -13,12 +13,14 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use UnitEnum;
 
 class ProductCategoryResource extends Resource
 {
     protected static ?string $model = ProductCategory::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static string |UnitEnum| null $navigationGroup = 'Master Data';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-m-tag';
 
     protected static ?string $recordTitleAttribute = 'php artisan make:filament-resource Product';
 
