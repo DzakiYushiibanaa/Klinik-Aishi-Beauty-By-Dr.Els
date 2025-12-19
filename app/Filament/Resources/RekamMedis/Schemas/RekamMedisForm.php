@@ -1,0 +1,80 @@
+<?php
+
+namespace App\Filament\Resources\RekamMedis\Schemas;
+
+use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Schema;
+
+class RekamMedisForm
+{
+    public static function configure(Schema $schema): Schema
+    {
+        return $schema
+            ->components([
+                TextInput::make('no_kunjungan')
+                ->label('No. Kunjungan')
+                ->disabled()
+                ->dehydrated(true),
+
+            TextInput::make('appointment_id')
+                ->label('Appointment ID')
+                ->disabled()
+                ->dehydrated(true),
+
+            Select::make('pasien_id')
+                ->label('Pasien')
+                ->relationship('pasien', 'name')
+                ->disabled()
+                ->dehydrated(true),
+
+            Select::make('dokter_id')
+                ->label('Dokter')
+                ->relationship('dokter', 'name')
+                ->searchable()
+                ->preload()
+                ->nullable(),
+
+            Select::make('terapis_id')
+                ->label('Terapis')
+                ->relationship('terapis', 'name')
+                ->searchable()
+                ->preload()
+                ->nullable(),
+
+            Select::make('status_tindakan')
+                ->label('Status Tindakan')
+                ->options([
+                    'direncanakan' => 'Direncanakan',
+                    'dilakukan'    => 'Dilakukan',
+                    'ditunda'      => 'Ditunda',
+                    'dibatalkan'   => 'Dibatalkan',
+                ])
+                ->default('direncanakan')
+                ->required(),
+            Textarea::make('keluhan')->label('Keluhan')->rows(3)->columnSpanFull(),
+            Textarea::make('diagnosa')->label('Diagnosa')->rows(3)->columnSpanFull(),
+            Textarea::make('tindakan')->label('Tindakan')->rows(3)->columnSpanFull(),
+
+            FileUpload::make('foto_sebelum_path')
+                ->label('Foto Sebelum')
+                ->disk('public')
+                ->directory('rekam-medis/sebelum')
+                ->image()
+                ->imageEditor()
+                ->nullable(),
+
+            FileUpload::make('foto_sesudah_path')
+                ->label('Foto Sesudah')
+                ->disk('public')
+                ->directory('rekam-medis/sesudah')
+                ->image()
+                ->imageEditor()
+                ->nullable(),
+            Textarea::make('produk_rekomendasi')->label('Produk Rekomendasi')->rows(3)->columnSpanFull(),
+            Textarea::make('catatan_lanjutan')->label('Catatan Lanjutan')->rows(3)->columnSpanFull(),
+            ])->columns(2);
+    }
+}

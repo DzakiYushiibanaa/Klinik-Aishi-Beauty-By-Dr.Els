@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Appointment extends Model
 {
@@ -50,5 +51,15 @@ class Appointment extends Model
     public function treatment()
     {
         return $this->belongsTo(Treatment::class, 'treatment_id', 'treatment_id');
+    }
+
+    public function rekamMedis()
+    {
+        return $this->hasOne(RekamMedis::class, 'appointment_id', 'appointment_id');
+    }
+
+    public function items(): HasMany
+    {
+        return $this->hasMany(AppointmentItem::class, 'appointment_id', 'appointment_id');
     }
 }

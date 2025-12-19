@@ -51,6 +51,9 @@ class AppointmentResource extends Resource
         } elseif ($user?->hasRole('terapis')) {
             $query->where('terapis_id', $user->id);
         }
+        
+        return parent::getEloquentQuery()
+        ->with(['items.treatment', 'items.bundle']);
 
         // apoteker biasanya gak perlu lihat appointment (opsional)
         return $query;
