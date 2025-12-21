@@ -22,6 +22,7 @@ class TreatmentsTable
                 TextColumn::make('harga')->label('Harga')->money('IDR', true)->sortable(),
                 TextColumn::make('category.nama')->label('Kategori')->sortable(),
                 TextColumn::make('durasi_menit')->label('Durasi')->suffix(' menit')->sortable(),
+                TextColumn::make('min_level')->label('Minimal Level Terapis')->sortable(),
                 IconColumn::make('is_active')->label('Aktif')->boolean(),
             ])
             ->filters([

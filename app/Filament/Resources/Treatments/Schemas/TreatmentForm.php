@@ -29,6 +29,7 @@ class TreatmentForm
                     ->label('Harga (Rp)')
                     ->numeric()
                     ->required(),
+
                 Select::make('treatment_category_id')
                     ->label('Kategori')
                     ->relationship('category', 'nama')
@@ -41,16 +42,26 @@ class TreatmentForm
                     ->numeric()
                     ->default(0),
 
+                Select::make('min_level')
+                    ->label('Minimal Level Terapis')
+                    ->options([
+                        1 => 'Junior',
+                        2 => 'Senior',
+                    ])
+                    ->default(1)
+                    ->required()
+                    ->helperText('Jika treatment memerlukan terapis Senior, pilih Senior.'),
+
                 FileUpload::make('foto_path')
                     ->label('Foto Treatment')
                     ->disk('public')
                     ->directory('treatments')
                     ->image()
                     ->maxSize(2048),
+
                 Toggle::make('is_active')
                     ->label('Aktif')
                     ->default(true),
-
             ]);
     }
 }
