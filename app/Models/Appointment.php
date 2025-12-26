@@ -13,7 +13,7 @@ class Appointment extends Model
     protected $fillable = [
         'user_id','dokter_id','terapis_id','patient_form_id',
         'sumber','dibuat_oleh_id',
-        'jenis','treatment_id',
+        'jenis',
         'tanggal_jam','status',
         'catatan_pasien','catatan_klinik',
         'canceled_by','cancel_reason',

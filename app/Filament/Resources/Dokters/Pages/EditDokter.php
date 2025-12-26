@@ -43,7 +43,6 @@ class EditDokter extends EditRecord
 
         $record->update([
             'kode_dokter'      => $data['kode_dokter'],
-            'spesialis'        => $data['spesialis'],
             'pengalaman_tahun' => $data['pengalaman_tahun'] ?? null,
             'status_praktik'   => $data['status_praktik'] ?? 'aktif',
             'foto_profil_path' => $data['foto_profil_path'] ?? null,

@@ -28,10 +28,6 @@ class DoktersTable
                     ->searchable()
                     ->sortable(),
 
-                TextColumn::make('spesialis')
-                    ->label('Spesialis')
-                    ->searchable(),
-
                 TextColumn::make('status_praktik')
                     ->label('Status')
                     ->badge(),
