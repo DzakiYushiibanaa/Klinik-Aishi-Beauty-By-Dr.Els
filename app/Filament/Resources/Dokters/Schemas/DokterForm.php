@@ -67,11 +67,6 @@ class DokterForm
                         ->default(fn () => CodeGenerator::monthly(new \App\Models\Dokter(), 'kode_dokter', 'DR'))
                         ->unique(table: Dokter::class, column: 'kode_dokter', ignoreRecord: true),
 
-                    TextInput::make('spesialis')
-                        ->label('Spesialis')
-                        ->required()
-                        ->maxLength(100),
-
                     TextInput::make('pengalaman_tahun')
                         ->label('Pengalaman (Tahun)')
                         ->numeric()

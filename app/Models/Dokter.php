@@ -13,7 +13,6 @@ class Dokter extends Model
     protected $fillable = [
         'user_id',
         'kode_dokter',
-        'spesialis',
         'pengalaman_tahun',
         'status_praktik',
         'foto_profil_path',

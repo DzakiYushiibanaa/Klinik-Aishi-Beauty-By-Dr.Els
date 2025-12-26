@@ -41,21 +41,30 @@ class AppointmentResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
+        // 1. Ambil query bawaan
         $query = parent::getEloquentQuery();
+        
+        // 2. Eager load relasi (biar enteng query-nya)
+        $query->with(['items.treatment', 'items.bundle', 'pasien', 'dokter','terapis']);
+
+        // 3. Ambil user login
         $user = Filament::auth()->user();
 
-        if ($user?->hasRole('pasien')) {
-            $query->where('user_id', $user->id);
-        } elseif ($user?->hasRole('dokter')) {
-            $query->where('dokter_id', $user->id);
-        } elseif ($user?->hasRole('terapis')) {
-            $query->where('terapis_id', $user->id);
+        // 4. Filter berdasarkan Role (PENTING!)
+        if ($user) {
+            if ($user->hasRole('pasien')) {
+                // Pasien cuma liat data dia sendiri
+                $query->where('user_id', $user->id);
+            } elseif ($user->hasRole('dokter')) {
+                // Dokter cuma liat yang dia handle
+                $query->where('dokter_id', $user->id);
+            } elseif ($user->hasRole('terapis')) {
+                // Terapis cuma liat yang dia kerjain
+                $query->where('terapis_id', $user->id);
+            }
         }
-        
-        return parent::getEloquentQuery()
-        ->with(['items.treatment', 'items.bundle']);
 
-        // apoteker biasanya gak perlu lihat appointment (opsional)
+        // 5. Return query yang sudah difilter
         return $query;
     }
 

@@ -37,7 +37,6 @@ class CreateDokter extends CreateRecord
         return Dokter::create([
             'user_id'          => $user->id,
             'kode_dokter'      => $kode,
-            'spesialis'        => $data['spesialis'],
             'pengalaman_tahun' => $data['pengalaman_tahun'] ?? null,
             'status_praktik'   => $data['status_praktik'] ?? 'aktif',
             'foto_profil_path' => $data['foto_profil_path'] ?? null,

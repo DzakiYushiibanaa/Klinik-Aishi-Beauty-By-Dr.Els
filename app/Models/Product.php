@@ -12,6 +12,11 @@ class Product extends Model
         'stok','tanggal_kadaluarsa','foto_path','is_active'
     ];
 
+    public function getRouteKeyName()
+    {
+        return 'product_id';
+    }
+
     public function category()
     {
         return $this->belongsTo(ProductCategory::class, 'product_category_id', 'product_category_id');

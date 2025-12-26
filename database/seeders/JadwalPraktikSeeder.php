@@ -160,9 +160,6 @@ class JadwalPraktikSeeder extends Seeder
         if (Schema::hasColumn('dokter', 'kode_dokter')) {
             $payload['kode_dokter'] = sprintf('DKR-%03d', $no);
         }
-        if (Schema::hasColumn('dokter', 'spesialis')) {
-            $payload['spesialis'] = 'estetika';
-        }
         if (Schema::hasColumn('dokter', 'pengalaman_tahun')) {
             $payload['pengalaman_tahun'] = random_int(2, 10);
         }
