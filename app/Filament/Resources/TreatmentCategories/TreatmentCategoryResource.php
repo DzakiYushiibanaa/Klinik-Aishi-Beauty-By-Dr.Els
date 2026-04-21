@@ -47,4 +47,19 @@ class TreatmentCategoryResource extends Resource
             'edit' => EditTreatmentCategory::route('/{record}/edit'),
         ];
     }
+
+    public static function getNavigationIcon(): string
+    {
+        return 'heroicon-o-rectangle-group';
+    }
+
+    public static function getNavigationGroup(): ?string
+    {
+        return 'Layanan Klinik';
+    }
+
+    public static function getNavigationSort(): ?int
+    {
+        return 3;
+    }
 }

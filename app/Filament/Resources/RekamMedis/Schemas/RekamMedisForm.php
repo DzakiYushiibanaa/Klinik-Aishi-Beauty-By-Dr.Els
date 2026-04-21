@@ -40,7 +40,7 @@ class RekamMedisForm
                     ->relationship(
                         name: 'dokter',
                         titleAttribute: 'name',
-                        modifyQueryUsing: fn (Builder $query) => $query->role('dokter')->whereHas('dokterProfile')
+                        modifyQueryUsing: fn (Builder $query) => $query->role('dokter')->whereHas('dokterProfile', fn($q) => $q->whereIn('status_praktik', ['aktif', 'Aktif']))
                     )
                     ->searchable()
                     ->preload()

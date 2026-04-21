@@ -2,7 +2,7 @@
     <section class="rounded-2xl border border-slate-300 bg-white p-6 sm:p-10">
         <div class="grid gap-8 lg:grid-cols-2 lg:items-center">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[#CFAF53]">Klinik Aishi Beauty</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[#CFAF53]">Klinik Aishi Beauty By Dr.Els</p>
                 <h1 class="mt-3 text-3xl sm:text-4xl font-semibold tracking-tight text-slate-900">
                     Klinik kecantikan modern, booking dan belanja jadi lebih mudah.
                 </h1>

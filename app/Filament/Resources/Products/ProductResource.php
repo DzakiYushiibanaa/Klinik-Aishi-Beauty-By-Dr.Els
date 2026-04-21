@@ -47,4 +47,19 @@ class ProductResource extends Resource
             'edit' => EditProduct::route('/{record}/edit'),
         ];
     }
+
+    public static function getNavigationIcon(): string
+    {
+        return 'heroicon-o-shopping-bag';
+    }
+
+    public static function getNavigationGroup(): ?string
+    {
+        return 'Katalog';
+    }
+
+    public static function getNavigationSort(): ?int
+    {
+        return 1;
+    }
 }

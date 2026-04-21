@@ -11,6 +11,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 use Illuminate\View\View;
+use App\Models\Pasien;
+use App\Support\CodeGenerator;
+use Illuminate\Support\Facades\DB;
 
 class RegisteredUserController extends Controller
 {
@@ -35,15 +38,37 @@ class RegisteredUserController extends Controller
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
+        DB::transaction(function () use ($request, &$user) {
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+            ]);
 
-        $user->assignRole('pasien');
+            $user->assignRole('pasien');
 
-        event(new Registered($user));
+            // Generate no rekam medis (default: non-member)
+            $isMember = false;
+            $prefix = $isMember ? 'RM' : 'NM';
+            
+            $noRekamMedis = CodeGenerator::prefixNumber(
+                new Pasien(),
+                'no_rekam_medis',
+                $prefix,
+                6,
+                '-'
+            );
+
+            // Create pasien profile
+            Pasien::create([
+                'user_id' => $user->id,
+                'no_rekam_medis' => $noRekamMedis,
+                'is_member' => $isMember,
+                'member_since' => null,
+            ]);
+
+            event(new Registered($user));
+        });
 
         Auth::login($user);
 

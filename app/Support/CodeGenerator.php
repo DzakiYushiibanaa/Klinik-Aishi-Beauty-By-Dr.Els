@@ -46,18 +46,22 @@ class CodeGenerator
     ): string {
         $like = $prefix . $separator . str_repeat('_', $digits);
 
-        // ambil kode terakhir untuk prefix ini
-        $latest = $model->newQuery()
+        // Ambil semua key dengan awalan ini utk membuang yang korup/teks seperti NM-OL1
+        $allKeys = $model->newQuery()
             ->where($column, 'like', $prefix . $separator . '%')
-            ->orderByDesc($column) // aman karena digit fixed
-            ->value($column);
+            ->pluck($column);
 
-        $next = 1;
+        $max = 0;
+        $prefixLen = strlen($prefix) + strlen($separator);
 
-        if ($latest) {
-            $numberPart = substr($latest, -(int) $digits);
-            $next = ((int) $numberPart) + 1;
+        foreach ($allKeys as $val) {
+            $numStr = substr((string) $val, $prefixLen);
+            if (is_numeric($numStr)) {
+                $max = max($max, (int) $numStr);
+            }
         }
+
+        $next = $max + 1;
 
         return $prefix . $separator . str_pad((string) $next, $digits, '0', STR_PAD_LEFT);
     }

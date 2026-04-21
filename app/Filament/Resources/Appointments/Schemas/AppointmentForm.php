@@ -166,6 +166,7 @@ class AppointmentForm
                                 titleAttribute: 'name',
                                 modifyQueryUsing: fn (Builder $query) =>
                                     $query->whereHas('roles', fn (Builder $q) => $q->where('name', 'dokter'))
+                                          ->whereHas('dokterProfile', fn($q) => $q->whereIn('status_praktik', ['aktif', 'Aktif']))
                             )
                             ->searchable()
                             ->preload()

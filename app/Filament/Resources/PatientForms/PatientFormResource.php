@@ -57,7 +57,8 @@ class PatientFormResource extends Resource
         $user = Filament::auth()->user();
 
         if ($user?->hasRole('pasien')) {
-            $query->where('user_id', $user->id);
+            $pasienId = \App\Models\Pasien::where('user_id', $user->id)->value('pasien_id');
+            $query->where('pasien_id', $pasienId);
         }
 
         return $query;

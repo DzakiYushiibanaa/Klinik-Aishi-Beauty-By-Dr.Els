@@ -51,7 +51,21 @@ class PasienResource extends Resource
         return [
             'index' => ListPasiens::route('/'),
             'create' => CreatePasien::route('/create'),
-            'edit' => EditPasien::route('/{record}/edit'),
         ];
+    }
+
+    public static function getNavigationIcon(): string
+    {
+        return 'heroicon-o-users';
+    }
+
+    public static function getNavigationGroup(): ?string
+    {
+        return 'Master Data';
+    }
+
+    public static function getNavigationSort(): ?int
+    {
+        return 3;
     }
 }

@@ -20,36 +20,15 @@ class EditPasien extends EditRecord
         ];
     }
 
-    protected function mutateFormDataBeforeFill(array $data): array
-    {
-        /** @var Pasien $pasien */
-        $pasien = $this->record->loadMissing('user');
-
-        $data['user_name']  = $pasien->user->name;
-        $data['user_email'] = $pasien->user->email;
-        $data['user_phone'] = $pasien->user->phone;
-
-        return $data;
-    }
-
     protected function handleRecordUpdate($record, array $data): Pasien
     {
         /** @var Pasien $record */
-        $record->loadMissing('user');
-
-        $record->user->update([
-            'name'  => $data['user_name'],
-            'email' => $data['user_email'],
-            'phone' => $data['user_phone'] ?? null,
-        ]);
-
-        if (!empty($data['user_password'])) {
-            $record->user->update([
-                'password' => Hash::make($data['user_password']),
-            ]);
-        }
 
         $record->update([
+            'nama'             => $data['nama'] ?? null,
+            'tanggal_lahir'    => $data['tanggal_lahir'] ?? null,
+            'jenis_kelamin'    => $data['jenis_kelamin'] ?? null,
+            'no_telepon'       => $data['no_telepon'] ?? null,
             'is_member'        => (bool) ($data['is_member'] ?? false),
             'member_since'     => ($data['is_member'] ?? false) ? ($data['member_since'] ?? $record->member_since ?? now()) : null,
             'foto_profil_path' => $data['foto_profil_path'] ?? null,

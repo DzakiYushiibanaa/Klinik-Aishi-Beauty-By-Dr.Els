@@ -39,7 +39,7 @@
                 </div>
 
                 <div class="relative z-10 text-xs text-slate-500">
-                    &copy; {{ date('Y') }} Aishi Beauty Clinic. All rights reserved.
+                    &copy; {{ date('Y') }} Aishi Beauty By Dr.Els. All rights reserved.
                 </div>
             </div>
 
@@ -104,7 +104,7 @@
                     {{-- Footer: Register Link --}}
                     <div class="mt-8 text-center">
                         <p class="text-sm text-slate-500">
-                            Belum punya akun pasien? 
+                            Belum punya akun? 
                             @if (Route::has('register'))
                                 <a href="{{ route('register') }}" class="font-bold text-slate-900 hover:text-[#CFAF53] transition underline decoration-slate-300 hover:decoration-[#CFAF53] underline-offset-4">
                                     Daftar Gratis

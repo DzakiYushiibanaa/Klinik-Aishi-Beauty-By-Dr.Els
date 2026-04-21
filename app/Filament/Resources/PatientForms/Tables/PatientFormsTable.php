@@ -15,7 +15,7 @@ class PatientFormsTable
         return $table
             ->columns([
                 TextColumn::make('patient_form_id')->label('ID')->sortable(),
-                TextColumn::make('pasien.name')->label('Pasien')->searchable(),
+                TextColumn::make('pasien.nama')->label('Pasien')->searchable(),
                 TextColumn::make('tipe_form')->label('Tipe')->badge(),
                 TextColumn::make('status')->label('Status')->badge()->sortable(),
                 TextColumn::make('dokter.name')->label('Dokter')->toggleable(),

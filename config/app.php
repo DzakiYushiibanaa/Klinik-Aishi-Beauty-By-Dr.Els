@@ -123,4 +123,15 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Clinic Information
+    |--------------------------------------------------------------------------
+    */
+
+    'clinic_name' => env('CLINIC_NAME', 'Klinik Kecantikan'),
+    'clinic_district' => env('CLINIC_DISTRICT', 'Beji'),
+    'clinic_city' => env('CLINIC_CITY', 'Kota Depok'),
+    'clinic_province' => env('CLINIC_PROVINCE', 'Jawa Barat'),
+
 ];

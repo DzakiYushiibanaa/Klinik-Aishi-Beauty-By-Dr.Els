@@ -12,6 +12,10 @@ class Pasien extends Model
 
     protected $fillable = [
         'user_id',
+        'nama',
+        'tanggal_lahir',
+        'jenis_kelamin',
+        'no_telepon',
         'no_rekam_medis',
         'is_member',
         'member_since',
@@ -20,6 +24,12 @@ class Pasien extends Model
         'kota',
         'provinsi',
         'kode_pos',
+        
+        // ✨ TAMBAHAN BARU: Raja Ongkir District Integration
+        'province_id',
+        'city_id',
+        'district_id',
+        'district_name',
     ];
 
     protected $casts = [
@@ -31,5 +41,4 @@ class Pasien extends Model
     {
         return $this->belongsTo(User::class, 'user_id', 'id');
     }
-    
 }

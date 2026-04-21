@@ -56,4 +56,19 @@ class RekamMedisResource extends Resource
             'edit' => EditRekamMedis::route('/{record}/edit'),
         ];
     }
+
+    public static function getNavigationIcon(): string
+    {
+        return 'heroicon-o-document-text';
+    }
+
+    public static function getNavigationGroup(): ?string
+    {
+        return 'Layanan Klinik';
+    }
+
+    public static function getNavigationSort(): ?int
+    {
+        return 4;
+    }
 }

@@ -34,6 +34,11 @@ class Order extends Model
         return $this->belongsTo(User::class, 'user_id', 'id');
     }
 
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
     public function dibuatOleh()
     {
         return $this->belongsTo(User::class, 'dibuat_oleh_id', 'id');

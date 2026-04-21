@@ -76,4 +76,19 @@ class AppointmentResource extends Resource
             'edit' => EditAppointment::route('/{record}/edit'),
         ];
     }
+
+    public static function getNavigationIcon(): string
+    {
+        return 'heroicon-o-calendar-days';
+    }
+
+    public static function getNavigationGroup(): ?string
+    {
+        return 'Layanan Klinik';
+    }
+
+    public static function getNavigationSort(): ?int
+    {
+        return 1;
+    }
 }
