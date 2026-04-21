@@ -10,15 +10,16 @@ class PraKonsulController extends Controller
     public function index()
     {
         $userId = auth()->id();
+        $pasienId = \App\Models\Pasien::where('user_id', $userId)->value('pasien_id');
 
         $forms = PatientForm::query()
-            ->where('user_id', $userId)
+            ->where('pasien_id', $pasienId)
             ->latest('created_at')
             ->paginate(10);
 
         // ✅ map urutan form berdasarkan tanggal (paling lama = #1)
         $idsAsc = PatientForm::query()
-            ->where('user_id', $userId)
+            ->where('pasien_id', $pasienId)
             ->orderBy('created_at')
             ->pluck('patient_form_id')
             ->values()
@@ -34,12 +35,14 @@ class PraKonsulController extends Controller
 
     public function show(PatientForm $form)
     {
+        $pasienId = \App\Models\Pasien::where('user_id', auth()->id())->value('pasien_id');
+
         // ✅ pastikan cuma pemilik yang bisa lihat
-        abort_unless($form->user_id === auth()->id(), 403);
+        abort_unless($form->pasien_id === $pasienId, 403);
 
         // ✅ hitung nomor urutan form ini (berdasarkan created_at paling awal)
         $nomor = PatientForm::query()
-            ->where('user_id', auth()->id())
+            ->where('pasien_id', $pasienId)
             ->where('created_at', '<=', $form->created_at)
             ->count();
 
@@ -81,13 +84,33 @@ class PraKonsulController extends Controller
 
             'keluhan_utama' => ['required','string','min:10'],
 
-            'foto_depan' => ['nullable','image','max:2048'],
-            'foto_kiri' => ['nullable','image','max:2048'],
-            'foto_kanan' => ['nullable','image','max:2048'],
+            'foto_depan' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096', 'dimensions:min_width=720,min_height=720'],
+            'foto_kiri' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096', 'dimensions:min_width=720,min_height=720'],
+            'foto_kanan' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096', 'dimensions:min_width=720,min_height=720'],
+        ], [
+            'keluhan_utama.required' => 'Keluhan utama wajib diisi.',
+            'keluhan_utama.min' => 'Keluhan utama minimal 10 karakter.',
+            'foto_depan.required' => 'Foto wajah depan wajib diunggah.',
+            'foto_depan.image' => 'File harus berupa gambar.',
+            'foto_depan.mimes' => 'Format foto harus berupa JPG, JPEG, PNG, atau WEBP.',
+            'foto_depan.max' => 'Ukuran foto maksimal 4MB.',
+            'foto_depan.dimensions' => 'Resolusi foto minimal 720x720 pixel.',
+            'foto_kiri.required' => 'Foto wajah kiri wajib diunggah.',
+            'foto_kiri.image' => 'File harus berupa gambar.',
+            'foto_kiri.mimes' => 'Format foto harus berupa JPG, JPEG, PNG, atau WEBP.',
+            'foto_kiri.max' => 'Ukuran foto maksimal 4MB.',
+            'foto_kiri.dimensions' => 'Resolusi foto minimal 720x720 pixel.',
+            'foto_kanan.required' => 'Foto wajah kanan wajib diunggah.',
+            'foto_kanan.image' => 'File harus berupa gambar.',
+            'foto_kanan.mimes' => 'Format foto harus berupa JPG, JPEG, PNG, atau WEBP.',
+            'foto_kanan.max' => 'Ukuran foto maksimal 4MB.',
+            'foto_kanan.dimensions' => 'Resolusi foto minimal 720x720 pixel.',
+            'jenis_kulit.in' => 'Pilihan jenis kulit tidak valid.',
+            'golongan_darah.in' => 'Pilihan golongan darah tidak valid.',
         ]);
 
         $form = new PatientForm();
-        $form->user_id = auth()->id();
+        $form->pasien_id = \App\Models\Pasien::where('user_id', auth()->id())->value('pasien_id');
         $form->dokter_id = null;
         $form->tipe_form = 'pra_konsul';
 

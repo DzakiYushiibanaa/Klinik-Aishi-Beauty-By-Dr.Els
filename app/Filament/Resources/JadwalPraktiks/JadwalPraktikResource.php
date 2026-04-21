@@ -45,4 +45,19 @@ class JadwalPraktikResource extends Resource
             'edit' => EditJadwalPraktik::route('/{record}/edit'),
         ];
     }
+
+    public static function getNavigationIcon(): string
+    {
+        return 'heroicon-o-clock';
+    }
+
+    public static function getNavigationGroup(): ?string
+    {
+        return 'Master Data';
+    }
+
+    public static function getNavigationSort(): ?int
+    {
+        return 4;
+    }
 }

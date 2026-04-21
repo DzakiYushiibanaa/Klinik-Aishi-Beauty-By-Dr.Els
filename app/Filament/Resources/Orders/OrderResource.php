@@ -118,4 +118,19 @@ class OrderResource extends Resource
             'edit' => EditOrder::route('/{record}/edit'),
         ];
     }
+
+    public static function getNavigationIcon(): string
+    {
+        return 'heroicon-o-shopping-cart';
+    }
+
+    public static function getNavigationGroup(): ?string
+    {
+        return 'Transaksi';
+    }
+
+    public static function getNavigationSort(): ?int
+    {
+        return 1;
+    }
 }

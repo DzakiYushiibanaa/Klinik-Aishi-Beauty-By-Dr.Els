@@ -42,7 +42,7 @@
                 </div>
 
                 <div class="relative z-10 text-xs text-slate-500 flex justify-between items-end">
-                    <p>&copy; {{ date('Y') }} Aishi Beauty Clinic.</p>
+                    <p>&copy; {{ date('Y') }} Aishi Beauty By Dr.Els.</p>
                     <div class="flex gap-2">
                         <div class="h-1.5 w-1.5 rounded-full bg-[#CFAF53]"></div>
                         <div class="h-1.5 w-1.5 rounded-full bg-slate-700"></div>

@@ -47,4 +47,19 @@ class PromotionResource extends Resource
             'edit' => EditPromotion::route('/{record}/edit'),
         ];
     }
+
+    public static function getNavigationIcon(): string
+    {
+        return 'heroicon-o-ticket';
+    }
+
+    public static function getNavigationGroup(): ?string
+    {
+        return 'Katalog';
+    }
+
+    public static function getNavigationSort(): ?int
+    {
+        return 4;
+    }
 }

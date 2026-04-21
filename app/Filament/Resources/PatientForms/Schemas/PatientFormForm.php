@@ -2,7 +2,9 @@
 
 namespace App\Filament\Resources\PatientForms\Schemas;
 
+use App\Models\Pasien;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -18,140 +20,170 @@ class PatientFormForm
     {
         return $schema
             ->components([
-                Section::make('Identitas & Jenis Form')
-                ->schema([
-                Select::make('user_id')
-                ->label('Pasien')
-                ->relationship(
-                    name: 'pasien',
-                    titleAttribute: 'name',
-                    modifyQueryUsing: fn (Builder $query) => $query->whereHas(
-                        'roles',
-                        fn (Builder $q) => $q->where('name', 'pasien')
-                    )
-                )
-                ->searchable()
-                ->preload()
-                ->required(),
+                Section::make('Identitas & Sumber Form')
+                    ->schema([
+                        Select::make('pasien_id')
+                            ->label('Pasien')
+                            ->relationship(name: 'pasien', titleAttribute: 'nama')
+                            ->searchable()
+                            ->preload()
+                            ->required()
+                            ->createOptionForm([
+                                TextInput::make('nama')
+                                    ->label('Nama Lengkap')
+                                    ->required()
+                                    ->maxLength(255),
+                                DatePicker::make('tanggal_lahir')
+                                    ->label('Tanggal Lahir')
+                                    ->nullable()
+                                    ->native(false)
+                                    ->displayFormat('d/m/Y'),
+                                Select::make('jenis_kelamin')
+                                    ->label('Jenis Kelamin')
+                                    ->options(['L' => 'Laki-laki', 'P' => 'Perempuan'])
+                                    ->nullable()
+                                    ->native(false),
+                                TextInput::make('no_telepon')
+                                    ->label('No. Telepon')
+                                    ->tel()
+                                    ->maxLength(15)
+                                    ->nullable(),
+                            ])
+                            ->createOptionUsing(function (array $data) {
+                                $rm = \App\Support\CodeGenerator::prefixNumber(new Pasien(), 'no_rekam_medis', 'NM', 6, '-');
+                                $pasien = Pasien::create([
+                                    'nama' => $data['nama'],
+                                    'tanggal_lahir' => $data['tanggal_lahir'] ?? null,
+                                    'jenis_kelamin' => $data['jenis_kelamin'] ?? null,
+                                    'no_telepon' => $data['no_telepon'] ?? null,
+                                    'no_rekam_medis' => $rm,
+                                    'is_member' => false,
+                                ]);
+                                return $pasien->getKey();
+                            }),
 
-                Select::make('tipe_form')
-                    ->label('Tipe Form')
-                    ->options([
-                        'pra_konsul' => 'Pra Konsultasi',
-                        'registrasi_member' => 'Registrasi Member',
-                        'offline_intake' => 'Offline Intake',
+                        Select::make('tipe_form')
+                            ->label('Tipe Form')
+                            ->options([
+                                'pra_konsul' => 'Pra Konsultasi',
+                                'registrasi_member' => 'Registrasi Member',
+                                'offline_intake' => 'Offline Intake',
+                            ])
+                            ->required()
+                            ->default('pra_konsul'),
+                    ])->columns(2),
+
+                Section::make('Keluhan & Bukti Foto')
+                    ->schema([
+                        Textarea::make('keluhan_utama')
+                            ->label('Keluhan Utama')
+                            ->rows(4)
+                            ->columnSpanFull(),
+
+                        FileUpload::make('foto_depan_path')
+                            ->label('Foto Depan')
+                            ->disk('public')
+                            ->directory('pra-konsul')
+                            ->image()
+                            ->maxSize(2048),
+
+                        FileUpload::make('foto_kiri_path')
+                            ->label('Foto Kiri')
+                            ->disk('public')
+                            ->directory('pra-konsul')
+                            ->image()
+                            ->maxSize(2048),
+
+                        FileUpload::make('foto_kanan_path')
+                            ->label('Foto Kanan')
+                            ->disk('public')
+                            ->directory('pra-konsul')
+                            ->image()
+                            ->maxSize(2048),
+                    ])->columns(3),
+
+                Section::make('Data Kesehatan & Kondisi Kulit')
+                    ->schema([
+                        Select::make('golongan_darah')
+                            ->options(['A' => 'A', 'B' => 'B', 'AB' => 'AB', 'O' => 'O', 'TIDAK_TAHU' => 'Tidak tahu'])
+                            ->default('TidakTahu')
+                            ->rule('in:A,B,AB,O,TIDAK_TAHU')
+                            ->required(),
+
+                        Select::make('jenis_kulit')
+                            ->label('Jenis Kulit')
+                            ->options([
+                                'Normal' => 'Normal',
+                                'Kering' => 'Kering',
+                                'Berminyak' => 'Berminyak',
+                                'Kombinasi' => 'Kombinasi',
+                                'Sensitif' => 'Sensitif',
+                            ])
+                            ->rule('in:Normal,Kering,Berminyak,Kombinasi,Sensitif')
+                            ->required(),
+
+                        Textarea::make('riwayat_penyakit')
+                            ->label('Riwayat Penyakit')
+                            ->rows(3)
+                            ->columnSpanFull(),
+                    ])->columns(2),
+
+                Section::make('Riwayat Skincare & Treatment')
+                    ->schema([
+                        TextInput::make('periode_skincare_bulan')
+                            ->label('Periode Pakai Skincare dlm bulan')
+                            ->numeric()->columnSpan(['default' => 1]),
+                            
+                        Textarea::make('skincare_sebelumnya')
+                            ->label('Skincare Sebelumnya')
+                            ->rows(2)
+                            ->columnSpan(['default' => 3]),
+
+                        Toggle::make('pernah_facial')->label('Pernah Facial')->default(false),
+                        Toggle::make('pernah_skin_booster')->label('Pernah Skin Booster')->default(false),
+                        Toggle::make('pernah_laser')->label('Pernah Laser')->default(false),
+                        Toggle::make('pernah_inject_infus')->label('Pernah Inject/Infus')->default(false),
+                    ])->columns(4),
+
+                Section::make('Review Dokter')
+                    ->schema([
+                        Select::make('dokter_id')
+                            ->label('Dokter Reviewer')
+                            ->relationship(
+                                name: 'dokter',
+                                titleAttribute: 'name',
+                                modifyQueryUsing: fn (Builder $query) => $query->whereHas(
+                                    'roles',
+                                    fn (Builder $q) => $q->where('name', 'dokter')
+                                )->whereHas('dokterProfile', fn($q) => $q->whereIn('status_praktik', ['aktif', 'Aktif']))
+                            )
+                            ->searchable()
+                            ->preload()
+                            ->nullable(),
+
+                        Select::make('status')
+                            ->label('Status')
+                            ->options([
+                                'baru' => 'Baru',
+                                'ditinjau' => 'Ditinjau',
+                                'direkomendasikan' => 'Direkomendasikan',
+                                'ditutup' => 'Ditutup',
+                            ])
+                            ->rule('in:baru,ditinjau,direkomendasikan,ditutup')
+                            ->required()
+                            ->default('baru'),
+
+                        Textarea::make('rekomendasi_dokter')
+                            ->label('Rekomendasi Dokter')
+                            ->rows(4)
+                            ->columnSpanFull(),
                     ])
-                    ->required()
-                    ->default('pra_konsul'),
-            ])->columns(2),
-            Section::make('Data Kesehatan Dasar')
-                ->schema([
-                Select::make('golongan_darah')
-                        ->options(['A' => 'A', 'B' => 'B', 'AB' => 'AB', 'O' => 'O', 'TIDAK_TAHU' => 'Tidak tahu'])
-                        ->default('TidakTahu')
-                        ->rule('in:A,B,AB,O,TIDAK_TAHU')
-                        ->required(),
-                Textarea::make('riwayat_penyakit')
-                    ->label('Riwayat Penyakit')
-                    ->rows(3)
-                    ->columnSpanFull(),
-            ])->columns(2),
-            Section::make('Data Kulit & Skincare')
-                ->schema([
-                Select::make('jenis_kulit')
-                        ->label('Jenis Kulit')
-                        ->options([
-                            'Normal' => 'Normal',
-                            'Kering' => 'Kering',
-                            'Berminyak' => 'Berminyak',
-                            'Kombinasi' => 'Kombinasi',
-                            'Sensitif' => 'Sensitif',
-                        ])
-                        ->rule('in:Normal,Kering,Berminyak,Kombinasi,Sensitif')
-                        ->required(),
-                TextInput::make('periode_skincare_bulan')
-                    ->label('Periode Skincare (bulan)')
-                    ->numeric(),
-                Textarea::make('skincare_sebelumnya')
-                    ->label('Skincare Sebelumnya')
-                    ->rows(3)
-                    ->columnSpanFull(),
-            ])->columns(2),
-            Section::make('Riwayat Treatment')
-                ->schema([
-                Toggle::make('pernah_facial')->label('Pernah Facial')->default(false),
-                Toggle::make('pernah_skin_booster')->label('Pernah Skin Booster')->default(false),
-                Toggle::make('pernah_laser')->label('Pernah Laser')->default(false),
-                Toggle::make('pernah_inject_infus')->label('Pernah Inject/Infus')->default(false),
-            ])->columns(4),
-            Section::make('Keluhan & Foto')
-            ->schema([
-                Textarea::make('keluhan_utama')
-                    ->label('Keluhan Utama')
-                    ->rows(4)
-                    ->columnSpanFull(),
-
-                FileUpload::make('foto_depan_path')
-                    ->label('Foto Depan')
-                    ->disk('public')
-                    ->directory('pra-konsul')
-                    ->image()
-                    ->maxSize(2048),
-
-                FileUpload::make('foto_kiri_path')
-                    ->label('Foto Kiri')
-                    ->disk('public')
-                    ->directory('pra-konsul')
-                    ->image()
-                    ->maxSize(2048),
-
-                FileUpload::make('foto_kanan_path')
-                    ->label('Foto Kanan')
-                    ->disk('public')
-                    ->directory('pra-konsul')
-                    ->image()
-                    ->maxSize(2048),
-            ])->columns(3),
-            Section::make('Review Dokter')
-            ->schema([
-                Select::make('dokter_id')
-                    ->label('Dokter Reviewer')
-                    ->relationship(
-                        name: 'dokter',
-                        titleAttribute: 'name',
-                        modifyQueryUsing: fn (Builder $query) => $query->whereHas(
-                            'roles',
-                            fn (Builder $q) => $q->where('name', 'dokter')
-                        )
-                    )
-                    ->searchable()
-                    ->preload()
-                    ->nullable(),
-
-                Select::make('status')
-                    ->label('Status')
-                    ->options([
-                        'baru' => 'Baru',
-                        'ditinjau' => 'Ditinjau',
-                        'direkomendasikan' => 'Direkomendasikan',
-                        'ditutup' => 'Ditutup',
-                    ])
-                    ->rule('in:baru,ditinjau,direkomendasikan,ditutup')
-                    ->required()
-                    ->default('baru'),
-
-                Textarea::make('rekomendasi_dokter')
-                    ->label('Rekomendasi Dokter')
-                    ->rows(4)
-                    ->columnSpanFull(),
-            ])
-            ->visible(function () {
-                /** @var User|null $user */
-                $user = Filament::auth()->user();
-
-                return !$user?->hasRole('pasien');
-            }) // pasien gak lihat section ini
-            ->columns(2),
+                    ->visible(function () {
+                        /** @var \App\Models\User|null $user */
+                        $user = Filament::auth()->user();
+                        return !$user?->hasRole('pasien');
+                    })
+                    ->columns(2),
             ]);
     }
 }

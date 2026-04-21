@@ -47,4 +47,19 @@ class BundleResource extends Resource
             'edit' => EditBundle::route('/{record}/edit'),
         ];
     }
+
+    public static function getNavigationIcon(): string
+    {
+        return 'heroicon-o-gift';
+    }
+
+    public static function getNavigationGroup(): ?string
+    {
+        return 'Katalog';
+    }
+
+    public static function getNavigationSort(): ?int
+    {
+        return 3;
+    }
 }

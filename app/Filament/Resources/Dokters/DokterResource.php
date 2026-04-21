@@ -59,4 +59,19 @@ class DokterResource extends Resource
             'edit' => EditDokter::route('/{record}/edit'),
         ];
     }
+
+    public static function getNavigationIcon(): string
+    {
+        return 'heroicon-o-user-circle';
+    }
+
+    public static function getNavigationGroup(): ?string
+    {
+        return 'Master Data';
+    }
+
+    public static function getNavigationSort(): ?int
+    {
+        return 1;
+    }
 }

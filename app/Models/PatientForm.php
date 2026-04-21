@@ -10,7 +10,7 @@ class PatientForm extends Model
     protected $primaryKey = 'patient_form_id';
 
     protected $fillable = [
-        'user_id','dokter_id','tipe_form',
+        'pasien_id','dokter_id','tipe_form',
         'golongan_darah','riwayat_penyakit',
         'jenis_kulit','skincare_sebelumnya','periode_skincare_bulan',
         'pernah_facial','pernah_skin_booster','pernah_laser','pernah_inject_infus',
@@ -21,7 +21,7 @@ class PatientForm extends Model
 
     public function pasien()
     {
-        return $this->belongsTo(User::class, 'user_id', 'id');
+        return $this->belongsTo(Pasien::class, 'pasien_id', 'pasien_id');
     }
 
     public function dokter()

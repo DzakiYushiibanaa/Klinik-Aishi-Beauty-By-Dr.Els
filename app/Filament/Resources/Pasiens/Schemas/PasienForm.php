@@ -20,46 +20,35 @@ class PasienForm
     {
         return $schema
             ->components([
-                Section::make('Akun Login (Users)')
+                Section::make('Data Pasien')
                 ->columns(2)
                 ->schema([
-                    TextInput::make('user_name')
+                    TextInput::make('nama')
                         ->label('Nama')
-                        ->reactive()
                         ->required()
                         ->maxLength(255),
 
-                    TextInput::make('user_email')
-                        ->label('Email')
-                        ->required()
-                        ->email()
-                        ->maxLength(255)
-                        ->rules([
-                            fn (?Pasien $record) => Rule::unique('users', 'email')
-                                ->ignore($record?->user_id),
-                        ]),
+                    \Filament\Forms\Components\DatePicker::make('tanggal_lahir')
+                        ->label('Tanggal Lahir')
+                        ->nullable()
+                        ->native(false)
+                        ->displayFormat('d/m/Y'),
 
-                    TextInput::make('user_phone')
+                    \Filament\Forms\Components\Select::make('jenis_kelamin')
+                        ->label('Jenis Kelamin')
+                        ->options([
+                            'L' => 'Laki-laki',
+                            'P' => 'Perempuan',
+                        ])
+                        ->nullable()
+                        ->native(false),
+
+                    TextInput::make('no_telepon')
                         ->label('No. Telepon')
                         ->tel()
                         ->telRegex('/^[+]*[(]{0,1}[0-9]{1,4}[)]{0,1}[-\s\.\/0-9]*$/')
-                        ->maxLength(13),
-
-                    TextInput::make('user_password')
-                        ->label('Password')
-                        ->password()
-                        ->revealable()
-                        ->required(fn (string $operation) => $operation === 'create')
-                        ->minLength(8)
-                        ->dehydrated(fn (string $operation) => $operation === 'create'),
-
-                    TextInput::make('user_password_confirmation')
-                        ->label('Konfirmasi Password')
-                        ->password()
-                        ->revealable()
-                        ->required(fn (string $operation) => $operation === 'create')
-                        ->same('user_password')
-                        ->dehydrated(false),
+                        ->maxLength(15)
+                        ->nullable(),
                 ]),
 
                 Section::make('Profil Pasien')

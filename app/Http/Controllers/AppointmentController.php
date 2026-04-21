@@ -9,11 +9,14 @@ use App\Models\PraKonsultasiRekomendasiItem;
 use App\Models\Treatment;
 use App\Models\User;
 use App\Models\Terapis; // Pastikan Model Terapis di-import
+use App\Notifications\AppointmentCanceledNotification; // 🔥 TAMBAHAN: Import Notification
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use App\Filament\Resources\Appointments\AppointmentResource;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class AppointmentController extends Controller
 {
@@ -185,6 +188,109 @@ class AppointmentController extends Controller
 
         return redirect('/dashboard')
             ->with('success', 'Janji temu berhasil diajukan! Menunggu konfirmasi admin.');
+    }
+
+    /**
+     * 🔥 UPDATED: Pembatalan Janji Temu + Kirim Notifikasi
+     */
+    public function cancel(Request $request, Appointment $appointment)
+    {
+        // 1. Validasi Pemilik
+        if ($appointment->user_id !== Auth::id()) {
+            abort(403, 'Anda tidak berhak membatalkan janji temu ini.');
+        }
+
+        // 2. Cek Status
+        if (!in_array($appointment->status, ['diajukan', 'disetujui'])) {
+            return back()->with('error', 'Janji temu ini tidak dapat dibatalkan lagi.');
+        }
+
+        // 3. Validasi Alasan
+        $request->validate([
+            'cancel_reason' => 'required|string|min:5|max:255',
+        ]);
+        
+        try {
+            DB::transaction(function () use ($appointment, $request) {
+                // A. Update Database Appointment
+                $appointment->update([
+                    'status'        => 'batal',
+                    'canceled_by'   => 'pasien',
+                    'cancel_reason' => $request->cancel_reason,
+                ]);
+
+                // B. KUMPULKAN PENERIMA NOTIFIKASI 👥
+                $recipients = collect();
+
+                // 1. Masukkan DOKTER (Jika ada & jenis konsultasi)
+                if ($appointment->jenis === 'konsultasi' && $appointment->dokter) {
+                    $recipients->push($appointment->dokter);
+                }
+
+                // 2. Masukkan TERAPIS (Jika ada & jenis treatment)
+                if ($appointment->jenis === 'treatment' && $appointment->terapis) {
+                    $recipients->push($appointment->terapis);
+                }
+
+                // 3. Masukkan ADMIN & SUPER ADMIN
+                $admins = User::whereHas('roles', function ($q) {
+                    $q->whereIn('name', ['super_admin', 'admin', 'superuser']);
+                })->get();
+                
+                // Gabung & Hapus Duplikat ID
+                $recipients = $recipients->merge($admins)->unique('id');
+
+                // C. LOOPING INSERT MANUAL KE TABEL NOTIFICATIONS 🔔
+                // Persis seperti cara di DashboardController
+                foreach ($recipients as $user) {
+                    try {
+                        $jenisLayanan = ucfirst($appointment->jenis);
+                        $tanggal = $appointment->tanggal_jam->format('d M, H:i');
+                        $pasienName = $appointment->pasien->name;
+                        
+                        DB::table('notifications')->insert([
+                            'id' => Str::uuid()->toString(),
+                            'type' => 'Filament\\Notifications\\DatabaseNotification', // Wajib Tipe Ini
+                            'notifiable_type' => get_class($user), // App\Models\User
+                            'notifiable_id' => $user->id,
+                            'data' => json_encode([
+                                'format' => 'filament',
+                                'title' => 'Janji Temu Dibatalkan 📅',
+                                'body' => "**{$pasienName}** membatalkan {$jenisLayanan} pada tanggal **{$tanggal}**.\nAlasan: \"{$request->cancel_reason}\"",
+                                'status' => 'warning', // Warna Kuning/Oranye
+                                'color' => 'warning',
+                                'icon' => 'heroicon-o-calendar',
+                                'iconColor' => 'warning',
+                                'duration' => 'persistent',
+                                'actions' => [
+                                    [
+                                        'name' => 'Lihat',
+                                        'color' => 'gray',
+                                        'url' => "/admin/appointments/{$appointment->appointment_id}/edit",
+                                        'openInNewTab' => false,
+                                    ]
+                                ],
+                                'view' => 'filament-notifications::notification',
+                            ]),
+                            'read_at' => null,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+
+                        Log::info("Manual notification inserted for user: {$user->id} (Appointment Cancel)");
+
+                    } catch (\Exception $e) {
+                        Log::error("Failed to insert notification for user {$user->id}: " . $e->getMessage());
+                    }
+                }
+            });
+
+            return back()->with('success', 'Janji temu berhasil dibatalkan.');
+
+        } catch (\Exception $e) {
+            Log::error('Gagal membatalkan janji temu: ' . $e->getMessage());
+            return back()->with('error', 'Terjadi kesalahan sistem.');
+        }
     }
 
     /**

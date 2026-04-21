@@ -14,6 +14,11 @@ class JadwalPraktiksTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (\Illuminate\Database\Eloquent\Builder $query) => 
+                $query->whereDoesntHave('tenagaMedis.dokterProfile', fn($q) => 
+                    $q->whereNotIn('status_praktik', ['aktif', 'Aktif'])
+                )
+            )
             ->columns([
                 TextColumn::make('tenagaMedis.name')->label('Tenaga Medis')->searchable(),
                 TextColumn::make('jenis_layanan')->label('Layanan')->sortable(),

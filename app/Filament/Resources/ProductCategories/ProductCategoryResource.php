@@ -49,4 +49,19 @@ class ProductCategoryResource extends Resource
             'edit' => EditProductCategory::route('/{record}/edit'),
         ];
     }
+
+    public static function getNavigationIcon(): string
+    {
+        return 'heroicon-o-tag';
+    }
+
+    public static function getNavigationGroup(): ?string
+    {
+        return 'Katalog';
+    }
+
+    public static function getNavigationSort(): ?int
+    {
+        return 2;
+    }
 }

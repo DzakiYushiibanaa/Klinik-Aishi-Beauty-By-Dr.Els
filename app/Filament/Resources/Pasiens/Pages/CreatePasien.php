@@ -15,20 +15,15 @@ class CreatePasien extends CreateRecord
 
     protected function handleRecordCreation(array $data): Pasien
     {
-        $user = User::create([
-            'name'     => $data['user_name'],
-            'email'    => $data['user_email'],
-            'password' => Hash::make($data['user_password']),
-            'phone'    => $data['user_phone'] ?? null,
-        ]);
-
-        $user->assignRole('pasien');
-
         $prefix = !empty($data['is_member']) ? 'RM' : 'NM';
         $rm = CodeGenerator::prefixNumber(new Pasien(), 'no_rekam_medis', $prefix, 6, '-');
 
         return Pasien::create([
-            'user_id'         => $user->id,
+            'nama'            => $data['nama'] ?? null,
+            'tanggal_lahir'   => $data['tanggal_lahir'] ?? null,
+            'jenis_kelamin'   => $data['jenis_kelamin'] ?? null,
+            'no_telepon'      => $data['no_telepon'] ?? null,
+            'user_id'         => null,
             'no_rekam_medis'  => $rm,
             'is_member'       => (bool) ($data['is_member'] ?? false),
             'member_since'    => ($data['is_member'] ?? false) ? ($data['member_since'] ?? now()) : null,
