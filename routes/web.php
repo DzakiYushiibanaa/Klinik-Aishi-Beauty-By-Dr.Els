@@ -94,7 +94,12 @@ Route::middleware(['auth'])->group(function () {
     // ============================
     // APPOINTMENT (JANJI TEMU)
     // ============================
-    // Halaman Form Booking
+    // Halaman Pilih Layanan
+    Route::get('/appointment/pilih', [AppointmentController::class, 'selectType'])->name('appointment.select');
+    // Halaman Wizard Konsultasi Dokter
+    Route::get('/appointment/konsultasi', [AppointmentController::class, 'konsultasi'])->name('appointment.konsultasi');
+    Route::post('/appointment/konsultasi', [AppointmentController::class, 'submitKonsultasi'])->name('appointment.konsultasi.store');
+    // Halaman Form Booking (lama/treatment)
     Route::get('/appointment/buat', [AppointmentController::class, 'create'])->name('appointment.create');
     // Proses Simpan Booking
     Route::post('/appointment', [AppointmentController::class, 'store'])->name('appointment.store');

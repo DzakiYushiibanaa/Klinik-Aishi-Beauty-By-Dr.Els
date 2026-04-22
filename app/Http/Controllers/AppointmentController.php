@@ -20,6 +20,75 @@ use Illuminate\Support\Str;
 
 class AppointmentController extends Controller
 {
+    public function selectType()
+    {
+        return view('appointment.select-type');
+    }
+
+    public function konsultasi()
+    {
+        $user = Auth::user();
+        
+        // Pengecekan Kelengkapan Profil
+        if (!$user->phone || !$user->tanggal_lahir) {
+            return redirect('/dashboard')->with('error', 'Silakan lengkapi Nomor WhatsApp dan Tanggal Lahir Anda di tab Profil sebelum membuat janji temu.');
+        }
+
+        // Dummy data for Doctors (since we need them for Step 2)
+        $doctors = User::role('dokter')
+            ->with('dokterProfile')
+            ->whereHas('dokterProfile', function($q) {
+                $q->where('status_praktik', 'aktif');
+            })
+            ->get();
+
+        // Get all active schedule
+        $jadwals = \App\Models\JadwalPraktik::where('is_active', true)->get();
+
+        return view('appointment.konsultasi', [
+            'doctors' => $doctors,
+            'jadwals' => $jadwals,
+            'user' => $user
+        ]);
+    }
+
+    public function submitKonsultasi(Request $request)
+    {
+        $request->validate([
+            'jenis' => 'required|string',
+            'dokter_id' => 'required|exists:users,id',
+            'tanggal' => 'required|date',
+            'jam' => 'required|string',
+        ]);
+
+        $user = Auth::user();
+
+        // Buat record Appointment
+        $appointment = Appointment::create([
+            'user_id' => $user->id,
+            'dokter_id' => $request->dokter_id,
+            'dibuat_oleh_id' => $user->id,
+            'jenis' => 'konsultasi',
+            'sumber' => 'online',
+            'tanggal_jam' => $request->tanggal . ' ' . str_replace('.', ':', substr($request->jam, 0, 5)) . ':00',
+            'status' => 'diajukan',
+            'catatan_pasien' => 'Konsultasi Dokter (' . ucfirst($request->jenis) . ')',
+        ]);
+
+        // Simpan data, kirim notifikasi, dll.
+        // Bisa diintegrasikan ke WA/Email di sini (contoh: SendWAJob::dispatch($appointment))
+
+        // Set session untuk Toast di halaman Dashboard nanti
+        session()->flash('success', 'Janji Temu Berhasil Dibuat! Silakan cek WhatsApp/Email Anda.');
+
+        // Kembalikan response JSON untuk ditangkap oleh AlpineJS
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Janji temu berhasil dibuat.',
+            'data' => $appointment
+        ]);
+    }
+
     public function create(Request $request)
     {
         $linkedFormId = $request->query('patient_form_id');

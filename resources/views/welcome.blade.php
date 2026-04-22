@@ -43,7 +43,7 @@
                     </p>
 
                     <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                        <a href="{{ route('appointment.create') }}"
+                        <a href="{{ route('appointment.select') }}"
                             class="inline-flex items-center justify-center rounded-full bg-white text-[#1A1A1A] hover:bg-gray-200 px-8 py-3.5 text-sm font-bold tracking-wider transition-colors shadow-lg">
                             Buat Janji Temu
                         </a>
