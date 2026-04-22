@@ -17,12 +17,152 @@ use Carbon\Carbon;
 use App\Filament\Resources\Appointments\AppointmentResource;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Midtrans\Config as MidtransConfig;
+use Midtrans\Snap;
 
 class AppointmentController extends Controller
 {
     public function selectType()
     {
         return view('appointment.select-type');
+    }
+
+    public function bookingTreatment()
+    {
+        $user = Auth::user();
+
+        if (!$user->phone || !$user->tanggal_lahir) {
+            return redirect('/dashboard')->with('error', 'Silakan lengkapi Nomor WhatsApp dan Tanggal Lahir Anda di tab Profil sebelum membuat janji temu.');
+        }
+
+        $treatments = Treatment::with('category')
+            ->where('is_active', true)
+            ->get();
+
+        $categories = \App\Models\TreatmentCategory::where('is_active', true)
+            ->has('treatments')
+            ->orderBy('nama')
+            ->get();
+
+        $treatmentsJson = $treatments->map(function ($t) {
+            return [
+                'id' => $t->treatment_id,
+                'category_id' => $t->treatment_category_id,
+                'category_nama' => $t->category->nama ?? 'Uncategorized',
+                'nama' => $t->nama,
+                'deskripsi' => $t->deskripsi,
+                'harga' => $t->harga,
+                'durasi' => $t->durasi_menit,
+                'foto' => $t->foto_path ? \Storage::url($t->foto_path) : '',
+            ];
+        })->values();
+
+        return view('appointment.booking-treatment', [
+            'treatments' => $treatments,
+            'categories' => $categories,
+            'user' => $user,
+            'midtransClientKey' => config('midtrans.client_key'),
+            'treatmentsJson' => $treatmentsJson,
+        ]);
+    }
+
+    public function submitBookingTreatment(Request $request)
+    {
+        $request->validate([
+            'treatments' => 'required|array|min:1',
+            'treatments.*.id' => 'required|exists:treatments,treatment_id',
+            'tanggal' => 'required|date|after_or_equal:today',
+            'jam' => 'required|string',
+        ]);
+
+        $user = Auth::user();
+
+        // 1. Save appointment to DB first
+        DB::beginTransaction();
+        try {
+            $jamMulai = explode(' - ', $request->jam)[0];
+            $tanggalJam = Carbon::parse($request->tanggal . ' ' . $jamMulai);
+
+            $appointment = Appointment::create([
+                'user_id' => $user->id,
+                'jenis' => 'treatment',
+                'sumber' => 'online',
+                'dibuat_oleh_id' => $user->id,
+                'tanggal_jam' => $tanggalJam,
+                'status' => 'diajukan',
+                'catatan_pasien' => 'Booking Treatment Online | Jam: ' . $request->jam,
+            ]);
+
+            $totalHarga = 0;
+            $itemDetails = [];
+
+            foreach ($request->treatments as $treatmentData) {
+                $treatment = Treatment::find($treatmentData['id']);
+                if ($treatment) {
+                    AppointmentItem::create([
+                        'appointment_id' => $appointment->appointment_id,
+                        'item_type' => 'treatment',
+                        'treatment_id' => $treatment->treatment_id,
+                        'qty' => 1,
+                    ]);
+                    $totalHarga += $treatment->harga;
+                    $itemDetails[] = [
+                        'id' => 'TRT-' . $treatment->treatment_id,
+                        'price' => (int) $treatment->harga,
+                        'quantity' => 1,
+                        'name' => substr($treatment->nama, 0, 50),
+                    ];
+                }
+            }
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollback();
+            Log::error('Booking Treatment DB Error: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal menyimpan booking: ' . $e->getMessage(),
+            ], 500);
+        }
+
+        // 2. Generate Midtrans Snap Token (separate from DB transaction)
+        try {
+            MidtransConfig::$serverKey = config('midtrans.server_key');
+            MidtransConfig::$isProduction = config('midtrans.is_production');
+            MidtransConfig::$isSanitized = config('midtrans.is_sanitized');
+            MidtransConfig::$is3ds = config('midtrans.is_3ds');
+
+            $orderId = 'APT-' . $appointment->appointment_id . '-' . time();
+
+            $params = [
+                'transaction_details' => [
+                    'order_id' => $orderId,
+                    'gross_amount' => (int) $totalHarga,
+                ],
+                'item_details' => $itemDetails,
+                'customer_details' => [
+                    'first_name' => $user->name,
+                    'email' => $user->email,
+                    'phone' => $user->phone ?? '',
+                ],
+            ];
+
+            $snapToken = Snap::getSnapToken($params);
+
+            return response()->json([
+                'status' => 'success',
+                'snap_token' => $snapToken,
+                'appointment_id' => $appointment->appointment_id,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Midtrans Snap Error: ' . $e->getMessage());
+            // Appointment is saved, but payment failed — redirect to dashboard
+            return response()->json([
+                'status' => 'success_no_payment',
+                'message' => 'Booking berhasil disimpan, namun sistem pembayaran sedang gangguan. Silakan hubungi klinik.',
+                'appointment_id' => $appointment->appointment_id,
+            ]);
+        }
     }
 
     public function konsultasi()

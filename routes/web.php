@@ -99,6 +99,9 @@ Route::middleware(['auth'])->group(function () {
     // Halaman Wizard Konsultasi Dokter
     Route::get('/appointment/konsultasi', [AppointmentController::class, 'konsultasi'])->name('appointment.konsultasi');
     Route::post('/appointment/konsultasi', [AppointmentController::class, 'submitKonsultasi'])->name('appointment.konsultasi.store');
+    // Halaman Wizard Booking Treatment
+    Route::get('/appointment/booking-treatment', [AppointmentController::class, 'bookingTreatment'])->name('appointment.booking-treatment');
+    Route::post('/appointment/booking-treatment', [AppointmentController::class, 'submitBookingTreatment'])->name('appointment.booking-treatment.store');
     // Halaman Form Booking (lama/treatment)
     Route::get('/appointment/buat', [AppointmentController::class, 'create'])->name('appointment.create');
     // Proses Simpan Booking

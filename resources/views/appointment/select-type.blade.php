@@ -34,7 +34,7 @@
                 </a>
 
                 <!-- Option 2: Booking Treatment -->
-                <a href="#" class="group flex items-center justify-between border border-gray-200 p-5 sm:p-6 transition-all duration-200 hover:border-[#8C7A63] hover:shadow-md hover:bg-[#FAF8F5]/50 focus:outline-none focus:ring-2 focus:ring-[#8C7A63] focus:ring-offset-2" style="border-radius: 16px;">
+                <a href="{{ route('appointment.booking-treatment') }}" class="group flex items-center justify-between border border-gray-200 p-5 sm:p-6 transition-all duration-200 hover:border-[#8C7A63] hover:shadow-md hover:bg-[#FAF8F5]/50 focus:outline-none focus:ring-2 focus:ring-[#8C7A63] focus:ring-offset-2" style="border-radius: 16px;">
                     <div class="flex items-center gap-4 sm:gap-5">
                         <div class="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-gray-300 group-hover:border-[#8C7A63] transition-colors">
                             <!-- Radio indicator (empty) -->
