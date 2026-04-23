@@ -50,28 +50,32 @@
             <nav class="hidden lg:flex items-center gap-10">
                 @if (\Illuminate\Support\Facades\Route::has('treatment.index'))
                     <a href="{{ route('treatment.index') }}" 
-                       class="text-xs font-semibold tracking-widest uppercase text-[#1A1A1A] hover:text-[#8C7A63] transition-colors {{ request()->routeIs('treatment.*') ? 'text-[#8C7A63]' : '' }}">
+                       class="group relative text-xs font-semibold tracking-widest uppercase text-[#1A1A1A] hover:text-[#8C7A63] transition-colors {{ request()->routeIs('treatment.*') ? 'text-[#8C7A63]' : '' }}">
                         Treatment
+                        <span class="absolute -bottom-1.5 left-1/2 h-[2px] w-0 -translate-x-1/2 bg-[#8C7A63] transition-all duration-300 ease-out group-hover:w-full {{ request()->routeIs('treatment.*') ? 'w-full' : '' }}"></span>
                     </a>
                 @endif
                 
                 @if (\Illuminate\Support\Facades\Route::has('shop.index'))
                     <a href="{{ route('shop.index') }}" 
-                       class="text-xs font-semibold tracking-widest uppercase text-[#1A1A1A] hover:text-[#8C7A63] transition-colors {{ request()->routeIs('shop.*') ? 'text-[#8C7A63]' : '' }}">
+                       class="group relative text-xs font-semibold tracking-widest uppercase text-[#1A1A1A] hover:text-[#8C7A63] transition-colors {{ request()->routeIs('shop.*') ? 'text-[#8C7A63]' : '' }}">
                         Produk
+                        <span class="absolute -bottom-1.5 left-1/2 h-[2px] w-0 -translate-x-1/2 bg-[#8C7A63] transition-all duration-300 ease-out group-hover:w-full {{ request()->routeIs('shop.*') ? 'w-full' : '' }}"></span>
                     </a>
                 @endif
 
                 @if (\Illuminate\Support\Facades\Route::has('forum.index'))
                     <a href="{{ route('forum.index') }}" 
-                       class="text-xs font-semibold tracking-widest uppercase text-[#1A1A1A] hover:text-[#8C7A63] transition-colors {{ request()->routeIs('treatment.*') ? 'text-[#8C7A63]' : '' }}">
+                       class="group relative text-xs font-semibold tracking-widest uppercase text-[#1A1A1A] hover:text-[#8C7A63] transition-colors {{ request()->routeIs('forum.*') ? 'text-[#8C7A63]' : '' }}">
                         Forum
+                        <span class="absolute -bottom-1.5 left-1/2 h-[2px] w-0 -translate-x-1/2 bg-[#8C7A63] transition-all duration-300 ease-out group-hover:w-full {{ request()->routeIs('forum.*') ? 'w-full' : '' }}"></span>
                     </a>
                 @endif
 
                 <a href="{{ route('pra.create') }}" 
-                   class="text-xs font-semibold tracking-widest uppercase text-[#1A1A1A] hover:text-[#8C7A63] transition-colors {{ request()->routeIs('pra.*') ? 'text-[#8C7A63]' : '' }}">
+                   class="group relative text-xs font-semibold tracking-widest uppercase text-[#1A1A1A] hover:text-[#8C7A63] transition-colors {{ request()->routeIs('pra.*') ? 'text-[#8C7A63]' : '' }}">
                     Pra Konsultasi
+                    <span class="absolute -bottom-1.5 left-1/2 h-[2px] w-0 -translate-x-1/2 bg-[#8C7A63] transition-all duration-300 ease-out group-hover:w-full {{ request()->routeIs('pra.*') ? 'w-full' : '' }}"></span>
                 </a>
             </nav>
 
