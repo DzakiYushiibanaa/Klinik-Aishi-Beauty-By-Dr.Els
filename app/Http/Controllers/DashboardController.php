@@ -4,7 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Appointment;
 use App\Models\Order;
+use App\Models\OrderItem;
+use App\Models\Pasien;
 use App\Models\PatientForm;
+use App\Models\RekamMedis;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -20,25 +23,119 @@ class DashboardController extends Controller
     public function index()
     {
         $user = Auth::user();
+        $pasienId = Pasien::where('user_id', $user->id)->value('pasien_id');
 
+        // ── Data Janji Temu ──
         $appointments = Appointment::where('user_id', $user->id)
-            ->with(['dokter', 'terapis'])
+            ->with(['dokter', 'terapis', 'items.treatment', 'items.bundle'])
             ->orderBy('tanggal_jam', 'desc')
             ->get();
-            
-        $pasienId = \App\Models\Pasien::where('user_id', $user->id)->value('pasien_id');
 
+        // Mapping appointment_id => order payment status (untuk tab Janji Temu)
+        $appointmentOrderMap = OrderItem::whereIn('appointment_id', $appointments->pluck('appointment_id'))
+            ->with('order')
+            ->get()
+            ->groupBy('appointment_id')
+            ->map(fn($items) => $items->first()->order);
+
+        // ── Data Pra-Konsultasi ──
         $praKonsuls = PatientForm::where('pasien_id', $pasienId)
-            ->with('dokter')
-            ->orderBy('created_at', 'desc')
-            ->get();
-            
-        $orders = Order::where('user_id', $user->id)
-            ->with('items')
+            ->with(['dokter', 'rekomendasiItems.product', 'rekomendasiItems.treatment', 'rekomendasiItems.bundle'])
             ->orderBy('created_at', 'desc')
             ->get();
 
-        return view('dashboard', compact('user', 'appointments', 'praKonsuls', 'orders'));
+        // ── Data Pesanan (semua tipe) ──
+        $orders = Order::where('user_id', $user->id)
+            ->with(['items.product', 'items.treatment', 'items.bundle'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // ── Overview: Jadwal Mendatang ──
+        $upcomingAppointments = Appointment::where('user_id', $user->id)
+            ->whereIn('status', ['diajukan', 'disetujui'])
+            ->where('tanggal_jam', '>=', now())
+            ->with(['dokter', 'items.treatment'])
+            ->orderBy('tanggal_jam', 'asc')
+            ->limit(3)
+            ->get();
+
+        // ── Rekam Medis ──
+        $rekamMedis = RekamMedis::where('pasien_id', $user->id)
+            ->with(['appointment.items.treatment', 'dokter', 'terapis'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // ── Stats Overview ──
+        $stats = [
+            'total_appointments' => $appointments->count(),
+            'upcoming' => $upcomingAppointments->count(),
+            'total_orders' => $orders->count(),
+            'active_orders' => $orders->whereIn('status', ['menunggu_pembayaran', 'sudah_dibayar', 'lunas'])->whereNotIn('shipping_status', ['selesai', 'dibatalkan'])->count(),
+            'total_rekam_medis' => $rekamMedis->count(),
+        ];
+
+        // ── Sidebar Badges ──
+        $badges = [
+            'pra_konsul' => $praKonsuls->whereIn('status', ['submitted', 'menunggu', 'reviewed'])->count(),
+            'pesanan' => $stats['active_orders']
+        ];
+
+        // ── Next Action Logic (Lanjutkan Aktivitas) ──
+        $nextAction = null;
+        $pendingOrder = $orders->where('status', 'menunggu_pembayaran')->first();
+        $reviewedKonsul = $praKonsuls->whereIn('status', ['reviewed', 'direkomendasikan'])->first();
+        $pendingAppointment = $appointments->where('status', 'diajukan')->first();
+
+        $pendingOrderCount = $orders->where('status', 'menunggu_pembayaran')->count();
+
+        if ($pendingOrderCount > 0) {
+            $nextAction = [
+                'type' => 'payment',
+                'title' => 'Selesaikan Pembayaran',
+                'description' => "Anda memiliki $pendingOrderCount pesanan yang belum dibayar. Segera selesaikan pembayaran agar pesanan diproses.",
+                'cta_text' => 'Bayar Sekarang',
+                'cta_tab' => 'orders',
+                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>',
+                'color' => 'orange'
+            ];
+        } elseif ($reviewedKonsul) {
+            $nextAction = [
+                'type' => 'recommendation',
+                'title' => 'Rekomendasi Dokter Tersedia',
+                'description' => 'Dokter telah meninjau kondisi kulit Anda dan memberikan rekomendasi perawatan.',
+                'cta_text' => 'Lihat Rekomendasi',
+                'cta_tab' => 'prakonsul',
+                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>',
+                'color' => 'blue'
+            ];
+        } elseif ($pendingAppointment) {
+            $nextAction = [
+                'type' => 'appointment',
+                'title' => 'Janji Temu Menunggu Konfirmasi',
+                'description' => 'Admin kami sedang meninjau jadwal janji temu Anda. Harap tunggu konfirmasi.',
+                'cta_text' => 'Lihat Jadwal',
+                'cta_tab' => 'appointment',
+                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>',
+                'color' => 'amber'
+            ];
+        } else {
+            $nextAction = [
+                'type' => 'empty',
+                'title' => 'Selamat datang di Aishi Beauty!',
+                'description' => 'Awali perjalanan kulit sehatmu dengan konsultasi dokter secara gratis.',
+                'cta_text' => 'Mulai Pra-Konsultasi',
+                'cta_link' => route('pra.create'),
+                'secondary_cta_text' => 'Eksplor Perawatan',
+                'secondary_cta_link' => route('treatment.index'),
+                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>',
+                'color' => 'emerald'
+            ];
+        }
+
+        return view('dashboard', compact(
+            'user', 'appointments', 'appointmentOrderMap', 'praKonsuls', 'orders',
+            'upcomingAppointments', 'rekamMedis', 'stats', 'badges', 'nextAction'
+        ));
     }
 
     // ==========================================

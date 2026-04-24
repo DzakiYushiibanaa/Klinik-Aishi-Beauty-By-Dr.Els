@@ -60,6 +60,38 @@ class PaymentController extends Controller
         return view('payment.show', compact('order', 'snapToken'));
     }
 
+    /**
+     * API untuk mendapatkan Snap Token (AJAX)
+     */
+    public function getToken($orderId)
+    {
+        $this->setMidtransConfig();
+        
+        $order = Order::with(['items', 'user'])
+            ->where('kode_order', $orderId)
+            ->orWhere('order_id', $orderId)
+            ->firstOrFail();
+
+        if ($order->user_id !== auth()->id() && !auth()->user()->hasRole('admin')) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        if ($order->status !== 'menunggu_pembayaran') {
+            return response()->json(['error' => 'Pesanan sudah dibayar atau status tidak valid'], 400);
+        }
+
+        try {
+            if ($order->snap_token) {
+                $snapToken = $order->snap_token;
+            } else {
+                $snapToken = $this->generateSnapToken($order);
+                $order->update(['snap_token' => $snapToken]);
+            }
+            return response()->json(['token' => $snapToken]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
     private function generateSnapToken(Order $order): string
     {
         $user = $order->user;

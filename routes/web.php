@@ -59,6 +59,9 @@ Route::middleware(['auth'])->group(function () {
 
     Route::patch('/profile/update', [DashboardController::class, 'updateProfile'])->name('pasien.profile.update');
 
+    // INVOICE
+    Route::post('/orders/{kode_order}/invoice/email', [App\Http\Controllers\OrderInvoiceController::class, 'sendEmail'])->name('invoice.email');
+
     // Route untuk Notifikasi
     Route::get('/notification/{id}/read', [NotificationController::class, 'markAsRead'])->name('notification.read');
     Route::post('/notification/read-all', [NotificationController::class, 'markAllRead'])->name('notification.readAll');
@@ -125,6 +128,7 @@ Route::middleware(['auth'])->group(function () {
     // PAYMENT GATEWAY (MIDTRANS)
     // ============================
     Route::get('/payment/{order}', [PaymentController::class, 'show'])->name('payment.show');
+    Route::get('/payment/{order}/token', [PaymentController::class, 'getToken'])->name('payment.token');
     Route::get('/payment-status/success', [PaymentController::class, 'success'])->name('payment.success');
     Route::get('/payment-status/unfinish', [PaymentController::class, 'unfinish'])->name('payment.unfinish');
     Route::get('/payment-status/error', [PaymentController::class, 'error'])->name('payment.error');

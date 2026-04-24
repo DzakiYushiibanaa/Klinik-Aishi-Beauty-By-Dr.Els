@@ -33,13 +33,13 @@
             <div class="relative z-20 mx-auto h-full max-w-7xl px-4 sm:px-6 lg:px-8 flex items-center">
                 <div class="max-w-2xl text-white">
                     <h1
-                        class="text-4xl sm:text-5xl lg:text-[4.5rem] font-bold font-serif mb-6 leading-tight drop-shadow-lg">
-                        Konsultasikan Masalah Kulitmu,<br />
-                        Cukup dari Rumah.
+                        class="text-4xl sm:text-5xl lg:text-[4.5rem] font-bold font-sans mb-6 leading-tight drop-shadow-lg">
+                        Solusi kulitmu,<br />
+                        tanpa harus ke klinik
                     </h1>
                     <p
                         class="text-[#D6C5AD] text-base md:text-lg leading-relaxed mb-10 max-w-lg font-light drop-shadow">
-                        Tak perlu bingung salah pilih produk. Konsultasikan masalah kulitmu secara online dan biarkan dokter spesialis kami memberikan solusi yang tepat untukmu secara <b>GRATIS.</b>
+                        Ceritakan kondisi kulitmu secara online, lalu dapatkan analisis dan rekomendasi perawatan langsung dari dokter kami tanpa harus datang ke klinik.
                     </p>
 
                     <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
@@ -47,7 +47,7 @@
                             class="inline-flex items-center justify-center rounded-full bg-white text-[#1A1A1A] hover:bg-gray-200 px-8 py-3.5 text-sm font-bold tracking-wider transition-colors shadow-lg">
                             Buat Janji Temu
                         </a>
-                        <a href="{{ route('pra.index') }}"
+                        <a href="{{ route('pra.create') }}"
                             class="inline-flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-white/20 text-white hover:bg-black/60 px-8 py-3.5 text-sm font-bold tracking-wider transition-colors">
                             Konsultasi Online
                         </a>
@@ -131,7 +131,7 @@
                                     d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                             </svg>
                         </div>
-                        <h3 class="text-3xl font-serif text-white mb-1"><span
+                        <h3 class="text-3xl font-sans text-white mb-1"><span
                                 x-text="c1.toLocaleString('id-ID')">0</span></h3>
                         <p class="text-[10px] font-semibold tracking-widest text-[#8C7A63] uppercase">Pasien Terlayani
                         </p>
@@ -145,7 +145,7 @@
                                     d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
                             </svg>
                         </div>
-                        <h3 class="text-3xl font-serif text-white mb-1"><span x-text="c2">0</span></h3>
+                        <h3 class="text-3xl font-sans text-white mb-1"><span x-text="c2">0</span></h3>
                         <p class="text-[10px] font-semibold tracking-widest text-[#8C7A63] uppercase">Jenis Perawatan
                         </p>
                     </div>
@@ -158,7 +158,7 @@
                                     d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                             </svg>
                         </div>
-                        <h3 class="text-3xl font-serif text-white mb-1"><span x-text="c3">0</span></h3>
+                        <h3 class="text-3xl font-sans text-white mb-1"><span x-text="c3">0</span></h3>
                         <p class="text-[10px] font-semibold tracking-widest text-[#8C7A63] uppercase">Ahli Kecantikan
                         </p>
                     </div>
@@ -171,7 +171,7 @@
                                     d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                             </svg>
                         </div>
-                        <h3 class="text-3xl font-serif text-white mb-1"><span x-text="c4">0</span></h3>
+                        <h3 class="text-3xl font-sans text-white mb-1"><span x-text="c4">0</span></h3>
                         <p class="text-[10px] font-semibold tracking-widest text-[#8C7A63] uppercase">Tahun Berdiri</p>
                     </div>
                 </div>
@@ -181,7 +181,7 @@
         {{-- SECTION 3: TREATMENTS --}}
         <section class="max-w-7xl mx-auto px-4 py-20 w-full">
             <div class="text-center mb-12">
-                <h2 class="text-3xl sm:text-4xl font-serif text-[#1A1A1A] mb-4">
+                <h2 class="text-3xl sm:text-4xl font-sans text-[#1A1A1A] mb-4">
                     Jelajahi <span class="italic text-[#8C7A63]">Perawatan</span> Kecantikan<br />Kami
                 </h2>
                 <p class="text-gray-500 max-w-2xl mx-auto text-sm">
@@ -204,7 +204,7 @@
                             @endif
                         </div>
                         <div>
-                            <h3 class="font-serif text-lg font-bold text-[#1A1A1A] mb-2">{{ $treatment->nama }}</h3>
+                            <h3 class="font-sans text-lg font-bold text-[#1A1A1A] mb-2">{{ $treatment->nama }}</h3>
                             <p class="text-sm text-gray-600 line-clamp-3 leading-relaxed">
                                 {{ $treatment->deskripsi ?? 'Perawatan optimal untuk mengembalikan kesehatan kulit dan memberikan tampilan yang lebih cerah.' }}
                             </p>
@@ -218,7 +218,7 @@
                                 src="https://images.unsplash.com/photo-1590159763121-7c913ad8fac6?w=200&h=200&fit=crop"
                                 class="w-full h-full object-cover"></div>
                         <div>
-                            <h3 class="font-serif text-lg font-bold text-[#1A1A1A] mb-2">Skin Booster</h3>
+                            <h3 class="font-sans text-lg font-bold text-[#1A1A1A] mb-2">Skin Booster</h3>
                             <p class="text-sm text-gray-600">Injeksi vitamin dan hyaluronic acid untuk melembapkan kulit
                                 dari dalam dan memberikan efek glowing bercahaya.</p>
                         </div>
@@ -229,7 +229,7 @@
                                 src="https://images.unsplash.com/photo-1556228578-0d85b1a4d571?w=200&h=200&fit=crop"
                                 class="w-full h-full object-cover"></div>
                         <div>
-                            <h3 class="font-serif text-lg font-bold text-[#1A1A1A] mb-2">Acne Clear</h3>
+                            <h3 class="font-sans text-lg font-bold text-[#1A1A1A] mb-2">Acne Clear</h3>
                             <p class="text-sm text-gray-600">Perawatan komprehensif untuk mengatasi jerawat membandel dan
                                 mencegah timbulnya kembali bekas jerawat.</p>
                         </div>
@@ -240,7 +240,7 @@
                                 src="https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=200&h=200&fit=crop"
                                 class="w-full h-full object-cover"></div>
                         <div>
-                            <h3 class="font-serif text-lg font-bold text-[#1A1A1A] mb-2">Laser Rejuvenation</h3>
+                            <h3 class="font-sans text-lg font-bold text-[#1A1A1A] mb-2">Laser Rejuvenation</h3>
                             <p class="text-sm text-gray-600">Terapi laser tingkat lanjut untuk merangsang kolagen, meratakan
                                 warna kulit, dan memudarkan flek hitam.</p>
                         </div>
@@ -265,7 +265,7 @@
         {{-- SECTION 4: PRODUCTS --}}
         <section class="max-w-7xl mx-auto px-4 py-16 w-full border-t border-gray-200">
             <div class="text-center mb-12">
-                <h2 class="text-3xl sm:text-4xl font-serif text-[#1A1A1A] mb-4">
+                <h2 class="text-3xl sm:text-4xl font-sans text-[#1A1A1A] mb-4">
                     Katalog <span class="italic text-[#8C7A63]">Produk</span> Kami
                 </h2>
                 <p class="text-gray-500 max-w-xl mx-auto text-sm">
@@ -287,7 +287,7 @@
                             @endif
                         </div>
                         <div class="p-6">
-                            <h3 class="font-serif text-lg font-bold text-[#1A1A1A] mb-2 line-clamp-1">{{ $p->nama }}</h3>
+                            <h3 class="font-sans text-lg font-bold text-[#1A1A1A] mb-2 line-clamp-1">{{ $p->nama }}</h3>
                             <p class="text-sm text-gray-500 line-clamp-2 mb-4">Rangkaian perawatan kulit yang menutrisi dan
                                 menjaga kelembapan kulit secara optimal setiap saat.</p>
                             <div class="flex items-center justify-between">
@@ -308,10 +308,10 @@
                         <div class="aspect-square bg-[#812328] flex items-center justify-center p-8 relative"><img
                                 src="https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=400&h=400&fit=crop"
                                 class="w-full h-full object-cover mix-blend-multiply opacity-50 rounded" /><span
-                                class="absolute text-white font-bold tracking-widest z-10 text-xl font-serif">Serum
+                                class="absolute text-white font-bold tracking-widest z-10 text-xl font-sans">Serum
                                 Sinar</span></div>
                         <div class="p-6">
-                            <h3 class="font-serif text-lg font-bold text-[#1A1A1A] mb-2">Serum Skincare Pencerah</h3>
+                            <h3 class="font-sans text-lg font-bold text-[#1A1A1A] mb-2">Serum Skincare Pencerah</h3>
                             <p class="text-sm text-gray-500 mb-4 line-clamp-2">Serum yang diformulasikan dengan niacinamide
                                 untuk melembapkan kulit secara maksimal dan meratakan warna kulit.</p>
                             <div class="flex items-center justify-between"><span class="font-bold text-[#8C7A63]">Rp
@@ -327,10 +327,10 @@
                         <div class="aspect-square bg-[#B34125] flex items-center justify-center p-8 relative"><img
                                 src="https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=400&h=400&fit=crop"
                                 class="w-full h-full object-cover mix-blend-multiply opacity-50 rounded" /><span
-                                class="absolute text-white font-bold tracking-widest z-10 text-xl font-serif">Moisture</span>
+                                class="absolute text-white font-bold tracking-widest z-10 text-xl font-sans">Moisture</span>
                         </div>
                         <div class="p-6">
-                            <h3 class="font-serif text-lg font-bold text-[#1A1A1A] mb-2">Moisture Tekstur Krim Gel</h3>
+                            <h3 class="font-sans text-lg font-bold text-[#1A1A1A] mb-2">Moisture Tekstur Krim Gel</h3>
                             <p class="text-sm text-gray-500 mb-4 line-clamp-2">Krim pelembap dengan tekstur ringan yang
                                 menyerap cepat, memberikan kelembapan maksimal sepanjang hari.</p>
                             <div class="flex items-center justify-between"><span class="font-bold text-[#8C7A63]">Rp
@@ -346,10 +346,10 @@
                         <div class="aspect-square bg-[#3E3836] flex items-center justify-center p-8 relative"><img
                                 src="https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=400&h=400&fit=crop"
                                 class="w-full h-full object-cover mix-blend-multiply opacity-50 rounded" /><span
-                                class="absolute text-white font-bold tracking-widest z-10 text-xl font-serif">Sun
+                                class="absolute text-white font-bold tracking-widest z-10 text-xl font-sans">Sun
                                 Shield</span></div>
                         <div class="p-6">
-                            <h3 class="font-serif text-lg font-bold text-[#1A1A1A] mb-2">Sunblock Pencerah Wajah</h3>
+                            <h3 class="font-sans text-lg font-bold text-[#1A1A1A] mb-2">Sunblock Pencerah Wajah</h3>
                             <p class="text-sm text-gray-500 mb-4 line-clamp-2">Perlindungan optimal dari paparan sinar UV
                                 dengan SPF 50+, sekaligus membantu mencerahkan noda hitam pada wajah.</p>
                             <div class="flex items-center justify-between"><span class="font-bold text-[#8C7A63]">Rp
@@ -376,7 +376,7 @@
         <section class="max-w-7xl mx-auto px-4 py-20 w-full">
             <div class="flex flex-col lg:flex-row gap-12 lg:gap-24">
                 <div class="lg:w-1/3">
-                    <h2 class="text-3xl sm:text-4xl font-serif text-[#1A1A1A] mb-6">
+                    <h2 class="text-3xl sm:text-4xl font-sans text-[#1A1A1A] mb-6">
                         Pertanyaan yang Sering<br /><span class="italic text-[#8C7A63]">Diajukan</span>
                     </h2>
                     <p class="text-gray-500 text-sm mb-8">
@@ -489,7 +489,7 @@
                     class="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] mix-blend-overlay">
                 </div>
                 <div class="relative z-10">
-                    <h2 class="text-3xl sm:text-4xl lg:text-5xl font-serif text-white mb-6">
+                    <h2 class="text-3xl sm:text-4xl lg:text-5xl font-sans text-white mb-6">
                         Siap untuk <span class="italic font-light">Mengubah</span><br />Penampilan Anda?
                     </h2>
                     <p class="text-[#E5E0D8] max-w-2xl mx-auto mb-10">
@@ -507,7 +507,7 @@
         {{-- SECTION 7: LOCATION (Moved from Guest Layout/Footer to here) --}}
         <section class="w-full bg-[#FAF8F5] py-20 border-t border-gray-200">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center mb-12">
-                <h2 class="text-3xl sm:text-4xl font-serif text-[#1A1A1A] mb-4">
+                <h2 class="text-3xl sm:text-4xl font-sans text-[#1A1A1A] mb-4">
                     Kunjungi <span class="italic text-[#8C7A63]">Klinik</span> Kami
                 </h2>
                 <p class="text-gray-500 max-w-2xl mx-auto text-sm">
@@ -519,7 +519,7 @@
             <div class="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col lg:flex-row gap-8 items-stretch">
                 {{-- Address Card --}}
                 <div class="lg:w-1/3 bg-[#F2EFE9] rounded-3xl p-8 border border-[#E5E0D8] shadow-sm flex flex-col">
-                    <h3 class="font-serif text-xl font-bold text-[#1A1A1A] mb-6">Aishi Beauty Cabang Beji</h3>
+                    <h3 class="font-sans text-xl font-bold text-[#1A1A1A] mb-6">Aishi Beauty Cabang Beji</h3>
 
                     <div class="space-y-6 flex-1">
                         <div class="flex gap-4">

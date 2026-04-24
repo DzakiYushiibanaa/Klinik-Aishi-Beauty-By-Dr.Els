@@ -81,10 +81,9 @@
 
             {{-- 3. DESKTOP ICONS & CTA (Right) --}}
             <div class="hidden lg:flex items-center gap-6">
-                {{-- Search Icon --}}
-                <button class="text-[#1A1A1A] hover:text-[#8C7A63] transition-colors">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                </button>
+
+                {{-- NOTIFICATION ICON --}}
+                <x-nav-notification />
 
                 {{-- CART ICON --}}
                 @if (\Illuminate\Support\Facades\Route::has('cart.index'))
@@ -100,14 +99,20 @@
                     </a>
                 @endif
 
+                {{-- Vertical Line Separator --}}
+                <div class="h-5 w-px bg-[#E8E0D8]"></div>
+
                 @auth
                     <a href="{{ url('/dashboard') }}" class="rounded-full bg-[#1A1A1A] px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-white transition hover:bg-[#333]">
                         Dashboard
                     </a>
                 @else
-                    @if (\Illuminate\Support\Facades\Route::has('appointment.create'))
-                        <a href="{{ route('appointment.create') }}" class="rounded-full bg-[#1A1A1A] px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-white transition hover:bg-[#333]">
-                            Buat Janji Temu
+                    <a href="{{ route('login') }}" class="text-xs font-bold tracking-widest uppercase text-[#1A1A1A] hover:text-[#8C7A63] transition-colors">
+                        Sign In
+                    </a>
+                    @if (\Illuminate\Support\Facades\Route::has('register'))
+                        <a href="{{ route('register') }}" class="rounded-full bg-[#1A1A1A] px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-white transition hover:bg-[#333]">
+                            Sign Up
                         </a>
                     @endif
                 @endauth
@@ -115,6 +120,9 @@
 
             {{-- 4. MOBILE HAMBURGER --}}
             <div class="flex items-center gap-4 lg:hidden">
+                {{-- NOTIFICATION ICON --}}
+                <x-nav-notification />
+
                 @if (\Illuminate\Support\Facades\Route::has('cart.index'))
                     <a href="{{ route('cart.index') }}" class="relative text-[#1A1A1A]">
                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
@@ -140,13 +148,17 @@
                 @if (\Illuminate\Support\Facades\Route::has('shop.index'))
                     <a href="{{ route('shop.index') }}" class="text-sm font-semibold uppercase tracking-wider text-[#1A1A1A]">Produk</a>
                 @endif
-                <a href="{{ route('pra.index') }}" class="text-sm font-semibold uppercase tracking-wider text-[#1A1A1A]">Pra Konsultasi</a>
+                @if (\Illuminate\Support\Facades\Route::has('forum.index'))
+                    <a href="{{ route('forum.index') }}" class="text-sm font-semibold uppercase tracking-wider text-[#1A1A1A]">Forum</a>
+                @endif
+                <a href="{{ route('pra.create') }}" class="text-sm font-semibold uppercase tracking-wider text-[#1A1A1A]">Pra Konsultasi</a>
                 <hr class="border-gray-200">
                 @auth
                     <a href="{{ url('/dashboard') }}" class="inline-block text-center rounded-full bg-[#1A1A1A] px-6 py-3 text-sm font-bold uppercase tracking-wider text-white">Dashboard</a>
                 @else
-                    @if (\Illuminate\Support\Facades\Route::has('appointment.create'))
-                        <a href="{{ route('appointment.create') }}" class="inline-block text-center rounded-full bg-[#1A1A1A] px-6 py-3 text-sm font-bold uppercase tracking-wider text-white">Buat Janji Temu</a>
+                    <a href="{{ route('login') }}" class="inline-block text-center rounded-xl border border-[#1A1A1A] px-6 py-3 text-sm font-bold uppercase tracking-wider text-[#1A1A1A]">Sign In</a>
+                    @if (\Illuminate\Support\Facades\Route::has('register'))
+                        <a href="{{ route('register') }}" class="inline-block text-center rounded-full bg-[#1A1A1A] px-6 py-3 text-sm font-bold uppercase tracking-wider text-white">Sign Up</a>
                     @endif
                 @endauth
             </div>
@@ -186,7 +198,8 @@
                     <li><a href="{{ route('appointment.create') }}" class="hover:text-white transition">Buat Janji Temu</a></li>
                     <li><a href="{{ route('treatment.index') }}" class="hover:text-white transition">Treatment</a></li>
                     <li><a href="{{ route('shop.index') }}" class="hover:text-white transition">Produk Skincare</a></li>
-                    <li><a href="{{ route('pra.index') }}" class="hover:text-white transition">Konsultasi Online</a></li>
+                    <li><a href="{{ route('forum.index') }}" class="hover:text-white transition">Forum</a></li>
+                    <li><a href="{{ route('pra.create') }}" class="hover:text-white transition">Konsultasi Online</a></li>
                 </ul>
             </div>
             <div>
@@ -213,7 +226,7 @@
     </footer>
 
     {{-- Floating WhatsApp Chat Widget --}}
-    <div id="wa-widget" x-data="{ open: false }" style="position:fixed; bottom:24px; right:24px; z-index:2147483647;">
+    <div id="wa-widget" x-data="{ open: false }" class="fixed bottom-20 lg:bottom-6 right-6 z-[2147483647]">
         
         {{-- Chat Popup --}}
         <div x-show="open" x-cloak

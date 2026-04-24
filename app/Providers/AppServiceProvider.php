@@ -25,8 +25,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Cek apakah APP_URL di .env mengandung kata 'ngrok' ATAU sedang di production
-        if (str_contains(config('app.url'), 'ngrok') || $this->app->environment('production')) {
+        // Cek apakah request datang dari 'ngrok' ATAU sedang di production
+        if (str_contains(request()->getHost(), 'ngrok') || $this->app->environment('production')) {
             URL::forceScheme('https');
         }
 
