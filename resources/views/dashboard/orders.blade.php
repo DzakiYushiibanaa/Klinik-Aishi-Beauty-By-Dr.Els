@@ -11,11 +11,13 @@
         'type' => $o->order_type,
         'status' => $o->status,
         'shipping' => $o->shipping_status,
+        'expired_at' => $o->expired_at ? $o->expired_at->toIso8601String() : null,
+        'cancel_reason' => $o->cancel_reason ?? null,
         'total' => $o->grand_total,
         'subtotal' => $o->subtotal ?? 0,
         'discount' => $o->diskon_total ?? 0,
         'shipping_cost' => $o->ongkir ?? 0,
-        'payment_method' => $o->payment_method ?? 'Midtrans / Qris',
+        'payment_method' => $o->payment_channel ?? $o->payment_method ?? '-',
         'date' => $o->created_at->translatedFormat('d M Y'),
         'method' => $o->shipping_method,
         'waybill' => $o->shipping_waybill,
@@ -44,10 +46,27 @@
     },
     getComboStatus(o) {
         if (['batal','dibatalkan'].includes(o.status) || o.shipping === 'dibatalkan') return 'dibatalkan';
+        if ((o.status === 'menunggu_pembayaran' || o.status === 'draft') && o.expired_at) {
+            const now = new Date();
+            const expired = new Date(o.expired_at);
+            if (now > expired) {
+                return 'dibatalkan';
+            }
+        }
         if (o.status === 'menunggu_pembayaran' || o.status === 'draft') return 'belum_bayar';
         if (o.shipping === 'selesai') return 'selesai';
         if (o.shipping === 'dikirim') return 'dikirim';
         return 'dikemas';
+    },
+    getCancelReason(o) {
+        if ((o.status === 'menunggu_pembayaran' || o.status === 'draft') && o.expired_at) {
+            const now = new Date();
+            const expired = new Date(o.expired_at);
+            if (now > expired) {
+                return 'Batas waktu pembayaran habis';
+            }
+        }
+        return o.cancel_reason || 'Dibatalkan oleh sistem';
     },
     getFiltersForTab() {
         if (this.orderTab === 'produk') return ['semua','belum_bayar','dikemas','dikirim','selesai','dibatalkan'];
@@ -55,27 +74,27 @@
     },
     filterLabel(f) {
         return { semua:'Semua', belum_bayar:'Belum Bayar', dikemas:'Dikemas', dikirim:'Dikirim', selesai:'Selesai', dibatalkan:'Dibatalkan', lunas:'Lunas' }[f] || f;
+    },
+    formatPaymentChannel(val) {
+        if (!val) return '-';
+        const labels = {
+            'qris': 'QRIS', 'bca': 'Bank BCA (VA)', 'bni': 'Bank BNI (VA)', 'bri': 'Bank BRI (VA)',
+            'mandiri': 'Mandiri Bill', 'mandiri_bill': 'Mandiri Bill', 'permata': 'Bank Permata (VA)',
+            'cimb': 'Bank CIMB (VA)', 'gopay': 'GoPay', 'shopeepay': 'ShopeePay', 'dana': 'DANA',
+            'alfamart': 'Alfamart', 'indomaret': 'Indomaret', 'bank_transfer': 'Transfer Bank',
+            'credit_card': 'Kartu Kredit', 'akulaku': 'Akulaku', 'kredivo': 'Kredivo',
+            'web_redirect': 'Midtrans', 'midtrans_snap': 'Midtrans'
+        };
+        return labels[val.toLowerCase()] || val.toUpperCase();
     }
 }">
 <div class="bg-white rounded-2xl border border-[#E8E0D8]/60 shadow-sm p-6">
-    <div class="flex items-center justify-between mb-6">
-        <h2 class="text-xl font-extrabold text-[#1A1A1A]">Pesanan Saya</h2>
-        <span class="text-sm text-slate-400"><span class="font-bold text-[#1A1A1A]" x-text="getFilteredOrders().length"></span> Transaksi</span>
-    </div>
-
-    {{-- Sub-tabs --}}
-    <div class="bg-white rounded-2xl border border-[#E8E0D8]/60 p-1.5 flex gap-1 mb-4 overflow-x-auto">
-        @foreach(['produk' => 'Produk', 'treatment' => 'Treatment', 'konsultasi' => 'Konsultasi', 'semua' => 'Semua'] as $key => $label)
-            <button @click="orderTab = '{{ $key }}'; orderFilter = 'semua'"
-                :class="orderTab === '{{ $key }}' ? 'bg-[#1A1A1A] text-white shadow-sm' : 'text-slate-500 hover:bg-[#FAF8F5]'"
-                class="px-4 py-2 rounded-xl text-sm font-bold transition whitespace-nowrap">{{ $label }}</button>
-        @endforeach
-    </div>
-
-    {{-- Search --}}
-    <div class="relative mb-4">
-        <svg class="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-        <input x-model="orderSearch" type="text" placeholder="Cari kode pesanan atau nama produk..." class="w-full pl-11 pr-4 py-3 rounded-xl bg-white border border-[#E8E0D8]/60 text-sm focus:border-[#CFAF53] focus:ring-[#CFAF53]/20 focus:ring-2 outline-none transition">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+            <h2 class="text-xl font-extrabold text-[#1A1A1A]">Pesanan Saya</h2>
+            <p class="text-sm text-slate-500 mt-1">Kelola dan cek status pesanan Anda dengan mudah di sini.</p>
+        </div>
+        <span class="text-sm text-slate-400 self-start sm:self-auto shrink-0"><span class="font-bold text-[#1A1A1A]" x-text="getFilteredOrders().length"></span> Transaksi</span>
     </div>
 
     {{-- Filter Pills --}}
@@ -83,8 +102,14 @@
         <template x-for="f in getFiltersForTab()" :key="f">
             <button @click="orderFilter = f"
                 :class="orderFilter === f ? 'bg-[#CFAF53] text-white border-[#CFAF53]' : 'bg-white text-slate-600 border-[#E8E0D8]/60 hover:border-[#CFAF53]/40'"
-                class="px-4 py-1.5 rounded-full text-xs font-bold border whitespace-nowrap transition" x-text="filterLabel(f)"></button>
+                class="shrink-0 px-4 py-1.5 rounded-full text-sm font-bold border whitespace-nowrap transition" x-text="filterLabel(f)"></button>
         </template>
+    </div>
+
+    {{-- Search --}}
+    <div class="relative mb-4">
+        <svg class="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <input x-model="orderSearch" type="text" placeholder="Cari kode pesanan atau nama produk..." class="w-full pl-11 pr-4 py-3 rounded-xl bg-white border border-[#E8E0D8]/60 text-sm focus:border-[#CFAF53] focus:ring-[#CFAF53]/20 focus:ring-2 outline-none transition">
     </div>
 
     {{-- Order Cards --}}
@@ -99,7 +124,10 @@
         </template>
 
         <template x-for="order in getFilteredOrders()" :key="order.id">
-            <div @click="selectedOrder = order; showInvoiceModal = true" class="bg-[#FAF8F5] rounded-2xl border border-[#E8E0D8]/60 overflow-hidden cursor-pointer hover:border-[#CFAF53]/60 transition-all hover:shadow-md">
+            <div @click="selectedOrder = order; showInvoiceModal = true" 
+                 x-init="$nextTick(() => { if ($root.highlightId == order.id) { $el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } })" 
+                 :class="$root.highlightId == order.id ? 'ring-2 ring-[#CFAF53] shadow-lg shadow-[#CFAF53]/20 bg-[#CFAF53]/5' : 'bg-slate-50'" 
+                 class="rounded-2xl border border-slate-200 shadow-sm overflow-hidden cursor-pointer hover:border-[#CFAF53] transition-all duration-1000 hover:shadow-md">
                 {{-- Header --}}
                 <div class="flex items-center justify-between px-5 py-3 border-b border-[#E8E0D8]/40">
                     <div class="flex items-center gap-3">
@@ -158,7 +186,10 @@
                             <span class="flex items-center gap-1.5 text-emerald-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Selesai</span>
                         </template>
                         <template x-if="getComboStatus(order)==='dibatalkan'">
-                            <span class="flex items-center gap-1.5 text-rose-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Dibatalkan</span>
+                            <div class="flex flex-col">
+                                <span class="flex items-center gap-1.5 text-rose-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Dibatalkan</span>
+                                <span class="text-[10px] text-slate-400 mt-0.5 ml-5" x-text="getCancelReason(order)"></span>
+                            </div>
                         </template>
                     </div>
 
@@ -270,7 +301,7 @@
                              </div>
                              <div>
                                  <p class="text-[10px] text-slate-400">Metode Pembayaran</p>
-                                 <p class="text-sm font-bold text-[#1A1A1A]" x-text="selectedOrder?.payment_method"></p>
+                                 <p class="text-sm font-bold text-[#1A1A1A]" x-text="formatPaymentChannel(selectedOrder?.payment_method)"></p>
                              </div>
                              <template x-if="selectedOrder?.method">
                                  <div>
@@ -415,27 +446,39 @@
             
             if (!response.ok) {
                 alert(data.error || 'Gagal memproses pembayaran');
-                btn.disabled = false;
-                btn.innerHTML = originalText;
+                if (data.reload) {
+                    window.location.reload();
+                } else {
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                }
                 return;
             }
 
+            let paymentCompleted = false;
             window.snap.pay(data.token, {
                 onSuccess: function(result) {
-                    window.location.href = "/payment-status/success?order_id=" + orderKode;
+                    paymentCompleted = true;
+                    // result.order_id dari Midtrans adalah kode_order + timestamp suffix
+                    // strip suffix agar cocok dengan kode_order di DB
+                    const rawOrderId = result.order_id || orderKode;
+                    const kodeOrder = rawOrderId.replace(/-[0-9]+$/, '');
+                    window.location.href = "/payment-status/success?order_id=" + kodeOrder;
                 },
                 onPending: function(result) {
+                    paymentCompleted = true;
                     alert('Pembayaran tertunda.');
                     window.location.reload();
                 },
                 onError: function(result) {
-                    alert('Terjadi kesalahan saat memproses pembayaran.');
-                    btn.disabled = false;
-                    btn.innerHTML = originalText;
+                    paymentCompleted = true;
+                    alert('Pembayaran gagal atau waktu telah habis.');
+                    window.location.reload();
                 },
                 onClose: function() {
-                    btn.disabled = false;
-                    btn.innerHTML = originalText;
+                    if (!paymentCompleted) {
+                        window.location.reload();
+                    }
                 }
             });
         } catch (err) {

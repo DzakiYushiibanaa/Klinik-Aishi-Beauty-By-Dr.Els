@@ -4,12 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Appointment;
 use App\Models\AppointmentItem;
+use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\PatientForm;
 use App\Models\PraKonsultasiRekomendasiItem;
 use App\Models\Treatment;
 use App\Models\User;
-use App\Models\Terapis; // Pastikan Model Terapis di-import
-use App\Notifications\AppointmentCanceledNotification; // 🔥 TAMBAHAN: Import Notification
+use App\Models\Terapis;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -32,7 +33,7 @@ class AppointmentController extends Controller
         $user = Auth::user();
 
         if (!$user->phone || !$user->tanggal_lahir) {
-            return redirect('/dashboard')->with('error', 'Silakan lengkapi Nomor WhatsApp dan Tanggal Lahir Anda di tab Profil sebelum membuat janji temu.');
+            return redirect('/dashboard')->with('error', 'Silakan lengkapi Nomor WhatsApp dan Tanggal Lahir Anda di tab Profil sebelum membuat janji temu.')->with('active_tab', 'profile');
         }
 
         $treatments = Treatment::with('category')
@@ -66,101 +67,219 @@ class AppointmentController extends Controller
         ]);
     }
 
+    /**
+     * API: Cek ketersediaan slot treatment pada tanggal tertentu
+     */
+    public function checkSlotAvailability(Request $request)
+    {
+        $request->validate(['tanggal' => 'required|date']);
+        
+        $slots = [
+            '08:00 - 10:00' => '08:00',
+            '10:30 - 12:30' => '10:30',
+            '13:00 - 15:00' => '13:00',
+            '15:30 - 17:30' => '15:30',
+        ];
+        
+        $maxPerSlot = 2;
+        $result = [];
+        
+        foreach ($slots as $label => $jamMulai) {
+            $tanggalJam = Carbon::parse($request->tanggal . ' ' . $jamMulai);
+            
+            $booked = Appointment::where('tanggal_jam', $tanggalJam)
+                ->where('jenis', 'treatment')
+                ->whereNotIn('status', ['batal', 'tidak_hadir'])
+                ->count();
+            
+            $result[] = [
+                'value' => $label,
+                'booked' => $booked,
+                'max' => $maxPerSlot,
+                'sisa' => max(0, $maxPerSlot - $booked),
+                'penuh' => $booked >= $maxPerSlot,
+            ];
+        }
+        
+        return response()->json($result);
+    }
+
     public function submitBookingTreatment(Request $request)
     {
         $request->validate([
-            'treatments' => 'required|array|min:1',
+            'treatments'      => 'required|array|min:1',
             'treatments.*.id' => 'required|exists:treatments,treatment_id',
-            'tanggal' => 'required|date|after_or_equal:today',
-            'jam' => 'required|string',
+            'tanggal'         => 'required|date|after_or_equal:today',
+            'jam'             => 'required|string',
         ]);
 
-        $user = Auth::user();
+        $user       = Auth::user();
+        $jamMulai   = explode(' - ', $request->jam)[0];
+        $tanggalJam = Carbon::parse($request->tanggal . ' ' . $jamMulai);
 
-        // 1. Save appointment to DB first
-        DB::beginTransaction();
+        // ─────────────────────────────────────────
+        // 1. Validasi kapasitas slot (max 2 pasien)
+        // ─────────────────────────────────────────
+        $jumlahPasienDiSlot = Appointment::where('tanggal_jam', $tanggalJam)
+            ->where('jenis', 'treatment')
+            ->whereNotIn('status', ['batal', 'tidak_hadir'])
+            ->count();
+
+        if ($jumlahPasienDiSlot >= 2) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Maaf, slot jadwal ini sudah penuh (maks. 2 pasien). Silakan pilih jadwal lain.',
+            ], 422);
+        }
+
+        // ─────────────────────────────────────────
+        // 2. DB Transaction: Buat Appointment + Order + Order Items
+        // ─────────────────────────────────────────
+        $result = null;
         try {
-            $jamMulai = explode(' - ', $request->jam)[0];
-            $tanggalJam = Carbon::parse($request->tanggal . ' ' . $jamMulai);
+            $result = DB::transaction(function () use ($user, $request, $tanggalJam) {
 
-            $appointment = Appointment::create([
-                'user_id' => $user->id,
-                'jenis' => 'treatment',
-                'sumber' => 'online',
-                'dibuat_oleh_id' => $user->id,
-                'tanggal_jam' => $tanggalJam,
-                'status' => 'diajukan',
-                'catatan_pasien' => 'Booking Treatment Online | Jam: ' . $request->jam,
-            ]);
+                // Cek ulang slot dalam transaksi (mencegah race condition)
+                $jumlah = Appointment::where('tanggal_jam', $tanggalJam)
+                    ->where('jenis', 'treatment')
+                    ->whereNotIn('status', ['batal', 'tidak_hadir'])
+                    ->lockForUpdate()
+                    ->count();
 
-            $totalHarga = 0;
-            $itemDetails = [];
-
-            foreach ($request->treatments as $treatmentData) {
-                $treatment = Treatment::find($treatmentData['id']);
-                if ($treatment) {
-                    AppointmentItem::create([
-                        'appointment_id' => $appointment->appointment_id,
-                        'item_type' => 'treatment',
-                        'treatment_id' => $treatment->treatment_id,
-                        'qty' => 1,
-                    ]);
-                    $totalHarga += $treatment->harga;
-                    $itemDetails[] = [
-                        'id' => 'TRT-' . $treatment->treatment_id,
-                        'price' => (int) $treatment->harga,
-                        'quantity' => 1,
-                        'name' => substr($treatment->nama, 0, 50),
-                    ];
+                if ($jumlah >= 2) {
+                    throw new \Exception('SLOT_PENUH');
                 }
-            }
 
-            DB::commit();
+                // A. Buat Appointment
+                $appointment = Appointment::create([
+                    'user_id'            => $user->id,
+                    'jenis'              => 'treatment',
+                    'sumber'             => 'online',
+                    'dibuat_oleh_id'     => $user->id,
+                    'tanggal_jam'        => $tanggalJam,
+                    'status'             => 'menunggu_pembayaran',
+                    'payment_expired_at' => now()->addMinutes(15),
+                    'catatan_pasien'     => 'Booking Treatment Online | Jam: ' . $request->jam,
+                ]);
+
+                // B. Buat Appointment Items & hitung total
+                $totalHarga  = 0;
+                $itemDetails = [];
+
+                foreach ($request->treatments as $treatmentData) {
+                    $treatment = Treatment::find($treatmentData['id']);
+                    if ($treatment) {
+                        AppointmentItem::create([
+                            'appointment_id' => $appointment->appointment_id,
+                            'item_type'      => 'treatment',
+                            'treatment_id'   => $treatment->treatment_id,
+                            'qty'            => 1,
+                        ]);
+                        $totalHarga += $treatment->harga;
+                        $itemDetails[] = [
+                            'id'       => 'TRT-' . $treatment->treatment_id,
+                            'price'    => (int) $treatment->harga,
+                            'quantity' => 1,
+                            'name'     => substr($treatment->nama, 0, 50),
+                        ];
+                    }
+                }
+
+                // C. Buat Order
+                $kodeOrder       = 'ORD-' . strtoupper(Str::random(8));
+                $midtransOrderId = $kodeOrder . '-' . time();
+                
+                $order = Order::create([
+                    'user_id'           => $user->id,
+                    'kode_order'        => $kodeOrder,
+                    'order_type'        => 'treatment',
+                    'sumber'            => 'online',
+                    'dibuat_oleh_id'    => $user->id,
+                    'status'            => 'menunggu_pembayaran',
+                    'midtrans_order_id' => $midtransOrderId,
+                    'subtotal'          => $totalHarga,
+                    'grand_total'       => $totalHarga,
+                    'expired_at'        => now()->addMinutes(15),
+                ]);
+
+                // D. Buat Order Items (link ke appointment)
+                foreach ($request->treatments as $treatmentData) {
+                    $treatment = Treatment::find($treatmentData['id']);
+                    if ($treatment) {
+                        OrderItem::create([
+                            'order_id'       => $order->order_id,
+                            'appointment_id' => $appointment->appointment_id,
+                            'treatment_id'   => $treatment->treatment_id,
+                            'item_type'      => 'treatment',
+                            'description'    => $treatment->nama,
+                            'qty'            => 1,
+                            'harga_satuan'   => $treatment->harga,
+                            'subtotal'       => $treatment->harga,
+                        ]);
+                    }
+                }
+
+                return compact('appointment', 'order', 'itemDetails', 'totalHarga', 'midtransOrderId');
+            });
+
         } catch (\Exception $e) {
-            DB::rollback();
+            if ($e->getMessage() === 'SLOT_PENUH') {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'Maaf, slot jadwal ini baru saja penuh. Silakan pilih jadwal lain.',
+                ], 422);
+            }
             Log::error('Booking Treatment DB Error: ' . $e->getMessage());
             return response()->json([
-                'status' => 'error',
-                'message' => 'Gagal menyimpan booking: ' . $e->getMessage(),
+                'status'  => 'error',
+                'message' => 'Gagal menyimpan booking. Silakan coba lagi.',
             ], 500);
         }
 
-        // 2. Generate Midtrans Snap Token (separate from DB transaction)
+        // ─────────────────────────────────────────
+        // 3. Generate Midtrans Snap Token (di luar transaksi)
+        // ─────────────────────────────────────────
         try {
-            MidtransConfig::$serverKey = config('midtrans.server_key');
+            MidtransConfig::$serverKey    = config('midtrans.server_key');
             MidtransConfig::$isProduction = config('midtrans.is_production');
-            MidtransConfig::$isSanitized = config('midtrans.is_sanitized');
-            MidtransConfig::$is3ds = config('midtrans.is_3ds');
-
-            $orderId = 'APT-' . $appointment->appointment_id . '-' . time();
+            MidtransConfig::$isSanitized  = config('midtrans.is_sanitized');
+            MidtransConfig::$is3ds        = config('midtrans.is_3ds');
 
             $params = [
                 'transaction_details' => [
-                    'order_id' => $orderId,
-                    'gross_amount' => (int) $totalHarga,
+                    'order_id'     => $result['midtransOrderId'],
+                    'gross_amount' => (int) $result['totalHarga'],
                 ],
-                'item_details' => $itemDetails,
+                'item_details'    => $result['itemDetails'],
                 'customer_details' => [
                     'first_name' => $user->name,
-                    'email' => $user->email,
-                    'phone' => $user->phone ?? '',
+                    'email'      => $user->email,
+                    'phone'      => $user->phone ?? '',
+                ],
+                'expiry' => [
+                    'start_time' => now()->format('Y-m-d H:i:s O'),
+                    'unit'       => 'minutes',
+                    'duration'   => 15,
                 ],
             ];
 
             $snapToken = Snap::getSnapToken($params);
 
+            // Simpan snap_token ke order
+            $result['order']->update(['snap_token' => $snapToken]);
+
             return response()->json([
-                'status' => 'success',
-                'snap_token' => $snapToken,
-                'appointment_id' => $appointment->appointment_id,
+                'status'         => 'success',
+                'snap_token'     => $snapToken,
+                'appointment_id' => $result['appointment']->appointment_id,
             ]);
+
         } catch (\Exception $e) {
             Log::error('Midtrans Snap Error: ' . $e->getMessage());
-            // Appointment is saved, but payment failed — redirect to dashboard
             return response()->json([
-                'status' => 'success_no_payment',
-                'message' => 'Booking berhasil disimpan, namun sistem pembayaran sedang gangguan. Silakan hubungi klinik.',
-                'appointment_id' => $appointment->appointment_id,
+                'status'         => 'success_no_payment',
+                'message'        => 'Booking tersimpan, namun sistem pembayaran sedang gangguan. Silakan hubungi klinik.',
+                'appointment_id' => $result['appointment']->appointment_id,
             ]);
         }
     }
@@ -171,7 +290,7 @@ class AppointmentController extends Controller
         
         // Pengecekan Kelengkapan Profil
         if (!$user->phone || !$user->tanggal_lahir) {
-            return redirect('/dashboard')->with('error', 'Silakan lengkapi Nomor WhatsApp dan Tanggal Lahir Anda di tab Profil sebelum membuat janji temu.');
+            return redirect('/dashboard')->with('error', 'Silakan lengkapi Nomor WhatsApp dan Tanggal Lahir Anda di tab Profil sebelum membuat janji temu.')->with('active_tab', 'profile');
         }
 
         // Dummy data for Doctors (since we need them for Step 2)
@@ -203,17 +322,34 @@ class AppointmentController extends Controller
 
         $user = Auth::user();
 
-        // Buat record Appointment
-        $appointment = Appointment::create([
-            'user_id' => $user->id,
-            'dokter_id' => $request->dokter_id,
-            'dibuat_oleh_id' => $user->id,
-            'jenis' => 'konsultasi',
-            'sumber' => 'online',
-            'tanggal_jam' => $request->tanggal . ' ' . str_replace('.', ':', substr($request->jam, 0, 5)) . ':00',
-            'status' => 'diajukan',
-            'catatan_pasien' => 'Konsultasi Dokter (' . ucfirst($request->jenis) . ')',
-        ]);
+        // Buat record Appointment & Item dalam Transaction
+        $appointment = \Illuminate\Support\Facades\DB::transaction(function () use ($user, $request) {
+            $appointment = Appointment::create([
+                'user_id' => $user->id,
+                'dokter_id' => $request->dokter_id,
+                'dibuat_oleh_id' => $user->id,
+                'jenis' => 'konsultasi',
+                'sumber' => 'online',
+                'tanggal_jam' => $request->tanggal . ' ' . str_replace('.', ':', substr($request->jam, 0, 5)) . ':00',
+                'status' => 'diajukan',
+                'catatan_pasien' => 'Konsultasi Dokter (' . ucfirst($request->jenis) . ')',
+            ]);
+
+            // Cari ID konsultasi berdasarkan jenis
+            $konsultasiNama = strtolower($request->jenis) === 'awal' ? 'Konsultasi Awal' : 'Konsultasi Lanjutan';
+            $consultation = \App\Models\Consultation::where('nama', $konsultasiNama)->first();
+
+            if ($consultation) {
+                \App\Models\AppointmentItem::create([
+                    'appointment_id' => $appointment->appointment_id,
+                    'item_type' => 'consultation',
+                    'consultation_id' => $consultation->consultation_id,
+                    'qty' => 1,
+                ]);
+            }
+
+            return $appointment;
+        });
 
         // Simpan data, kirim notifikasi, dll.
         // Bisa diintegrasikan ke WA/Email di sini (contoh: SendWAJob::dispatch($appointment))
@@ -367,7 +503,7 @@ class AppointmentController extends Controller
 
         $tanggalJam = Carbon::parse($request->tanggal . ' ' . $request->waktu);
 
-        DB::transaction(function () use ($request, $tanggalJam) {
+        $appointment = DB::transaction(function () use ($request, $tanggalJam) {
             $finalDoctorId = $request->jenis === 'konsultasi' ? $request->dokter_id : null;
 
             $appointment = Appointment::create([
@@ -393,9 +529,11 @@ class AppointmentController extends Controller
                     ]);
                 }
             }
+
+            return $appointment;
         });
 
-        return redirect('/dashboard')
+        return redirect('/dashboard?tab=appointment&highlight=' . $appointment->appointment_id)
             ->with('success', 'Janji temu berhasil diajukan! Menunggu konfirmasi admin.');
     }
 
@@ -498,6 +636,83 @@ class AppointmentController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Gagal membatalkan janji temu: ' . $e->getMessage());
+            return back()->with('error', 'Terjadi kesalahan sistem.');
+        }
+    }
+
+    public function reschedule(Request $request, Appointment $appointment)
+    {
+        // 1. Validasi Pemilik
+        if ($appointment->user_id !== Auth::id()) {
+            abort(403, 'Anda tidak berhak mengubah janji temu ini.');
+        }
+
+        // 2. Cek Status
+        if (!in_array($appointment->status, ['diajukan', 'disetujui'])) {
+            return back()->with('error', 'Janji temu ini tidak dapat diubah lagi.');
+        }
+
+        // 3. Validasi H-3 jam
+        $batasWaktu = \Carbon\Carbon::parse($appointment->tanggal_jam)->subHours(3);
+        if (now()->greaterThanOrEqualTo($batasWaktu)) {
+            return back()->with('error', 'Batas waktu perubahan jadwal sudah lewat (maksimal 3 jam sebelumnya). Silakan hubungi admin via WhatsApp.');
+        }
+
+        // 4. Validasi Input
+        $request->validate([
+            'new_tanggal' => 'required|date|after_or_equal:today',
+            'new_jam' => 'required|string',
+        ]);
+
+        try {
+            DB::transaction(function () use ($appointment, $request) {
+                $newTanggalJam = $request->new_tanggal . ' ' . str_replace('.', ':', substr($request->new_jam, 0, 5)) . ':00';
+
+                // A. Update Database Appointment
+                $appointment->update([
+                    'tanggal_jam' => $newTanggalJam,
+                    'status'      => 'diajukan', // kembali ke diajukan agar admin konfirmasi
+                ]);
+
+                // B. Notifikasi ke Admin
+                $recipients = \App\Models\User::role(['admin', 'super_admin'])->get();
+                foreach ($recipients as $user) {
+                    try {
+                        DB::table('notifications')->insert([
+                            'id' => \Illuminate\Support\Str::uuid(),
+                            'type' => 'Filament\Notifications\DatabaseNotification',
+                            'notifiable_type' => \App\Models\User::class,
+                            'notifiable_id' => $user->id,
+                            'data' => json_encode([
+                                'title' => 'Pengajuan Ubah Jadwal',
+                                'body' => "Pasien {$appointment->user->name} mengajukan perubahan jadwal untuk {$appointment->catatan_pasien}.",
+                                'icon' => 'heroicon-o-calendar',
+                                'iconColor' => 'warning',
+                                'duration' => 'persistent',
+                                'actions' => [
+                                    [
+                                        'name' => 'Lihat',
+                                        'color' => 'gray',
+                                        'url' => "/admin/appointments/{$appointment->appointment_id}/edit",
+                                        'openInNewTab' => false,
+                                    ]
+                                ],
+                                'view' => 'filament-notifications::notification',
+                            ]),
+                            'read_at' => null,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                    } catch (\Exception $e) {
+                        \Illuminate\Support\Facades\Log::error("Failed to insert reschedule notification: " . $e->getMessage());
+                    }
+                }
+            });
+
+            return back()->with('success', 'Pengajuan ubah jadwal berhasil. Menunggu konfirmasi admin.');
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Gagal merubah janji temu: ' . $e->getMessage());
             return back()->with('error', 'Terjadi kesalahan sistem.');
         }
     }

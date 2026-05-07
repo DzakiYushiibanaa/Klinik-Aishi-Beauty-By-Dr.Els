@@ -1,7 +1,10 @@
 {{-- ====== TAB: PRA-KONSULTASI ====== --}}
 <div class="bg-white rounded-2xl border border-[#E8E0D8]/60 shadow-sm p-6">
     <div class="flex items-center justify-between mb-6">
-        <h2 class="text-xl font-extrabold text-[#1A1A1A]">Riwayat Pra-Konsultasi</h2>
+        <div>
+            <h2 class="text-xl font-extrabold text-[#1A1A1A]">Riwayat Pra-Konsultasi</h2>
+            <p class="text-sm text-slate-500 mt-1">Lihat kembali data konsultasi awal yang pernah Anda isi.</p>
+        </div>
         <a href="{{ route('pra.create') }}" class="inline-flex items-center gap-2 bg-[#CFAF53] text-[#1A1A1A] font-bold px-5 py-2.5 rounded-full text-sm hover:bg-[#b59b48] transition">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             Buat Baru
@@ -29,17 +32,47 @@
                     };
                     $yesNoLabel = fn($val) => $val ? 'Ya' : 'Tidak';
                 @endphp
-                <div x-data="{ showModal: false }" class="bg-[#FAF8F5] rounded-2xl border border-[#E8E0D8]/60 p-5">
-                    <div class="flex items-start justify-between gap-3">
-                        <div>
-                            <p class="text-xs text-slate-400">ID: #PK-{{ $form->patient_form_id }} • {{ $form->created_at->translatedFormat('d M Y') }}</p>
-                            <p class="font-bold text-[#1A1A1A] mt-1 line-clamp-1">{{ $form->keluhan_utama ?? 'Tidak ada judul' }}</p>
+                <div x-data="{ showModal: false }" class="bg-[#FAF8F5] rounded-xl border border-dashed border-[#E8E0D8] p-5 hover:bg-white hover:border-[#CFAF53]/50 hover:shadow-sm transition-all cursor-pointer group relative" @click="showModal = true">
+                    <div class="space-y-4">
+                        {{-- Date & ID --}}
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2 text-sm text-[#CFAF53] font-mono">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                <span class="font-bold">{{ $form->created_at->translatedFormat('d M Y') }}</span>
+                            </div>
+                            <p class="text-sm text-slate-500 font-mono pl-6">ID: PK-{{ $form->patient_form_id }}</p>
                         </div>
-                        <span class="shrink-0 px-3 py-1 rounded-full text-[10px] font-bold border {{ $praStatusClass }} uppercase">{{ $form->status ?? 'Submitted' }}</span>
-                    </div>
-                    <div class="mt-4 pt-3 border-t border-[#E8E0D8]/40 flex items-center justify-between">
-                        <p class="text-xs text-slate-400">Dokter: <span class="text-slate-600 font-medium">{{ $form->dokter->name ?? 'Menunggu...' }}</span></p>
-                        <button @click="showModal = true" class="text-sm font-bold text-[#CFAF53] hover:text-[#8C7A63] transition-colors">Lihat Detail →</button>
+
+                        {{-- Keluhan --}}
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2">
+                                <div class="w-1.5 h-1.5 rounded-full bg-[#CFAF53] shrink-0"></div>
+                                <p class="text-sm font-bold text-[#8C7A63]">Keluhan</p>
+                            </div>
+                            <p class="text-sm font-medium text-[#1A1A1A] pl-3.5 line-clamp-2">{{ $form->keluhan_utama ?? 'Tidak ada keluhan' }}</p>
+                        </div>
+
+                        {{-- Status --}}
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2">
+                                <div class="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0"></div>
+                                <p class="text-sm font-bold text-slate-500">Status</p>
+                            </div>
+                            <div class="flex items-center gap-2 pl-3.5">
+                                @if(strtolower($form->status ?? 'baru') === 'baru' || strtolower($form->status ?? 'baru') === 'menunggu')
+                                    <span class="text-sm font-bold text-amber-500 flex items-center gap-1.5">Menunggu respon dokter</span>
+                                @elseif(strtolower($form->status ?? 'baru') === 'in_review' || strtolower($form->status ?? 'baru') === 'diproses')
+                                    <span class="text-sm font-bold text-blue-600 flex items-center gap-1.5">Sedang direview</span>
+                                @else
+                                    <span class="text-sm font-bold text-emerald-600 flex items-center gap-1.5">Selesai</span>
+                                @endif
+                            </div>
+                        </div>
+
+                        {{-- Footer Link --}}
+                        <div class="pt-4 mt-2 border-t border-[#E8E0D8]/60">
+                            <span class="text-sm font-bold text-[#CFAF53] group-hover:text-[#b59b48] transition-colors">Lihat Detail &rarr;</span>
+                        </div>
                     </div>
 
                     {{-- ══════ MODAL DETAIL PRA-KONSULTASI ══════ --}}
@@ -179,35 +212,85 @@
 
                                     {{-- Rekomendasi Dokter --}}
                                     @if($form->rekomendasi_dokter || $form->rekomendasiItems->isNotEmpty())
-                                        <div class="bg-blue-50 border border-blue-100 rounded-xl p-4">
-                                            <p class="text-[10px] font-bold text-blue-700 uppercase tracking-wider mb-2">💊 Rekomendasi Dokter</p>
+                                        <div class="space-y-4 border-t border-[#E8E0D8]/60 mt-4 pt-4">
+                                            
+                                            {{-- Dokter's General Note --}}
                                             @if($form->rekomendasi_dokter)
-                                                <p class="text-sm text-blue-900 leading-relaxed mb-3">{{ $form->rekomendasi_dokter }}</p>
+                                                <div class="bg-white border border-[#E8E0D8] rounded-xl p-4 shadow-sm relative overflow-hidden group">
+                                                    <div class="absolute left-0 top-0 bottom-0 w-1 bg-[#CFAF53] rounded-l-xl"></div>
+                                                    <div class="flex items-center gap-2 mb-2 pl-2">
+                                                        <svg class="w-4 h-4 text-[#CFAF53]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                                                        <p class="text-xs font-bold text-[#8C7A63] uppercase tracking-wider">Rekomendasi Dokter</p>
+                                                    </div>
+                                                    <p class="text-sm text-[#1A1A1A] leading-relaxed pl-2">{{ $form->rekomendasi_dokter }}</p>
+                                                </div>
                                             @endif
 
-                                            {{-- Daftar Item Rekomendasi --}}
+                                            {{-- Produk/Treatment Iteration --}}
                                             @if($form->rekomendasiItems->isNotEmpty())
-                                                <div class="space-y-2 mt-2">
-                                                    @php
-                                                        $tipeColor = [
-                                                            'Produk' => 'bg-amber-100 text-amber-700',
-                                                            'Treatment' => 'bg-purple-100 text-purple-700',
-                                                            'Bundle' => 'bg-emerald-100 text-emerald-700',
-                                                        ];
+                                                @foreach($form->rekomendasiItems as $item)
+                                                    @php 
+                                                        $tipe = $item->item_tipe;
+                                                        $obj = $tipe === 'Produk' ? $item->product : ($tipe === 'Treatment' ? $item->treatment : $item->bundle);
                                                     @endphp
-                                                    @foreach($form->rekomendasiItems as $item)
-                                                        @php $tipe = $item->item_tipe; @endphp
-                                                        <div class="flex items-start gap-3 bg-white rounded-lg p-3 border border-blue-100">
-                                                            <span class="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold {{ $tipeColor[$tipe] ?? 'bg-slate-100 text-slate-600' }}">{{ $tipe }}</span>
-                                                            <div class="flex-1 min-w-0">
-                                                                <p class="text-sm font-bold text-[#1A1A1A] leading-tight">{{ $item->item_nama }}</p>
-                                                                @if($item->catatan)
-                                                                    <p class="text-xs text-slate-500 mt-0.5">{{ $item->catatan }}</p>
+                                                    <div class="bg-white border border-[#E8E0D8] rounded-xl p-4 shadow-sm hover:border-[#CFAF53]/40 transition-colors relative overflow-hidden">
+                                                        <div class="flex items-center gap-2 mb-4 border-b border-[#E8E0D8]/60 pb-3">
+                                                            @if($tipe === 'Treatment')
+                                                                <svg class="w-4 h-4 text-[#CFAF53]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                                                <p class="text-xs font-bold text-[#8C7A63] uppercase tracking-wider">Treatment Rekomendasi</p>
+                                                            @elseif($tipe === 'Bundle')
+                                                                <svg class="w-4 h-4 text-[#CFAF53]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                                                <p class="text-xs font-bold text-[#8C7A63] uppercase tracking-wider">Bundle Rekomendasi</p>
+                                                            @else
+                                                                <svg class="w-4 h-4 text-[#CFAF53]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+                                                                <p class="text-xs font-bold text-[#8C7A63] uppercase tracking-wider">Produk Rekomendasi</p>
+                                                            @endif
+                                                        </div>
+
+                                                        <div class="flex flex-col sm:flex-row items-start gap-4">
+                                                            {{-- Image --}}
+                                                            <div class="w-20 h-20 rounded-lg bg-[#FAF8F5] border border-[#E8E0D8] shrink-0 overflow-hidden flex items-center justify-center">
+                                                                @if($obj && isset($obj->foto_path) && $obj->foto_path)
+                                                                    <img src="{{ asset('storage/' . $obj->foto_path) }}" alt="{{ $item->item_nama }}" class="w-full h-full object-cover">
+                                                                @else
+                                                                    <svg class="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                                                                 @endif
                                                             </div>
+
+                                                            {{-- Details --}}
+                                                            <div class="flex-1 min-w-0 flex flex-col justify-between h-full">
+                                                                <div>
+                                                                    <p class="font-bold text-[#1A1A1A] text-base leading-tight mb-1">{{ $item->item_nama }}</p>
+                                                                    
+                                                                    @if($item->catatan)
+                                                                        <p class="text-sm text-slate-600 mb-2">{{ $item->catatan }}</p>
+                                                                    @endif
+
+                                                                    @if($tipe === 'Treatment' && isset($obj->durasi_menit))
+                                                                        <p class="text-xs font-medium text-slate-500 mb-2">{{ $obj->durasi_menit }} menit</p>
+                                                                    @endif
+                                                                    
+                                                                    @if($obj && (isset($obj->harga) || isset($obj->harga_promo) || isset($obj->harga_normal)))
+                                                                        <p class="text-sm font-bold text-[#CFAF53]">Rp {{ number_format($obj->harga ?? $obj->harga_promo ?? $obj->harga_normal ?? 0, 0, ',', '.') }}</p>
+                                                                    @endif
+                                                                </div>
+
+                                                                {{-- Actions --}}
+                                                                <div class="mt-4 flex flex-wrap items-center gap-2">
+                                                                    @if($tipe === 'Treatment')
+                                                                        <a href="{{ route('appointment.select') }}" class="inline-flex items-center justify-center px-5 py-2 text-xs font-bold text-white bg-[#1A1A1A] rounded-lg hover:bg-[#333] hover:shadow-lg hover:shadow-[#1A1A1A]/20 transition-all w-full sm:w-auto text-center">Buat Janji Temu</a>
+                                                                    @else
+                                                                        <form action="{{ $tipe === 'Bundle' ? route('cart.add_bundle', $obj->bundle_id ?? 0) : route('cart.add', $obj->product_id ?? 0) }}" method="POST" class="inline-block flex-1 sm:flex-none">
+                                                                            @csrf
+                                                                            <button type="submit" class="w-full inline-flex items-center justify-center px-5 py-2 text-xs font-bold text-[#1A1A1A] bg-[#FAF8F5] border border-[#E8E0D8] rounded-lg hover:bg-white hover:border-[#CFAF53] transition-all shadow-sm">+ Keranjang</button>
+                                                                        </form>
+                                                                        <a href="{{ route('cart.index') }}" class="inline-flex items-center justify-center px-5 py-2 text-xs font-bold text-white bg-[#1A1A1A] rounded-lg hover:bg-[#333] hover:shadow-lg hover:shadow-[#1A1A1A]/20 transition-all flex-1 sm:flex-none text-center">Beli Sekarang</a>
+                                                                    @endif
+                                                                </div>
+                                                            </div>
                                                         </div>
-                                                    @endforeach
-                                                </div>
+                                                    </div>
+                                                @endforeach
                                             @endif
                                         </div>
                                     @endif

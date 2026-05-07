@@ -27,9 +27,12 @@ class DashboardController extends Controller
 
         // ── Data Janji Temu ──
         $appointments = Appointment::where('user_id', $user->id)
-            ->with(['dokter', 'terapis', 'items.treatment', 'items.bundle'])
+            ->with(['dokter', 'terapis', 'items.treatment', 'items.bundle', 'items.consultation'])
             ->orderBy('tanggal_jam', 'desc')
             ->get();
+
+        // ── Data Jadwal Praktik Dokter (untuk modal reschedule) ──
+        $jadwals = \App\Models\JadwalPraktik::where('is_active', true)->get();
 
         // Mapping appointment_id => order payment status (untuk tab Janji Temu)
         $appointmentOrderMap = OrderItem::whereIn('appointment_id', $appointments->pluck('appointment_id'))
@@ -68,37 +71,55 @@ class DashboardController extends Controller
         // ── Stats Overview ──
         $stats = [
             'total_appointments' => $appointments->count(),
-            'upcoming' => $upcomingAppointments->count(),
+            'upcoming' => $appointments->whereIn('status', ['diajukan', 'disetujui', 'menunggu_pembayaran'])->count(),
             'total_orders' => $orders->count(),
-            'active_orders' => $orders->whereIn('status', ['menunggu_pembayaran', 'sudah_dibayar', 'lunas'])->whereNotIn('shipping_status', ['selesai', 'dibatalkan'])->count(),
+            'active_orders' => $orders->where('order_type', 'produk')->whereIn('status', ['menunggu_pembayaran', 'sudah_dibayar', 'lunas'])->whereNotIn('shipping_status', ['selesai', 'dibatalkan'])->count(),
             'total_rekam_medis' => $rekamMedis->count(),
         ];
 
         // ── Sidebar Badges ──
         $badges = [
+            'appointment' => $appointments->whereIn('status', ['diajukan', 'disetujui', 'menunggu_pembayaran'])->count(),
             'pra_konsul' => $praKonsuls->whereIn('status', ['submitted', 'menunggu', 'reviewed'])->count(),
-            'pesanan' => $stats['active_orders']
+            'pesanan' => $orders->where('order_type', 'produk')->whereIn('status', ['menunggu_pembayaran', 'sudah_dibayar', 'lunas'])->whereNotIn('shipping_status', ['selesai', 'dibatalkan'])->count(),
         ];
+
+        // ── Pending Payments ──
+        $pendingPayments = [];
+        $pendingOrders = $orders->where('status', 'menunggu_pembayaran')->filter(function ($order) {
+            return is_null($order->expired_at) || $order->expired_at > now();
+        });
+        
+        foreach ($pendingOrders as $order) {
+            $isTreatment = $order->items->contains(function ($item) {
+                return in_array($item->item_type, ['treatment', 'consultation']);
+            });
+
+            if ($isTreatment) {
+                // Cari appointment terkait
+                $appointmentId = $order->items->first()->appointment_id;
+                $appointment = $appointments->where('appointment_id', $appointmentId)->first();
+                if ($appointment) {
+                    $pendingPayments[] = [
+                        'type' => 'treatment',
+                        'order' => $order,
+                        'appointment' => $appointment,
+                    ];
+                }
+            } else {
+                $pendingPayments[] = [
+                    'type' => 'product',
+                    'order' => $order,
+                ];
+            }
+        }
 
         // ── Next Action Logic (Lanjutkan Aktivitas) ──
         $nextAction = null;
-        $pendingOrder = $orders->where('status', 'menunggu_pembayaran')->first();
         $reviewedKonsul = $praKonsuls->whereIn('status', ['reviewed', 'direkomendasikan'])->first();
         $pendingAppointment = $appointments->where('status', 'diajukan')->first();
 
-        $pendingOrderCount = $orders->where('status', 'menunggu_pembayaran')->count();
-
-        if ($pendingOrderCount > 0) {
-            $nextAction = [
-                'type' => 'payment',
-                'title' => 'Selesaikan Pembayaran',
-                'description' => "Anda memiliki $pendingOrderCount pesanan yang belum dibayar. Segera selesaikan pembayaran agar pesanan diproses.",
-                'cta_text' => 'Bayar Sekarang',
-                'cta_tab' => 'orders',
-                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>',
-                'color' => 'orange'
-            ];
-        } elseif ($reviewedKonsul) {
+        if ($reviewedKonsul) {
             $nextAction = [
                 'type' => 'recommendation',
                 'title' => 'Rekomendasi Dokter Tersedia',
@@ -134,7 +155,7 @@ class DashboardController extends Controller
 
         return view('dashboard', compact(
             'user', 'appointments', 'appointmentOrderMap', 'praKonsuls', 'orders',
-            'upcomingAppointments', 'rekamMedis', 'stats', 'badges', 'nextAction'
+            'upcomingAppointments', 'rekamMedis', 'stats', 'badges', 'nextAction', 'jadwals', 'pendingPayments'
         ));
     }
 
@@ -268,7 +289,7 @@ class DashboardController extends Controller
             'kota'          => 'nullable|string|max:100',
             'district_name' => 'nullable|string|max:100',
             'kode_pos'      => 'nullable|string|max:10',
-            'foto'          => 'nullable|image|mimes:jpeg,jpg,png|max:2048', 
+            'foto'          => 'nullable|image|mimes:jpeg,jpg,png|max:1024', 
         ]);
 
         try {

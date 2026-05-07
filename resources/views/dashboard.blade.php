@@ -27,7 +27,106 @@
 
 <x-guest-layout title="Dashboard">
 
-<div class="min-h-screen bg-[#FAF8F5]" x-data="{ activeTab: 'overview' }" x-on:switch-tab.window="activeTab = $event.detail">
+<div class="min-h-screen bg-[#FAF8F5]" 
+     x-data="{ 
+        activeTab: '{{ session('active_tab', 'overview') }}',
+        profileIsDirty: false,
+        showConfirmModal: false,
+        pendingTab: '',
+        highlightId: null,
+        seenTabs: [],
+        init() {
+            let hasFlashedTab = {{ session()->has('active_tab') ? 'true' : 'false' }};
+            let flashedTab = '{{ session('active_tab') }}';
+            
+            // Read URL query params for tab & highlight
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlTab = urlParams.get('tab');
+            const urlHighlight = urlParams.get('highlight');
+            
+            // If URL has params (redirected from creating new content), reset seenTabs
+            if (urlTab || urlHighlight) {
+                this.seenTabs = [];
+                sessionStorage.removeItem('dashboardSeenTabs');
+            } else {
+                // Load seen tabs from sessionStorage only on normal visits
+                try { this.seenTabs = JSON.parse(sessionStorage.getItem('dashboardSeenTabs') || '[]'); } catch(e) { this.seenTabs = []; }
+            }
+            
+            if (urlTab) {
+                this.activeTab = urlTab;
+                sessionStorage.setItem('dashboardActiveTab', urlTab);
+            } else if (hasFlashedTab && flashedTab) {
+                this.activeTab = flashedTab;
+                sessionStorage.setItem('dashboardActiveTab', flashedTab);
+            } else {
+                let savedTab = sessionStorage.getItem('dashboardActiveTab');
+                if (savedTab) {
+                    this.activeTab = savedTab;
+                }
+            }
+            
+            // Mark initial active tab as seen
+            this.markTabSeen(this.activeTab);
+            
+            // Store highlight ID for card glow effect
+            if (urlHighlight) {
+                this.highlightId = urlHighlight;
+                // Clean URL without reload
+                window.history.replaceState({}, '', window.location.pathname);
+                // Auto-clear highlight after 4 seconds
+                setTimeout(() => { this.highlightId = null; }, 4000);
+            }
+            
+            this.$watch('activeTab', (value) => {
+                sessionStorage.setItem('dashboardActiveTab', value);
+                this.markTabSeen(value);
+            });
+
+            window.addEventListener('beforeunload', (e) => {
+                if (this.profileIsDirty) {
+                    e.preventDefault();
+                    e.returnValue = '';
+                }
+            });
+        },
+        markTabSeen(tab) {
+            if (!this.seenTabs.includes(tab)) {
+                this.seenTabs.push(tab);
+                sessionStorage.setItem('dashboardSeenTabs', JSON.stringify(this.seenTabs));
+            }
+        },
+        isTabSeen(tab) {
+            return this.seenTabs.includes(tab);
+        },
+        attemptTabSwitch(tabKey) {
+            if (tabKey === 'profile') tabKey = 'profile_data';
+
+            const profileTabs = ['profile_data', 'profile_password', 'profile_alamat'];
+            const isCurrentProfile = profileTabs.includes(this.activeTab) || this.activeTab === 'profile';
+            const isTargetProfile = profileTabs.includes(tabKey);
+
+            if (isCurrentProfile && this.profileIsDirty && !isTargetProfile) {
+                this.pendingTab = tabKey;
+                this.showConfirmModal = true;
+            } else {
+                this.activeTab = tabKey;
+            }
+        },
+        confirmSwitch() {
+            this.profileIsDirty = false;
+            this.showConfirmModal = false;
+            this.activeTab = this.pendingTab;
+            
+            // Revert DOM inputs to original state
+            document.getElementById('profile-form')?.reset();
+            document.getElementById('password-form')?.reset();
+            
+            // Dispatch event to reset Alpine.js state
+            window.dispatchEvent(new CustomEvent('reset-alpine-profile'));
+        }
+     }" 
+     x-on:switch-tab.window="attemptTabSwitch($event.detail)">
     <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
         <div class="flex gap-8">
 
@@ -57,7 +156,7 @@
                         @endphp
 
                         @foreach($menuItems as $item)
-                            <button @click="activeTab = '{{ $item['key'] }}'"
+                            <button @click="attemptTabSwitch('{{ $item['key'] }}')"
                                 :class="activeTab === '{{ $item['key'] }}' ? 'bg-[#CFAF53]/15 text-[#1A1A1A] border-l-[4px] border-[#CFAF53] font-bold' : 'text-slate-600 hover:bg-[#FAF8F5] hover:translate-x-1 border-l-[4px] border-transparent'"
                                 class="flex items-center justify-between w-full px-4 py-2.5 rounded-lg text-sm text-left transition-all duration-200">
                                 <div class="flex items-center gap-3">
@@ -65,22 +164,49 @@
                                     {{ $item['label'] }}
                                 </div>
                                 
+                                @if($item['key'] === 'appointment' && isset($badges['appointment']) && $badges['appointment'] > 0)
+                                    <span x-show="!isTabSeen('appointment')" x-transition class="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{{ $badges['appointment'] }}</span>
+                                @endif
                                 @if($item['key'] === 'prakonsul' && isset($badges['pra_konsul']) && $badges['pra_konsul'] > 0)
-                                    <span class="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{{ $badges['pra_konsul'] }}</span>
-                                @elseif($item['key'] === 'orders' && isset($badges['pesanan']) && $badges['pesanan'] > 0)
-                                    <span class="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{{ $badges['pesanan'] }}</span>
+                                    <span x-show="!isTabSeen('prakonsul')" x-transition class="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{{ $badges['pra_konsul'] }}</span>
+                                @endif
+                                @if($item['key'] === 'orders' && isset($badges['pesanan']) && $badges['pesanan'] > 0)
+                                    <span x-show="!isTabSeen('orders')" x-transition class="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{{ $badges['pesanan'] }}</span>
                                 @endif
                             </button>
                         @endforeach
 
                         <div class="my-2 border-t border-[#E8E0D8]/40"></div>
 
-                        <button @click="activeTab = 'profile'"
-                            :class="activeTab === 'profile' ? 'bg-[#CFAF53]/15 text-[#1A1A1A] border-l-[4px] border-[#CFAF53] font-bold' : 'text-slate-600 hover:bg-[#FAF8F5] hover:translate-x-1 border-l-[4px] border-transparent'"
-                            class="flex items-center gap-3 w-full px-4 py-2.5 rounded-lg text-sm text-left transition-all duration-200">
-                            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                            Profil Saya
-                        </button>
+                        <div x-data="{ openAkun: activeTab === 'profile' }">
+                            <button @click="openAkun = !openAkun"
+                                :class="activeTab === 'profile' ? 'bg-[#CFAF53]/15 text-[#1A1A1A] border-l-[4px] border-[#CFAF53] font-bold' : 'text-slate-600 hover:bg-[#FAF8F5] hover:translate-x-1 border-l-[4px] border-transparent'"
+                                class="flex items-center justify-between w-full px-4 py-2.5 rounded-lg text-sm text-left transition-all duration-200">
+                                <div class="flex items-center gap-3">
+                                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                    Akun Saya
+                                </div>
+                                <svg :class="{'rotate-180': openAkun}" class="w-4 h-4 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                            </button>
+                            
+                            <div x-show="openAkun" x-collapse class="pl-11 pr-4 py-1 space-y-1">
+                                <button @click="attemptTabSwitch('profile_data')"
+                                    :class="activeTab === 'profile_data' || activeTab === 'profile' ? 'text-[#CFAF53] font-bold' : 'text-slate-500 hover:text-[#CFAF53] font-medium'"
+                                    class="w-full text-left text-[13px] py-1.5 transition-colors">
+                                    Profil
+                                </button>
+                                <button @click="attemptTabSwitch('profile_password')"
+                                    :class="activeTab === 'profile_password' ? 'text-[#CFAF53] font-bold' : 'text-slate-500 hover:text-[#CFAF53] font-medium'"
+                                    class="w-full text-left text-[13px] py-1.5 transition-colors">
+                                    Ubah Password
+                                </button>
+                                <button @click="attemptTabSwitch('profile_alamat')"
+                                    :class="activeTab === 'profile_alamat' ? 'text-[#CFAF53] font-bold' : 'text-slate-500 hover:text-[#CFAF53] font-medium'"
+                                    class="w-full text-left text-[13px] py-1.5 transition-colors">
+                                    Alamat
+                                </button>
+                            </div>
+                        </div>
                     </nav>
 
                     {{-- Member Card --}}
@@ -153,7 +279,7 @@
                 <div x-show="activeTab === 'rekam_medis'" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" style="display:none">
                     @include('dashboard.rekam-medis')
                 </div>
-                <div x-show="activeTab === 'profile'" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" style="display:none">
+                <div x-show="['profile', 'profile_data', 'profile_password', 'profile_alamat'].includes(activeTab)" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" style="display:none">
                     @include('dashboard.profile')
                 </div>
             </main>
@@ -175,15 +301,41 @@
                 ];
             @endphp
             @foreach($mobileNav as $nav)
-                <button @click="activeTab = '{{ $nav['key'] }}'"
+                <button @click="attemptTabSwitch('{{ $nav['key'] }}')"
                     :class="activeTab === '{{ $nav['key'] }}' ? 'text-[#CFAF53]' : 'text-slate-400'"
-                    class="flex flex-col items-center gap-0.5 px-1 py-1 transition-colors min-w-0">
+                    class="relative flex flex-col items-center gap-0.5 px-1 py-1 transition-colors min-w-0">
                     <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">{!! $nav['icon'] !!}</svg>
                     <span class="text-[9px] font-semibold truncate">{{ $nav['label'] }}</span>
+                    @if($nav['key'] === 'appointment' && isset($badges['appointment']) && $badges['appointment'] > 0)
+                        <span x-show="!isTabSeen('appointment')" x-transition class="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[8px] font-bold w-4 h-4 rounded-full flex items-center justify-center">{{ $badges['appointment'] }}</span>
+                    @endif
+                    @if($nav['key'] === 'prakonsul' && isset($badges['pra_konsul']) && $badges['pra_konsul'] > 0)
+                        <span x-show="!isTabSeen('prakonsul')" x-transition class="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[8px] font-bold w-4 h-4 rounded-full flex items-center justify-center">{{ $badges['pra_konsul'] }}</span>
+                    @endif
+                    @if($nav['key'] === 'orders' && isset($badges['pesanan']) && $badges['pesanan'] > 0)
+                        <span x-show="!isTabSeen('orders')" x-transition class="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[8px] font-bold w-4 h-4 rounded-full flex items-center justify-center">{{ $badges['pesanan'] }}</span>
+                    @endif
                 </button>
             @endforeach
         </div>
     </nav>
+
+    {{-- ====== MODAL KONFIRMASI UNSAVED CHANGES ====== --}}
+    <div x-show="showConfirmModal" class="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto overflow-x-hidden bg-slate-900/50 backdrop-blur-sm p-4" style="display: none;">
+        <div x-show="showConfirmModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95" @click.away="showConfirmModal = false" class="relative w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden border border-[#E8E0D8]">
+            <div class="p-6 sm:p-8">
+                <div class="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                </div>
+                <h3 class="text-xl font-extrabold text-[#1A1A1A] mb-2">Ada Perubahan yang Belum Disimpan</h3>
+                <p class="text-slate-500 text-sm mb-8">Anda telah mengubah data profil atau alamat namun belum menyimpannya. Apakah Anda yakin ingin pindah tab? Data yang belum disimpan akan hilang.</p>
+                <div class="flex items-center justify-end gap-3">
+                    <button @click="showConfirmModal = false" class="px-5 py-2.5 rounded-full text-sm font-bold text-slate-500 hover:bg-slate-100 transition">Batal Pindah</button>
+                    <button @click="confirmSwitch()" class="px-5 py-2.5 rounded-full text-sm font-bold bg-[#1A1A1A] text-white hover:bg-black shadow-lg shadow-black/20 transition">Ya, Buang Perubahan</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 {{-- Scripts --}}

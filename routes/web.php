@@ -50,6 +50,12 @@ Route::get('/forum/{id}', [ForumController::class, 'show'])
     ->whereNumber('id');
 
 // ============================
+// MIDTRANS WEBHOOK (NO AUTH REQUIRED)
+// ============================
+// Route ini HARUS di luar middleware auth karena dipanggil server Midtrans.
+Route::post('/midtrans/notification', [PaymentController::class, 'notification'])->name('midtrans.notification');
+
+// ============================
 // AUTH REQUIRED AREA
 // ============================
 Route::middleware(['auth'])->group(function () {
@@ -89,10 +95,8 @@ Route::middleware(['auth'])->group(function () {
     // ============================
     // PRA KONSUL
     // ============================
-    Route::get('/pra-konsul', [PraKonsulController::class, 'index'])->name('pra.index');
     Route::get('/pra-konsul/buat', [PraKonsulController::class, 'create'])->name('pra.create');
     Route::post('/pra-konsul', [PraKonsulController::class, 'store'])->name('pra.store');
-    Route::get('/pra-konsul/{form}', [PraKonsulController::class, 'show'])->name('pra.show');
 
     // ============================
     // APPOINTMENT (JANJI TEMU)
@@ -105,6 +109,7 @@ Route::middleware(['auth'])->group(function () {
     // Halaman Wizard Booking Treatment
     Route::get('/appointment/booking-treatment', [AppointmentController::class, 'bookingTreatment'])->name('appointment.booking-treatment');
     Route::post('/appointment/booking-treatment', [AppointmentController::class, 'submitBookingTreatment'])->name('appointment.booking-treatment.store');
+    Route::get('/appointment/booking-treatment/check-slots', [AppointmentController::class, 'checkSlotAvailability'])->name('appointment.booking-treatment.check-slots');
     // Halaman Form Booking (lama/treatment)
     Route::get('/appointment/buat', [AppointmentController::class, 'create'])->name('appointment.create');
     // Proses Simpan Booking
@@ -113,6 +118,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/appointment', [AppointmentController::class, 'index'])
         ->name('appointment.index');
     Route::patch('/appointment/{appointment}/cancel', [AppointmentController::class, 'cancel'])->name('appointments.cancel');
+    Route::patch('/appointment/{appointment}/reschedule', [AppointmentController::class, 'reschedule'])->name('appointments.reschedule');
 
 
     // API Routes (Komerce)
@@ -133,11 +139,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/payment-status/unfinish', [PaymentController::class, 'unfinish'])->name('payment.unfinish');
     Route::get('/payment-status/error', [PaymentController::class, 'error'])->name('payment.error');
 
-    // ============================
-    // MIDTRANS WEBHOOK (TIDAK PERLU AUTH)\
-    // ============================
-    // Route ini harus bisa diakses Midtrans tanpa autentikasi
-    Route::post('/midtrans/notification', [PaymentController::class, 'notification'])->name('midtrans.notification');
+    // Webhook Midtrans sudah dipindahkan ke luar middleware auth (line ~54)
 
     // forum 
     Route::get('/forum/create', [ForumController::class, 'create'])->name('forum.create');

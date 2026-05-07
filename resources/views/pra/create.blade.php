@@ -2,7 +2,7 @@
 <div class="w-full min-h-screen bg-[#FAF8F5]" x-data="praForm()" id="form-top">
     <!-- Back Navigation -->
     <div class="mx-auto max-w-2xl px-4 pt-6">
-        <a href="{{ route('pra.index') }}" class="inline-flex items-center gap-2 text-sm text-[#8C7A63] hover:text-[#6B5D4D] transition-colors font-medium">
+        <a href="{{ route('dashboard', ['tab' => 'prakonsul']) }}" class="inline-flex items-center gap-2 text-sm text-[#8C7A63] hover:text-[#6B5D4D] transition-colors font-medium">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
             Kembali
         </a>

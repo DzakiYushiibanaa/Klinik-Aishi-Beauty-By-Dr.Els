@@ -4,7 +4,7 @@
     {{-- Greeting + CTA --}}
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-            <p class="text-sm text-[#8C7A63] font-medium">Selamat Datang,</p>
+            <p class="text-2xl text-[#8C7A63] font-medium">Selamat Datang,</p>
             <h1 class="text-2xl md:text-3xl font-extrabold text-[#1A1A1A] tracking-tight">{{ $user->name }} 👋</h1>
         </div>
         <a href="{{ route('appointment.select') }}" class="inline-flex items-center gap-2 bg-[#CFAF53] text-[#1A1A1A] font-bold px-6 py-3 rounded-full shadow-lg shadow-[#CFAF53]/20 hover:bg-[#b59b48] transition text-sm">
@@ -13,7 +13,209 @@
         </a>
     </div>
 
-    {{-- Section A: Lanjutkan Aktivitas --}}
+    {{-- Section A: Pending Payments (Priority Action) --}}
+    @if(isset($pendingPayments) && count($pendingPayments) > 0)
+        @foreach($pendingPayments as $payment)
+            @if($payment['type'] === 'treatment')
+                <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm mb-6 overflow-hidden">
+                    <!-- HEADER -->
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 sm:p-5 border-b border-slate-100 bg-slate-50/50 gap-3">
+                        <div class="flex items-center gap-3">
+                            <h2 class="text-[16px] font-bold text-slate-900">Pembayaran Treatment</h2>
+                            <span class="text-[11px] font-medium text-slate-500 bg-white px-2 py-1 rounded border border-slate-200 tracking-wide">{{ $payment['order']->kode_order }}</span>
+                        </div>
+                        
+                        <div class="flex items-center gap-2.5 w-full sm:w-auto justify-between sm:justify-end">
+                            <span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wide">Belum Bayar</span>
+                            @if($payment['order']->expired_at)
+                            <div x-data="countdownTimer('{{ $payment['order']->expired_at }}')" class="flex items-center gap-1.5 bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-md">
+                                <svg class="w-3.5 h-3.5 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                <div class="flex items-center text-rose-600 font-bold text-[13px] tabular-nums tracking-tighter">
+                                    <template x-if="showHours">
+                                        <div class="flex items-center">
+                                            <div class="h-[1em] overflow-hidden leading-none relative">
+                                                <div class="transition-transform duration-300 flex flex-col" :style="`transform: translateY(-${h1 * 10}%)`"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></div>
+                                            </div>
+                                            <div class="h-[1em] overflow-hidden leading-none relative">
+                                                <div class="transition-transform duration-300 flex flex-col" :style="`transform: translateY(-${h2 * 10}%)`"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></div>
+                                            </div>
+                                            <span class="mx-0.5 text-rose-400 font-black animate-pulse">:</span>
+                                        </div>
+                                    </template>
+                                    <div class="h-[1em] overflow-hidden leading-none relative">
+                                        <div class="transition-transform duration-300 flex flex-col" :style="`transform: translateY(-${m1 * 10}%)`"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></div>
+                                    </div>
+                                    <div class="h-[1em] overflow-hidden leading-none relative">
+                                        <div class="transition-transform duration-300 flex flex-col" :style="`transform: translateY(-${m2 * 10}%)`"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></div>
+                                    </div>
+                                    <span class="mx-0.5 text-rose-400 font-black animate-pulse">:</span>
+                                    <div class="h-[1em] overflow-hidden leading-none relative">
+                                        <div class="transition-transform duration-300 flex flex-col" :style="`transform: translateY(-${s1 * 10}%)`"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></div>
+                                    </div>
+                                    <div class="h-[1em] overflow-hidden leading-none relative">
+                                        <div class="transition-transform duration-300 flex flex-col" :style="`transform: translateY(-${s2 * 10}%)`"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                            @endif
+                        </div>
+                    </div>
+
+                    <!-- CONTENT -->
+                    <div class="p-4 sm:p-5 flex flex-col gap-4">
+                        <!-- Jadwal Info -->
+                        <div class="flex gap-4 items-center">
+                            <div class="w-16 h-16 rounded-xl bg-slate-50 flex-shrink-0 overflow-hidden border border-slate-200 shadow-sm flex items-center justify-center">
+                                <svg class="w-7 h-7 text-[#D4A017]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="text-[15px] font-bold text-slate-900 mb-1.5">Jadwal Booking</h3>
+                                <div class="flex items-center gap-1.5">
+                                    <p class="text-sm font-semibold text-slate-700">{{ $payment['appointment']->tanggal_jam->translatedFormat('d F Y • H:i') }}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Treatment Items -->
+                        @foreach($payment['order']->items as $item)
+                            <div class="flex gap-4 items-center">
+                                @php
+                                    $image = null;
+                                    if ($item->treatment && $item->treatment->foto_path) {
+                                        $image = asset('storage/' . $item->treatment->foto_path);
+                                    } elseif ($item->bundle && $item->bundle->foto_path) {
+                                        $image = asset('storage/' . $item->bundle->foto_path);
+                                    }
+                                @endphp
+                                
+                                <div class="w-16 h-16 rounded-xl bg-slate-50 flex-shrink-0 overflow-hidden border border-slate-200 shadow-sm flex items-center justify-center">
+                                    @if($image)
+                                        <img src="{{ $image }}" alt="{{ $item->treatment?->nama ?? 'Treatment' }}" class="w-full h-full object-cover">
+                                    @else
+                                        <svg class="w-7 h-7 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                                    @endif
+                                </div>
+                                <div class="flex-1">
+                                    <h3 class="text-[15px] font-bold text-slate-900 mb-1.5 line-clamp-1">{{ $item->treatment?->nama ?? $item->bundle?->nama ?? 'Treatment' }}</h3>
+                                    <div class="flex items-center gap-1.5">
+                                        <p class="text-sm font-semibold text-slate-700">Rp {{ number_format($item->harga_satuan, 0, ',', '.') }}</p>
+                                        @if($item->qty > 1)
+                                            <span class="text-[11px] text-slate-400 font-medium">x{{ $item->qty }}</span>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+
+                    <!-- FOOTER -->
+                    <div class="p-4 sm:p-5 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4">
+                        <div class="flex items-start gap-2.5 bg-amber-50/80 px-4 py-3 rounded-xl border border-amber-200/50 w-full sm:w-auto flex-1 shadow-sm">
+                            <svg class="w-4 h-4 text-amber-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                            <span class="text-xs font-medium text-amber-800 leading-relaxed">Jika pembayaran tidak diselesaikan, jadwal akan dibatalkan otomatis dan slot akan dibuka kembali.</span>
+                        </div>
+                        
+                        <button @click="processPayment('{{ $payment['order']->kode_order }}', $event)" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-[#D4A017] hover:bg-[#b58812] text-white text-sm font-bold rounded-full transition-colors shadow-lg shadow-[#D4A017]/20">
+                            Bayar Sekarang
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                        </button>
+                    </div>
+                </div>
+            @else
+                <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm mb-6 overflow-hidden">
+                    <!-- HEADER -->
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 sm:p-5 border-b border-slate-100 bg-slate-50/50 gap-3">
+                        <div class="flex items-center gap-3">
+                            <h2 class="text-[16px] font-bold text-slate-900">Pembayaran Produk</h2>
+                            <span class="text-[11px] font-medium text-slate-500 bg-white px-2 py-1 rounded border border-slate-200 tracking-wide">{{ $payment['order']->kode_order }}</span>
+                        </div>
+                        
+                        <div class="flex items-center gap-2.5 w-full sm:w-auto justify-between sm:justify-end">
+                            <span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wide">Belum Bayar</span>
+                            @if($payment['order']->expired_at)
+                            <div x-data="countdownTimer('{{ $payment['order']->expired_at }}')" class="flex items-center gap-1.5 bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-md">
+                                <svg class="w-3.5 h-3.5 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                <div class="flex items-center text-rose-600 font-bold text-[13px] tabular-nums tracking-tighter">
+                                    <template x-if="showHours">
+                                        <div class="flex items-center">
+                                            <div class="h-[1em] overflow-hidden leading-none relative">
+                                                <div class="transition-transform duration-300 flex flex-col" :style="`transform: translateY(-${h1 * 10}%)`"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></div>
+                                            </div>
+                                            <div class="h-[1em] overflow-hidden leading-none relative">
+                                                <div class="transition-transform duration-300 flex flex-col" :style="`transform: translateY(-${h2 * 10}%)`"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></div>
+                                            </div>
+                                            <span class="mx-0.5 text-rose-400 font-black animate-pulse">:</span>
+                                        </div>
+                                    </template>
+                                    <div class="h-[1em] overflow-hidden leading-none relative">
+                                        <div class="transition-transform duration-300 flex flex-col" :style="`transform: translateY(-${m1 * 10}%)`"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></div>
+                                    </div>
+                                    <div class="h-[1em] overflow-hidden leading-none relative">
+                                        <div class="transition-transform duration-300 flex flex-col" :style="`transform: translateY(-${m2 * 10}%)`"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></div>
+                                    </div>
+                                    <span class="mx-0.5 text-rose-400 font-black animate-pulse">:</span>
+                                    <div class="h-[1em] overflow-hidden leading-none relative">
+                                        <div class="transition-transform duration-300 flex flex-col" :style="`transform: translateY(-${s1 * 10}%)`"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></div>
+                                    </div>
+                                    <div class="h-[1em] overflow-hidden leading-none relative">
+                                        <div class="transition-transform duration-300 flex flex-col" :style="`transform: translateY(-${s2 * 10}%)`"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                            @endif
+                        </div>
+                    </div>
+
+                    <!-- CONTENT -->
+                    <div class="p-4 sm:p-5 flex flex-col gap-4">
+                        @foreach($payment['order']->items->take(2) as $item)
+                            <div class="flex gap-4 items-center">
+                                @php
+                                    $image = null;
+                                    if ($item->product && $item->product->foto_path) {
+                                        $image = asset('storage/' . $item->product->foto_path);
+                                    } elseif ($item->bundle && $item->bundle->foto_path) {
+                                        $image = asset('storage/' . $item->bundle->foto_path);
+                                    } else {
+                                        $image = asset('images/placeholder.jpg'); // Fallback
+                                    }
+                                @endphp
+                                <div class="w-16 h-16 rounded-xl bg-white flex-shrink-0 overflow-hidden border border-slate-200 shadow-sm flex items-center justify-center">
+                                    <img src="{{ $image }}" alt="{{ $item->product?->nama ?? 'Produk' }}" class="w-full h-full object-cover">
+                                </div>
+                                <div class="flex-1">
+                                    <h3 class="text-[15px] font-bold text-slate-900 mb-1.5 line-clamp-1">{{ $item->product?->nama ?? $item->bundle?->nama ?? 'Produk' }}</h3>
+                                    <div class="flex items-center gap-1.5">
+                                        <p class="text-sm font-semibold text-slate-700">Rp {{ number_format($item->harga_satuan, 0, ',', '.') }}</p>
+                                        <span class="text-[11px] text-slate-400 font-medium">x{{ $item->qty }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                        
+                        @if($payment['order']->items->count() > 2)
+                            <p class="text-xs font-semibold text-slate-500 italic pl-[80px]">+ {{ $payment['order']->items->count() - 2 }} produk lainnya</p>
+                        @endif
+                    </div>
+
+                    <!-- FOOTER -->
+                    <div class="p-4 sm:p-5 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4">
+                        <div class="flex items-start gap-2.5 bg-amber-50/80 px-4 py-3 rounded-xl border border-amber-200/50 w-full sm:w-auto flex-1 shadow-sm">
+                            <svg class="w-4 h-4 text-amber-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                            <span class="text-xs font-medium text-amber-800 leading-relaxed">Jika pembayaran tidak diselesaikan, pesanan batal otomatis.</span>
+                        </div>
+                        
+                        <button @click="processPayment('{{ $payment['order']->kode_order }}', $event)" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-[#D4A017] hover:bg-[#b58812] text-white text-sm font-bold rounded-full transition-colors shadow-lg shadow-[#D4A017]/20">
+                            Bayar Sekarang
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                        </button>
+                    </div>
+                </div>
+            @endif
+        @endforeach
+    @endif
+
+    {{-- Section A: Lanjutkan Aktivitas (Other logic) --}}
     @if(isset($nextAction))
         @php
             $naColors = match ($nextAction['color']) {
@@ -130,11 +332,79 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    {{-- Jadwal Mendatang --}}
+    <div class="mt-8">
+        <div class="bg-white rounded-2xl border border-[#E8E0D8]/60 shadow-sm p-6">
+            <h3 class="text-xs font-bold uppercase tracking-[0.2em] text-[#8C7A63] mb-4">Jadwal Mendatang</h3>
 
-        {{-- Main: Aktivitas Terkini --}}
-        <div class="lg:col-span-2">
-            <div class="bg-white rounded-2xl border border-[#E8E0D8]/60 shadow-sm p-6">
+            @if($upcomingAppointments->isEmpty())
+                <div class="bg-[#FAF8F5] rounded-2xl border border-dashed border-[#E8E0D8] p-8 text-center flex flex-col items-center justify-center">
+                    <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center mb-3 shadow-sm">
+                        <svg class="w-6 h-6 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    </div>
+                    <p class="text-sm font-bold text-[#1A1A1A]">Jadwal Kosong</p>
+                    <p class="text-xs text-slate-500 mt-1 mb-4">Anda belum memiliki jadwal janji temu.</p>
+                    <a href="{{ route('appointment.select') }}" class="text-xs font-bold text-[#CFAF53] bg-white border border-[#CFAF53]/20 px-4 py-2 rounded-full hover:bg-[#CFAF53]/5 transition-colors">Buat Janji →</a>
+                </div>
+            @else
+                <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                    @foreach($upcomingAppointments as $upcoming)
+                        @php
+                            $treatmentNames = $upcoming->items->map(fn($i) => $i->treatment?->nama)->filter()->implode(', ');
+                            $isDisetujui = strtolower($upcoming->status) === 'disetujui';
+                        @endphp
+                        <div class="group bg-white rounded-2xl border border-[#E8E0D8] p-4 sm:p-5 shadow-sm hover:shadow-md hover:border-[#CFAF53]/60 transition-all cursor-pointer relative overflow-hidden flex flex-col" @click="activeTab = 'appointment'">
+                            <div class="absolute top-0 left-0 w-1 h-full {{ $isDisetujui ? 'bg-emerald-400' : 'bg-amber-400' }} group-hover:w-1.5 transition-all"></div>
+                            
+                            <div class="flex gap-4 sm:gap-5 pl-2 flex-1">
+                                {{-- Calendar Date Box --}}
+                                <div class="w-16 h-[72px] shrink-0 bg-[#FAF8F5] rounded-xl border border-[#E8E0D8] overflow-hidden flex flex-col shadow-sm group-hover:border-[#CFAF53]/40 transition-colors">
+                                    <div class="bg-[#1A1A1A] py-1 text-center">
+                                        <span class="text-[10px] font-bold text-[#CFAF53] uppercase tracking-widest">{{ $upcoming->tanggal_jam->translatedFormat('M') }}</span>
+                                    </div>
+                                    <div class="flex-1 flex items-center justify-center bg-white">
+                                        <span class="text-2xl font-black text-[#1A1A1A] leading-none">{{ $upcoming->tanggal_jam->translatedFormat('d') }}</span>
+                                    </div>
+                                </div>
+
+                                {{-- Details --}}
+                                <div class="flex-1 min-w-0 flex flex-col justify-between">
+                                    <div>
+                                        <h4 class="font-bold text-[15px] text-[#1A1A1A] truncate group-hover:text-[#CFAF53] transition-colors mb-1.5">{{ $treatmentNames ?: ucfirst($upcoming->jenis) }}</h4>
+                                        <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 font-medium">
+                                            <div class="flex items-center gap-1.5">
+                                                <svg class="w-3.5 h-3.5 text-[#CFAF53] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                                <span class="whitespace-nowrap">{{ $upcoming->tanggal_jam->translatedFormat('H:i') }} WIB</span>
+                                            </div>
+                                            <div class="flex items-center gap-1.5">
+                                                <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                                <span class="truncate">{{ $upcoming->dokter->name ?? 'Dokter' }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 mt-4 pt-3 border-t border-[#E8E0D8]/40">
+                                        <span class="px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-widest border {{ $isDisetujui ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-amber-700 bg-amber-50 border-amber-200' }}">
+                                            {{ $upcoming->status }}
+                                        </span>
+                                        
+                                        <button class="w-full sm:w-auto text-center px-4 py-2 rounded-full font-bold text-xs text-[#1A1A1A] bg-[#FAF8F5] border border-[#E8E0D8] hover:bg-white hover:border-[#CFAF53] transition-all shadow-sm flex items-center justify-center gap-1.5">
+                                            Lihat Detail
+                                            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+        </div>
+    </div>
+
+    {{-- Main: Aktivitas Terkini --}}
+    <div class="mt-8">
+        <div class="bg-white rounded-2xl border border-[#E8E0D8]/60 shadow-sm p-6">
             <h3 class="text-xs font-bold uppercase tracking-[0.2em] text-[#8C7A63] mb-4">Aktivitas Terkini</h3>
             
             <div class="space-y-4">
@@ -243,7 +513,7 @@
                                         {{-- Skincare --}}
                                         <div class="bg-[#FAF8F5] rounded-2xl border border-[#E8E0D8]/60 p-5">
                                             <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Skincare Sebelumnya</p>
-                                            <p class="text-sm text-[#1A1A1A] font-medium leading-relaxed">{{ $latestPraKonsul->skincare_yg_digunakan ?? '-' }}</p>
+                                            <p class="text-sm text-[#1A1A1A] font-medium leading-relaxed">{{ $latestPraKonsul->skincare_sebelumnya ?? '-' }}</p>
                                         </div>
 
                                         {{-- Riwayat Perawatan --}}
@@ -252,10 +522,10 @@
                                             <div class="grid grid-cols-2 gap-3">
                                                 @php
                                                     $perawatan = [
-                                                        ['label' => 'Facial', 'value' => $latestPraKonsul->riwayat_perawatan_facial],
-                                                        ['label' => 'Skin Booster', 'value' => $latestPraKonsul->riwayat_perawatan_skin_booster],
-                                                        ['label' => 'Laser', 'value' => $latestPraKonsul->riwayat_perawatan_laser],
-                                                        ['label' => 'Inject/Infus', 'value' => $latestPraKonsul->riwayat_perawatan_inject_infus],
+                                                        ['label' => 'Facial', 'value' => $latestPraKonsul->pernah_facial],
+                                                        ['label' => 'Skin Booster', 'value' => $latestPraKonsul->pernah_skin_booster],
+                                                        ['label' => 'Laser', 'value' => $latestPraKonsul->pernah_laser],
+                                                        ['label' => 'Inject/Infus', 'value' => $latestPraKonsul->pernah_inject_infus],
                                                     ];
                                                 @endphp
                                                 @foreach($perawatan as $p)
@@ -279,8 +549,8 @@
                                         <div>
                                             <h4 class="text-[10px] font-bold text-[#8C7A63] uppercase tracking-[0.2em] mb-3">📸 Foto Wajah</h4>
                                             <div class="grid grid-cols-3 gap-3">
-                                                @foreach(['depan', 'kiri', 'kanan'] as $pos)
-                                                    @php $path = $latestPraKonsul->{"foto_wajah_$pos"}; @endphp
+                                                @foreach(['foto_depan_path' => 'Depan', 'foto_kiri_path' => 'Kiri', 'foto_kanan_path' => 'Kanan'] as $field => $pos)
+                                                    @php $path = $latestPraKonsul->$field; @endphp
                                                     <div class="text-center">
                                                         <div class="aspect-square rounded-2xl border border-[#E8E0D8]/60 overflow-hidden bg-slate-50 mb-1.5 shadow-sm">
                                                             @if($path)
@@ -300,35 +570,85 @@
 
                                         {{-- Rekomendasi Dokter --}}
                                         @if($latestPraKonsul->rekomendasi_dokter || $latestPraKonsul->rekomendasiItems->isNotEmpty())
-                                            <div class="bg-blue-50 border border-blue-100 rounded-xl p-4">
-                                                <p class="text-[10px] font-bold text-blue-700 uppercase tracking-wider mb-2">💊 Rekomendasi Dokter</p>
+                                            <div class="space-y-4 border-t border-[#E8E0D8]/60 mt-4 pt-4">
+                                                
+                                                {{-- Dokter's General Note --}}
                                                 @if($latestPraKonsul->rekomendasi_dokter)
-                                                    <p class="text-sm text-blue-900 leading-relaxed mb-3">{{ $latestPraKonsul->rekomendasi_dokter }}</p>
+                                                    <div class="bg-white border border-[#E8E0D8] rounded-xl p-4 shadow-sm relative overflow-hidden group">
+                                                        <div class="absolute left-0 top-0 bottom-0 w-1 bg-[#CFAF53] rounded-l-xl"></div>
+                                                        <div class="flex items-center gap-2 mb-2 pl-2">
+                                                            <svg class="w-4 h-4 text-[#CFAF53]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                                                            <p class="text-xs font-bold text-[#8C7A63] uppercase tracking-wider">Rekomendasi Dokter</p>
+                                                        </div>
+                                                        <p class="text-sm text-[#1A1A1A] leading-relaxed pl-2">{{ $latestPraKonsul->rekomendasi_dokter }}</p>
+                                                    </div>
                                                 @endif
-
-                                                {{-- Daftar Item Rekomendasi --}}
+    
+                                                {{-- Produk/Treatment Iteration --}}
                                                 @if($latestPraKonsul->rekomendasiItems->isNotEmpty())
-                                                    <div class="space-y-2 mt-2">
-                                                        @php
-                                                            $tipeColor = [
-                                                                'Produk' => 'bg-amber-100 text-amber-700',
-                                                                'Treatment' => 'bg-purple-100 text-purple-700',
-                                                                'Bundle' => 'bg-emerald-100 text-emerald-700',
-                                                            ];
+                                                    @foreach($latestPraKonsul->rekomendasiItems as $item)
+                                                        @php 
+                                                            $tipe = $item->item_tipe;
+                                                            $obj = $tipe === 'Produk' ? $item->product : ($tipe === 'Treatment' ? $item->treatment : $item->bundle);
                                                         @endphp
-                                                        @foreach($latestPraKonsul->rekomendasiItems as $item)
-                                                            @php $tipe = $item->item_tipe; @endphp
-                                                            <div class="flex items-start gap-3 bg-white rounded-lg p-3 border border-blue-100 shadow-sm">
-                                                                <span class="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold {{ $tipeColor[$tipe] ?? 'bg-slate-100 text-slate-600' }}">{{ $tipe }}</span>
-                                                                <div class="flex-1 min-w-0">
-                                                                    <p class="text-sm font-bold text-[#1A1A1A] leading-tight">{{ $item->item_nama }}</p>
-                                                                    @if($item->catatan)
-                                                                        <p class="text-xs text-slate-500 mt-0.5">{{ $item->catatan }}</p>
+                                                        <div class="bg-white border border-[#E8E0D8] rounded-xl p-4 shadow-sm hover:border-[#CFAF53]/40 transition-colors relative overflow-hidden">
+                                                            <div class="flex items-center gap-2 mb-4 border-b border-[#E8E0D8]/60 pb-3">
+                                                                @if($tipe === 'Treatment')
+                                                                    <svg class="w-4 h-4 text-[#CFAF53]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                                                    <p class="text-xs font-bold text-[#8C7A63] uppercase tracking-wider">Treatment Rekomendasi</p>
+                                                                @elseif($tipe === 'Bundle')
+                                                                    <svg class="w-4 h-4 text-[#CFAF53]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                                                    <p class="text-xs font-bold text-[#8C7A63] uppercase tracking-wider">Bundle Rekomendasi</p>
+                                                                @else
+                                                                    <svg class="w-4 h-4 text-[#CFAF53]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+                                                                    <p class="text-xs font-bold text-[#8C7A63] uppercase tracking-wider">Produk Rekomendasi</p>
+                                                                @endif
+                                                            </div>
+    
+                                                            <div class="flex flex-col sm:flex-row items-start gap-4">
+                                                                {{-- Image --}}
+                                                                <div class="w-20 h-20 rounded-lg bg-[#FAF8F5] border border-[#E8E0D8] shrink-0 overflow-hidden flex items-center justify-center">
+                                                                    @if($obj && isset($obj->foto_path) && $obj->foto_path)
+                                                                        <img src="{{ asset('storage/' . $obj->foto_path) }}" alt="{{ $item->item_nama }}" class="w-full h-full object-cover">
+                                                                    @else
+                                                                        <svg class="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                                                                     @endif
                                                                 </div>
+    
+                                                                {{-- Details --}}
+                                                                <div class="flex-1 min-w-0 flex flex-col justify-between h-full w-full">
+                                                                    <div>
+                                                                        <p class="font-bold text-[#1A1A1A] text-base leading-tight mb-1">{{ $item->item_nama }}</p>
+                                                                        
+                                                                        @if($item->catatan)
+                                                                            <p class="text-sm text-slate-600 mb-2">{{ $item->catatan }}</p>
+                                                                        @endif
+    
+                                                                        @if($tipe === 'Treatment' && isset($obj->durasi_menit))
+                                                                            <p class="text-xs font-medium text-slate-500 mb-2">{{ $obj->durasi_menit }} menit</p>
+                                                                        @endif
+                                                                        
+                                                                        @if($obj && (isset($obj->harga) || isset($obj->harga_promo) || isset($obj->harga_normal)))
+                                                                            <p class="text-sm font-bold text-[#CFAF53]">Rp {{ number_format($obj->harga ?? $obj->harga_promo ?? $obj->harga_normal ?? 0, 0, ',', '.') }}</p>
+                                                                        @endif
+                                                                    </div>
+    
+                                                                    {{-- Actions --}}
+                                                                    <div class="mt-4 flex flex-wrap items-center gap-2">
+                                                                        @if($tipe === 'Treatment')
+                                                                            <a href="{{ route('appointment.select') }}" class="inline-flex items-center justify-center px-5 py-2 text-xs font-bold text-white bg-[#1A1A1A] rounded-lg hover:bg-[#333] hover:shadow-lg hover:shadow-[#1A1A1A]/20 transition-all w-full sm:w-auto text-center">Buat Janji Temu</a>
+                                                                        @else
+                                                                            <form action="{{ $tipe === 'Bundle' ? route('cart.add_bundle', $obj->bundle_id ?? 0) : route('cart.add', $obj->product_id ?? 0) }}" method="POST" class="inline-block flex-1 sm:flex-none">
+                                                                                @csrf
+                                                                                <button type="submit" class="w-full inline-flex items-center justify-center px-5 py-2 text-xs font-bold text-[#1A1A1A] bg-[#FAF8F5] border border-[#E8E0D8] rounded-lg hover:bg-white hover:border-[#CFAF53] transition-all shadow-sm">+ Keranjang</button>
+                                                                            </form>
+                                                                            <a href="{{ route('cart.index') }}" class="inline-flex items-center justify-center px-5 py-2 text-xs font-bold text-white bg-[#1A1A1A] rounded-lg hover:bg-[#333] hover:shadow-lg hover:shadow-[#1A1A1A]/20 transition-all flex-1 sm:flex-none text-center">Beli Sekarang</a>
+                                                                        @endif
+                                                                    </div>
+                                                                </div>
                                                             </div>
-                                                        @endforeach
-                                                    </div>
+                                                        </div>
+                                                    @endforeach
                                                 @endif
                                             </div>
                                         @endif
@@ -413,49 +733,7 @@
                 </div>
             @endif
             </div>
-            </div>
         </div>
-
-        {{-- Sidebar: Jadwal Mendatang --}}
-        <div>
-            <div class="bg-white rounded-2xl border border-[#E8E0D8]/60 shadow-sm p-6">
-            <h3 class="text-xs font-bold uppercase tracking-[0.2em] text-[#8C7A63] mb-4">Jadwal Mendatang</h3>
-
-            @if($upcomingAppointments->isEmpty())
-                <div class="bg-[#FAF8F5] rounded-2xl border border-dashed border-[#E8E0D8] p-8 text-center flex flex-col items-center justify-center">
-                    <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center mb-3 shadow-sm">
-                        <svg class="w-6 h-6 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                    </div>
-                    <p class="text-sm font-bold text-[#1A1A1A]">Jadwal Kosong</p>
-                    <p class="text-xs text-slate-500 mt-1 mb-4">Anda belum memiliki jadwal janji temu.</p>
-                    <a href="{{ route('appointment.select') }}" class="text-xs font-bold text-[#CFAF53] bg-white border border-[#CFAF53]/20 px-4 py-2 rounded-full hover:bg-[#CFAF53]/5 transition-colors">Buat Janji →</a>
-                </div>
-            @else
-                <div class="space-y-3">
-                    @foreach($upcomingAppointments as $upcoming)
-                        @php
-                            $accentColor = $upcoming->jenis === 'treatment' ? 'bg-rose-500' : 'bg-[#CFAF53]';
-                            $treatmentNames = $upcoming->items->map(fn($i) => $i->treatment?->nama)->filter()->implode(', ');
-                        @endphp
-                        <div class="bg-[#FAF8F5] rounded-xl border border-[#E8E0D8]/60 p-4 flex gap-4 hover:border-[#CFAF53]/40 transition-colors">
-                            <div class="w-14 shrink-0 text-center bg-white rounded-lg border border-[#E8E0D8] py-2 shadow-sm flex flex-col justify-center">
-                                <span class="text-xs font-bold text-slate-400 uppercase leading-none">{{ $upcoming->tanggal_jam->translatedFormat('M') }}</span>
-                                <span class="text-xl font-black text-[#1A1A1A] leading-none mt-1">{{ $upcoming->tanggal_jam->translatedFormat('d') }}</span>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <h4 class="font-bold text-sm text-[#1A1A1A] truncate">{{ $treatmentNames ?: ucfirst($upcoming->jenis) }}</h4>
-                                <p class="text-xs text-slate-500 mt-0.5">{{ $upcoming->tanggal_jam->translatedFormat('H:i') }} WIB • {{ $upcoming->dokter->name ?? 'Dokter' }}</p>
-                                <div class="mt-2 flex items-center gap-2">
-                                    <span class="text-[9px] font-bold uppercase tracking-wider {{ strtolower($upcoming->status) === 'disetujui' ? 'text-emerald-600 bg-emerald-50' : 'text-amber-600 bg-amber-50' }} px-2 py-0.5 rounded">{{ $upcoming->status }}</span>
-                                    <button @click="activeTab = 'appointment'" class="text-[10px] font-bold text-[#8C7A63] hover:text-[#1A1A1A] transition-colors ml-auto">Detail →</button>
-                                </div>
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-            @endif
-            </div>
-        </div>
-
     </div>
 </div>
+

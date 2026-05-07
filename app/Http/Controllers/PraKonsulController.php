@@ -7,61 +7,6 @@ use Illuminate\Http\Request;
 
 class PraKonsulController extends Controller
 {
-    public function index()
-    {
-        $userId = auth()->id();
-        $pasienId = \App\Models\Pasien::where('user_id', $userId)->value('pasien_id');
-
-        $forms = PatientForm::query()
-            ->where('pasien_id', $pasienId)
-            ->latest('created_at')
-            ->paginate(10);
-
-        // ✅ map urutan form berdasarkan tanggal (paling lama = #1)
-        $idsAsc = PatientForm::query()
-            ->where('pasien_id', $pasienId)
-            ->orderBy('created_at')
-            ->pluck('patient_form_id')
-            ->values()
-            ->toArray();
-
-        $formNumberMap = [];
-        foreach ($idsAsc as $i => $id) {
-            $formNumberMap[$id] = $i + 1;
-        }
-
-        return view('pra.index', compact('forms', 'formNumberMap'));
-    }
-
-    public function show(PatientForm $form)
-    {
-        $pasienId = \App\Models\Pasien::where('user_id', auth()->id())->value('pasien_id');
-
-        // ✅ pastikan cuma pemilik yang bisa lihat
-        abort_unless($form->pasien_id === $pasienId, 403);
-
-        // ✅ hitung nomor urutan form ini (berdasarkan created_at paling awal)
-        $nomor = PatientForm::query()
-            ->where('pasien_id', $pasienId)
-            ->where('created_at', '<=', $form->created_at)
-            ->count();
-
-        // ✅ rekomendasi (pakai relasi pra_konsultasi_rekomendasi_items)
-        // Pastikan model PatientForm punya relasi: rekomendasiItems()
-        $form->load([
-            'dokter',
-            'rekomendasiItems.product',
-            'rekomendasiItems.treatment',
-            'rekomendasiItems.bundle',
-        ]);
-
-        // grouping biar gampang tampilin
-        $rekomProduk = $form->rekomendasiItems->filter(fn ($it) => $it->product_id && $it->product);
-        $rekomTreatment = $form->rekomendasiItems->filter(fn ($it) => $it->treatment_id && $it->treatment);
-        $rekomBundle = $form->rekomendasiItems->filter(fn ($it) => $it->bundle_id && $it->bundle);
-
-        return view('pra.show', compact('form', 'nomor', 'rekomProduk', 'rekomTreatment', 'rekomBundle'));
-    }
 
     public function create()
     {
@@ -141,6 +86,6 @@ class PraKonsulController extends Controller
 
         $form->save();
 
-        return redirect()->route('pra.index')->with('success', 'Pra-konsultasi berhasil dikirim.');
+        return redirect()->route('dashboard', ['tab' => 'prakonsul'])->with('success', 'Pra-konsultasi berhasil dikirim.');
     }
 }

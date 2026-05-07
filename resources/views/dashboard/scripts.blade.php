@@ -7,37 +7,83 @@ function addressSelector() {
         cities: [],
         districts: [],
         loading: false,
+        loadingProvinces: false,
+        loadingCities: false,
+        loadingDistricts: false,
         selectedProvinceId: '{{ $user->pasienProfile->province_id ?? "" }}',
         selectedCityId: '{{ $user->pasienProfile->city_id ?? "" }}',
         selectedDistrictId: '{{ $user->pasienProfile->district_id ?? "" }}',
         selectedProvinceName: '{{ $user->pasienProfile->provinsi ?? "" }}',
         selectedCityName: '{{ $user->pasienProfile->kota ?? "" }}',
         selectedDistrictName: '{{ $user->pasienProfile->district_name ?? "" }}',
+        // Saved text fallbacks (for when IDs are null but names exist)
+        savedProvinceName: '{{ $user->pasienProfile->provinsi ?? "" }}',
+        savedCityName: '{{ $user->pasienProfile->kota ?? "" }}',
+        savedDistrictName: '{{ $user->pasienProfile->district_name ?? "" }}',
+        resolved: false,
 
         async init() {
+            window.addEventListener('reset-alpine-profile', () => {
+                this.selectedProvinceId = '{{ $user->pasienProfile->province_id ?? "" }}';
+                this.selectedCityId = '{{ $user->pasienProfile->city_id ?? "" }}';
+                this.selectedDistrictId = '{{ $user->pasienProfile->district_id ?? "" }}';
+                this.selectedProvinceName = '{{ $user->pasienProfile->provinsi ?? "" }}';
+                this.selectedCityName = '{{ $user->pasienProfile->kota ?? "" }}';
+                this.selectedDistrictName = '{{ $user->pasienProfile->district_name ?? "" }}';
+            });
+
             await this.fetchProvinces();
-            if (this.selectedProvinceId) {
-                await this.fetchCities(true);
-                if (this.selectedCityId) {
-                    await this.fetchDistricts(true);
+
+            // Auto-resolve: if we have a name but no ID, find the ID from fetched data
+            if (!this.selectedProvinceId && this.savedProvinceName) {
+                const match = this.provinces.find(p => p.name.toUpperCase() === this.savedProvinceName.toUpperCase());
+                if (match) {
+                    this.selectedProvinceId = String(match.id);
+                    this.selectedProvinceName = match.name;
                 }
             }
+
+            if (this.selectedProvinceId) {
+                await this.fetchCities(true);
+
+                // Auto-resolve city name to ID
+                if (!this.selectedCityId && this.savedCityName) {
+                    const match = this.cities.find(c => c.name.toUpperCase() === this.savedCityName.toUpperCase());
+                    if (match) {
+                        this.selectedCityId = String(match.id);
+                        this.selectedCityName = match.name;
+                    }
+                }
+
+                if (this.selectedCityId) {
+                    await this.fetchDistricts(true);
+
+                    // Auto-resolve district name to ID
+                    if (!this.selectedDistrictId && this.savedDistrictName) {
+                        const match = this.districts.find(d => d.name.toUpperCase() === this.savedDistrictName.toUpperCase());
+                        if (match) {
+                            this.selectedDistrictId = String(match.id);
+                            this.selectedDistrictName = match.name;
+                        }
+                    }
+                }
+            }
+            this.resolved = true;
         },
 
         async fetchProvinces() {
-            if (this.loading) return;
-            this.loading = true;
+            this.loadingProvinces = true;
             try {
                 const res = await fetch("{{ route('api.provinces') }}");
                 const data = await res.json();
                 this.provinces = Array.isArray(data) ? data : (data.data || []);
             } catch (e) { console.error('Error fetching provinces:', e); }
-            finally { this.loading = false; }
+            finally { this.loadingProvinces = false; }
         },
 
         async fetchCities(isInit = false) {
-            if (!this.selectedProvinceId || this.loading) return;
-            this.loading = true;
+            if (!this.selectedProvinceId) return;
+            this.loadingCities = true;
             if (!isInit) { this.selectedCityId = ''; this.selectedDistrictId = ''; this.cities = []; this.districts = []; }
             const prov = this.provinces.find(p => p.id == this.selectedProvinceId);
             if (prov) this.selectedProvinceName = prov.name;
@@ -46,12 +92,12 @@ function addressSelector() {
                 const data = await res.json();
                 this.cities = Array.isArray(data) ? data : (data.data || []);
             } catch (e) { console.error('Error fetching cities:', e); }
-            finally { this.loading = false; }
+            finally { this.loadingCities = false; }
         },
 
         async fetchDistricts(isInit = false) {
-            if (!this.selectedCityId || this.loading) return;
-            this.loading = true;
+            if (!this.selectedCityId) return;
+            this.loadingDistricts = true;
             if (!isInit) { this.selectedDistrictId = ''; this.districts = []; }
             const city = this.cities.find(c => c.id == this.selectedCityId);
             if (city) this.selectedCityName = city.name;
@@ -61,7 +107,7 @@ function addressSelector() {
                 this.districts = Array.isArray(data) ? data : (data.data || []);
                 this.updateLocationNames();
             } catch (e) { console.error('Error fetching districts:', e); }
-            finally { this.loading = false; }
+            finally { this.loadingDistricts = false; }
         },
 
         updateLocationNames() {
@@ -127,4 +173,53 @@ function appCalendar() {
         currentMonth() { let t = new Date(); this.month = t.getMonth(); this.year = t.getFullYear(); this.getNoOfDays(); this.selectDate(t.getDate()); }
     }
 }
+
+document.addEventListener('alpine:init', () => {
+    Alpine.data('countdownTimer', (expiredAt) => ({
+        h1: 0, h2: 0, m1: 0, m2: 0, s1: 0, s2: 0,
+        showHours: false,
+        expired: false,
+        init() {
+            if (!expiredAt) return;
+            const end = new Date(expiredAt.replace(/-/g, '/')).getTime();
+            const initialDiff = Math.floor((end - new Date().getTime()) / 1000);
+            
+            // Jika sudah expired dari awal, hanya set expired flag, jangan reload
+            if (initialDiff <= 0) {
+                this.expired = true;
+                return;
+            }
+
+            const update = () => {
+                const now = new Date().getTime();
+                let diff = Math.floor((end - now) / 1000);
+                if (diff < 0) diff = 0;
+                
+                const hours = Math.floor(diff / 3600);
+                const minutes = Math.floor((diff % 3600) / 60);
+                const seconds = diff % 60;
+                
+                this.showHours = hours > 0;
+
+                const hStr = String(hours).padStart(2, '0');
+                const mStr = String(minutes).padStart(2, '0');
+                const sStr = String(seconds).padStart(2, '0');
+
+                this.h1 = parseInt(hStr[0]) || 0;
+                this.h2 = parseInt(hStr[1]) || 0;
+                this.m1 = parseInt(mStr[0]) || 0;
+                this.m2 = parseInt(mStr[1]) || 0;
+                this.s1 = parseInt(sStr[0]) || 0;
+                this.s2 = parseInt(sStr[1]) || 0;
+                
+                if (diff > 0) {
+                    setTimeout(update, 1000);
+                } else {
+                    this.expired = true;
+                }
+            };
+            update();
+        }
+    }));
+});
 </script>

@@ -49,6 +49,31 @@
             $statusClass = 'status-menunggu';
             $statusText = 'MENUNGGU PEMBAYARAN';
         }
+
+        $rawChannel = $order->payment_channel ?? $order->payment_method ?? '';
+        $channelLabels = [
+            'qris' => 'QRIS',
+            'bca' => 'Bank BCA (VA)',
+            'bni' => 'Bank BNI (VA)',
+            'bri' => 'Bank BRI (VA)',
+            'mandiri' => 'Mandiri Bill',
+            'mandiri_bill' => 'Mandiri Bill',
+            'permata' => 'Bank Permata (VA)',
+            'cimb' => 'Bank CIMB (VA)',
+            'bsi' => 'Bank BSI (VA)',
+            'gopay' => 'GoPay',
+            'shopeepay' => 'ShopeePay',
+            'dana' => 'DANA',
+            'alfamart' => 'Alfamart',
+            'indomaret' => 'Indomaret',
+            'bank_transfer' => 'Transfer Bank',
+            'credit_card' => 'Kartu Kredit',
+            'akulaku' => 'Akulaku',
+            'kredivo' => 'Kredivo',
+            'web_redirect' => 'Midtrans',
+            'midtrans_snap' => 'Midtrans',
+        ];
+        $paymentLabel = $rawChannel ? ($channelLabels[strtolower($rawChannel)] ?? strtoupper($rawChannel)) : 'Transfer/Qris';
     @endphp
 
     <table class="grid">
@@ -65,7 +90,7 @@
                 <div class="section-title">Detail Transaksi</div>
                 <div class="info-text">Kode: <span class="info-bold">{{ $order->kode_order }}</span></div>
                 <div class="info-text">Tanggal: <span class="info-bold">{{ $order->created_at ? $order->created_at->format('d/m/Y') : '-' }}</span></div>
-                <div class="info-text">Metode: <span class="info-bold">{{ $order->payment_method ?? 'Transfer/Qris' }}</span></div>
+                <div class="info-text">Metode: <span class="info-bold">{{ $paymentLabel }}</span></div>
                 <div><span class="status-badge {{ $statusClass }}">{{ $statusText }}</span></div>
                 @if($order->shipping_method)
                     <div class="info-text" style="margin-top:5px;">Kurir: <span class="info-bold">{{ strtoupper($order->shipping_method) }}</span></div>

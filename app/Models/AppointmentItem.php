@@ -15,6 +15,7 @@ class AppointmentItem extends Model
         'item_type',
         'treatment_id',
         'bundle_id',
+        'consultation_id',
         'qty',
     ];
 
@@ -31,5 +32,10 @@ class AppointmentItem extends Model
     public function bundle(): BelongsTo
     {
         return $this->belongsTo(Bundle::class, 'bundle_id', 'bundle_id');
+    }
+
+    public function consultation(): BelongsTo
+    {
+        return $this->belongsTo(Consultation::class, 'consultation_id', 'consultation_id');
     }
 }

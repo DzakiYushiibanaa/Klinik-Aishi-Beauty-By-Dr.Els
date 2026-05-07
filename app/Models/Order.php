@@ -13,15 +13,16 @@ class Order extends Model
         'user_id','kode_order','promotion_id','order_type','sumber','dibuat_oleh_id',
         'status','payment_method','payment_channel','payment_ref','midtrans_order_id','snap_token',
         'subtotal','diskon_total','ongkir','grand_total','total_weight_gram',
-        'shipping_method','shipping_address','shipping_waybill','shipping_status','paid_at',
+        'shipping_method','shipping_address','shipping_waybill','shipping_status','paid_at','expired_at',
     ];
 
     protected $casts = [
-    'subtotal' => 'integer',
-    'diskon_total' => 'integer',
-    'ongkir' => 'integer',
-    'grand_total' => 'integer',
-    'paid_at' => 'datetime',
+        'subtotal'     => 'integer',
+        'diskon_total' => 'integer',
+        'ongkir'       => 'integer',
+        'grand_total'  => 'integer',
+        'paid_at'      => 'datetime',
+        'expired_at'   => 'datetime',
     ];
 
     public function items()

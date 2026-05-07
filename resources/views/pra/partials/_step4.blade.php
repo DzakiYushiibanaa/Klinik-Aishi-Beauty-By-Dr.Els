@@ -46,7 +46,7 @@
                             </div>
                         </template>
                     </div>
-                    <input type="file" name="foto_depan" accept="image/*" class="sr-only"
+                    <input type="file" name="foto_depan" accept=".jpg,.jpeg,.png,.webp" class="sr-only"
                         @change="if($event.target.files[0]){ validateImage($event.target.files[0], 'foto_depan'); }">
                 </label>
                 <p class="text-center text-xs font-medium text-gray-600 mt-2">Foto Wajah Depan</p>
@@ -93,7 +93,7 @@
                             </div>
                         </template>
                     </div>
-                    <input type="file" name="foto_kanan" accept="image/*" class="sr-only"
+                    <input type="file" name="foto_kanan" accept=".jpg,.jpeg,.png,.webp" class="sr-only"
                         @change="if($event.target.files[0]){ validateImage($event.target.files[0], 'foto_kanan'); }">
                 </label>
                 <p class="text-center text-xs font-medium text-gray-600 mt-2">Foto Wajah Kanan</p>
@@ -140,7 +140,7 @@
                             </div>
                         </template>
                     </div>
-                    <input type="file" name="foto_kiri" accept="image/*" class="sr-only"
+                    <input type="file" name="foto_kiri" accept=".jpg,.jpeg,.png,.webp" class="sr-only"
                         @change="if($event.target.files[0]){ validateImage($event.target.files[0], 'foto_kiri'); }">
                 </label>
                 <p class="text-center text-xs font-medium text-gray-600 mt-2">Foto Wajah Kiri</p>

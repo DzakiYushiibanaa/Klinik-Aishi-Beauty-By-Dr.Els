@@ -1,9 +1,12 @@
 {{-- ====== TAB: REKAM MEDIS ====== --}}
 <div class="bg-white rounded-2xl border border-[#E8E0D8]/60 shadow-sm p-6" x-data="{ rmSearch: '' }">
 
-    <div class="flex items-center justify-between mb-6">
-        <h2 class="text-xl font-extrabold text-[#1A1A1A]">Rekam Medis Saya</h2>
-        <span class="text-sm text-slate-400"><span class="font-bold text-[#1A1A1A]">{{ $rekamMedis->count() }}</span> Kunjungan</span>
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+            <h2 class="text-xl font-extrabold text-[#1A1A1A]">Rekam Medis Saya</h2>
+            <p class="text-sm text-slate-500 mt-1">Lihat riwayat pemeriksaan, diagnosa, dan tindakan yang pernah Anda jalani.</p>
+        </div>
+        <span class="text-sm text-slate-400 self-start sm:self-auto shrink-0"><span class="font-bold text-[#1A1A1A]">{{ $rekamMedis->count() }}</span> Kunjungan</span>
     </div>
 
     {{-- Search --}}

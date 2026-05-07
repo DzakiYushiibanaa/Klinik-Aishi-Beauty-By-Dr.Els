@@ -216,7 +216,7 @@ class CheckoutController extends Controller
 
         $pasien = auth()->user()->pasienProfile;
         if (!$pasien || !$pasien->district_id) {
-            return redirect()->route('dashboard')->with('error', 'Lengkapi alamat dulu.');
+            return redirect()->route('dashboard')->with('error', 'Lengkapi alamat dulu.')->with('active_tab', 'profile');
         }
 
         DB::beginTransaction();
@@ -284,6 +284,7 @@ class CheckoutController extends Controller
                 'shipping_address'  => $fullAddress,
                 'shipping_notes'    => $validated['shipping_notes'] ?? null,
                 'shipping_status'   => 'belum_dikirim',
+                'expired_at'        => now()->addHours(24),
             ]);
 
             // 4. Simpan Item (Safety Check lagi)

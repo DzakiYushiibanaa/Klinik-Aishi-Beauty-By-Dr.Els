@@ -25,6 +25,7 @@ class PatientFormForm
                         Select::make('pasien_id')
                             ->label('Pasien')
                             ->relationship(name: 'pasien', titleAttribute: 'nama')
+                            ->getOptionLabelFromRecordUsing(fn ($record) => $record->nama ?? ('Pasien #' . $record->pasien_id))
                             ->searchable()
                             ->preload()
                             ->required()
