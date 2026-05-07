@@ -14,7 +14,7 @@
             
             <!-- Progress Header with Stepper -->
             <div class="px-6 pt-8 pb-6 text-center sm:px-10 border-b border-gray-100">
-                <h1 class="font-serif text-3xl sm:text-4xl font-bold text-[#1A1A1A] mb-3">Konsultasi Dokter</h1>
+                <h1 class="text-3xl sm:text-4xl font-bold text-[#1A1A1A] mb-3">Konsultasi Dokter</h1>
 
                 <!-- Stepper -->
                 <div class="mt-8 mb-6">
@@ -45,7 +45,7 @@
                 <!-- ================== STEP 1 ================== -->
                 <!-- STEP 1: Pilih Jenis Konsultasi -->
                 <div x-show="step === 1" x-transition.opacity.duration.300ms>
-                    <h2 class="font-serif text-2xl sm:text-3xl font-bold text-[#1A1A1A] mb-2">Pilih Jenis Konsultasi</h2>
+                    <h2 class="text-2xl sm:text-3xl font-bold text-[#1A1A1A] mb-2">Pilih Jenis Konsultasi</h2>
                     <p class="text-base text-gray-500 mb-8">Sesuaikan layanan konsultasi dengan kebutuhan kulit Anda saat ini.</p>
                     <div class="space-y-4 max-w-xl mx-auto">
                         <!-- Option 1 -->
@@ -87,7 +87,7 @@
                 <!-- ================== STEP 2 ================== -->
                 <!-- STEP 2: Pilih Dokter Spesialis -->
                 <div x-show="step === 2" x-cloak x-transition.opacity.duration.300ms>
-                    <h2 class="font-serif text-2xl sm:text-3xl font-bold text-[#1A1A1A] mb-2">Pilih Dokter Spesialis</h2>
+                    <h2 class="text-2xl sm:text-3xl font-bold text-[#1A1A1A] mb-2">Pilih Dokter Spesialis</h2>
                     <p class="text-base text-gray-500 mb-8">Tentukan dokter spesialis yang akan menangani permasalahan kulit Anda.</p>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         @foreach($doctors as $dokter)
@@ -100,7 +100,7 @@
                                     @if($dokter->dokterProfile && $dokter->dokterProfile->foto_path)
                                         <img src="{{ Storage::url($dokter->dokterProfile->foto_path) }}" alt="{{ $dokter->name }}" class="w-16 h-16 rounded-full object-cover border-2 border-white shadow-sm">
                                     @else
-                                        <div class="w-16 h-16 rounded-full bg-[#E8E0D8] text-[#8C7A63] flex items-center justify-center font-serif font-bold text-2xl border-2 border-white shadow-sm">
+                                        <div class="w-16 h-16 rounded-full bg-[#E8E0D8] text-[#8C7A63] flex items-center justify-center font-bold text-2xl border-2 border-white shadow-sm">
                                             {{ substr($dokter->name, 0, 1) }}
                                         </div>
                                     @endif
@@ -122,7 +122,7 @@
 
                 <!-- ================== STEP 3 ================== -->
                 <div x-show="step === 3" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4" x-transition:enter-end="opacity-100 translate-y-0" style="display: none;" x-cloak>
-                    <h2 class="font-serif text-2xl sm:text-3xl font-bold text-[#1A1A1A] mb-2">Tentukan Waktu Kunjungan</h2>
+                    <h2 class="text-2xl sm:text-3xl font-bold text-[#1A1A1A] mb-2">Tentukan Waktu Kunjungan</h2>
                     <p class="text-base text-gray-500 mb-8">Pilih tanggal dan jam yang tersedia untuk sesi konsultasi.</p>
 
                     <!-- Realtime Tanggal -->
@@ -140,10 +140,11 @@
                             <template x-for="day in availableDays" :key="day.date">
                                 <label class="snap-start shrink-0 cursor-pointer">
                                     <input type="radio" name="tanggal" :value="day.date" x-model="tanggal" @change="displayDate = day.displayFull; jam = ''" class="peer sr-only">
-                                    <div class="flex flex-col items-center justify-center w-[80px] h-[95px] rounded-2xl border transition-all duration-200"
+                                    <div class="flex flex-col items-center justify-center w-[80px] h-[105px] rounded-2xl border transition-all duration-200"
                                         :class="tanggal === day.date ? 'border-[#3B3529] bg-[#3B3529] text-white shadow-md' : 'border-gray-200 bg-white hover:border-[#8C7A63] text-gray-600'">
                                         <span class="text-xs uppercase mb-1 font-medium tracking-wide" :class="tanggal === day.date ? 'text-white/80' : 'text-gray-400'" x-text="day.dayName"></span>
-                                        <span class="text-3xl font-serif font-bold" :class="tanggal === day.date ? 'text-white' : 'text-[#1A1A1A]'" x-text="day.dayNum"></span>
+                                        <span class="text-3xl font-bold leading-none" :class="tanggal === day.date ? 'text-white' : 'text-[#1A1A1A]'" x-text="day.dayNum"></span>
+                                        <span class="text-[11px] mt-1 font-medium" :class="tanggal === day.date ? 'text-white/80' : 'text-gray-400'" x-text="day.monthShort"></span>
                                     </div>
                                 </label>
                             </template>
@@ -175,7 +176,7 @@
                 <!-- ================== STEP 4 ================== -->
                 <!-- STEP 4: Data Pasien -->
                 <div x-show="step === 4" x-cloak x-transition.opacity.duration.300ms>
-                    <h2 class="font-serif text-2xl sm:text-3xl font-bold text-[#1A1A1A] mb-2">Lengkapi Data Pasien</h2>
+                    <h2 class="text-2xl sm:text-3xl font-bold text-[#1A1A1A] mb-2">Lengkapi Data Pasien</h2>
                     <p class="text-base text-gray-500 mb-8">Mohon isi data diri Anda untuk keperluan rekam medis di klinik.</p>
                     <div class="bg-[#FAF8F5] rounded-2xl p-6 mb-6 border border-[#E8E0D8]">
                         <div class="flex gap-3 mb-6">
@@ -206,7 +207,7 @@
 
                 <!-- ================== STEP 5 ================== -->
                 <div x-show="step === 5" x-cloak x-transition.opacity.duration.300ms>
-                    <h2 class="font-serif text-2xl sm:text-3xl font-bold text-[#1A1A1A] mb-2">Detail Janji Temu</h2>
+                    <h2 class="text-2xl sm:text-3xl font-bold text-[#1A1A1A] mb-2">Detail Janji Temu</h2>
                     <p class="text-base text-gray-500 mb-8">Pastikan seluruh detail reservasi Anda sudah sesuai sebelum menyelesaikan.</p>
 
                     <div class="rounded-[1.5rem] border border-[#F0EBE1] bg-[#FAF8F5]/30 p-5 sm:p-8 mb-6">
@@ -220,7 +221,7 @@
                                         <img :src="dokterImg" class="w-full h-full object-cover">
                                     </template>
                                     <template x-if="!dokterImg">
-                                        <div class="w-full h-full flex items-center justify-center bg-[#E8E0D8] text-[#8C7A63] font-serif font-bold text-2xl" x-text="dokterName.substring(0,1)"></div>
+                                        <div class="w-full h-full flex items-center justify-center bg-[#E8E0D8] text-[#8C7A63] font-bold text-2xl" x-text="dokterName.substring(0,1)"></div>
                                     </template>
                                 </div>
                                 <div>
@@ -288,7 +289,7 @@
                         <div class="shrink-0 mt-0.5">
                             <svg class="w-6 h-6 text-[#C89B53]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
                         </div>
-                        <p class="text-sm leading-relaxed text-gray-500">
+                        <p class="text-sm leading-relaxed text-gray-500 text-justify">
                             <strong class="text-[#1A1A1A]">Pembayaran di Klinik</strong><br>
                             Anda tidak perlu membayar sekarang. Pembayaran dilakukan di kasir klinik <strong class="text-[#1A1A1A]">setelah sesi konsultasi Anda selesai</strong>. Dengan menyelesaikan janji temu ini, Anda secara otomatis akan terdaftar sebagai member resmi untuk mendapatkan promo eksklusif di kunjungan berikutnya.
                         </p>
@@ -360,7 +361,7 @@
                 <svg class="w-8 h-8 text-[#C89B53]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
             </div>
             
-            <h3 class="font-serif text-2xl font-bold text-[#1A1A1A] mb-3">Reservasi Berhasil</h3>
+            <h3 class="text-2xl font-bold text-[#1A1A1A] mb-3">Reservasi Berhasil</h3>
             <p class="text-xs text-gray-500 mb-8 leading-relaxed">
                 Terima kasih, <strong class="text-[#1A1A1A]" x-text="nama_pasien"></strong>.<br>
                 Jadwal konsultasi Anda bersama <strong class="text-[#1A1A1A]" x-text="dokterName"></strong> telah dikonfirmasi. Detail selengkapnya akan segera dikirimkan melalui <strong class="text-[#1A1A1A]">WhatsApp</strong> dan <strong class="text-[#1A1A1A]">Email (Gmail)</strong>.
@@ -381,7 +382,7 @@
                 <svg class="w-8 h-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
             </div>
             
-            <h3 class="font-serif text-2xl font-bold text-[#1A1A1A] mb-3">Batalkan Janji Temu?</h3>
+            <h3 class="text-2xl font-bold text-[#1A1A1A] mb-3">Batalkan Janji Temu?</h3>
             <p class="text-base text-gray-500 mb-8 leading-relaxed">
                 Jika Anda kembali ke halaman utama, semua data janji temu yang telah Anda isi akan terhapus. Apakah Anda yakin?
             </p>
@@ -405,6 +406,7 @@ function konsultasiWizard() {
         showModal: false,
         showCancelModal: false,
         isSubmitting: false,
+        redirectUrl: '',
         jenisKonsultasi: '',
         dokterId: '',
         dokterName: '',
@@ -450,6 +452,7 @@ function konsultasiWizard() {
                         date: d.toISOString().split('T')[0],
                         dayName: dayName.substring(0, 3), // Sen, Sel, etc.
                         dayNum: d.getDate(),
+                        monthShort: d.toLocaleString('id-ID', {month:'short'}), // Apr, Mei, etc.
                         displayFull: `${dayName}, ${d.getDate()} ${d.toLocaleString('id-ID', {month:'short'})} ${d.getFullYear()}`
                     });
                 }
@@ -553,7 +556,9 @@ function konsultasiWizard() {
                     })
                 });
 
-                if (response.ok) {
+                if (response.ok || response.redirected) {
+                    // Backend returns redirect, grab the URL for highlight param
+                    this.redirectUrl = response.url || '/dashboard?tab=appointment';
                     this.showModal = true;
                 } else {
                     alert('Terjadi kesalahan saat memproses janji temu. Silakan coba lagi.');
@@ -566,9 +571,7 @@ function konsultasiWizard() {
         },
 
         executeSubmit() {
-            // Karena flash message sudah diset oleh backend di proses ajax, 
-            // kita bisa langsung redirect ke dashboard dan dashboard akan menampilkan toast.
-            window.location.href = '/dashboard';
+            window.location.href = this.redirectUrl || '/dashboard?tab=appointment';
         }
     }
 }

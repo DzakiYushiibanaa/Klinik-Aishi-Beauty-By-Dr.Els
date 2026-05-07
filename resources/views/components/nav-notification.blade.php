@@ -36,9 +36,12 @@
                 </div>
                 
                 @if(auth()->user()->unreadNotifications->count() > 0)
-                    <a href="{{ route('notification.readAll') }}" class="text-[11px] font-bold text-[#CFAF53] hover:text-[#b59b48] hover:underline transition">
-                        Tandai semua dibaca
-                    </a>
+                    <form action="{{ route('notification.readAll') }}" method="POST" class="inline">
+                        @csrf
+                        <button type="submit" class="text-[11px] font-bold text-[#CFAF53] hover:text-[#b59b48] hover:underline transition bg-transparent border-none p-0 cursor-pointer">
+                            Tandai semua dibaca
+                        </button>
+                    </form>
                 @endif
             </div>
 

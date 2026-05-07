@@ -14,13 +14,14 @@ class Appointment extends Model
         'user_id','dokter_id','terapis_id','patient_form_id',
         'sumber','dibuat_oleh_id',
         'jenis',
-        'tanggal_jam','status',
+        'tanggal_jam','payment_expired_at','status',
         'catatan_pasien','catatan_klinik',
         'canceled_by','cancel_reason',
     ];
 
     protected $casts = [
-        'tanggal_jam' => 'datetime',
+        'tanggal_jam'         => 'datetime',
+        'payment_expired_at'  => 'datetime',
     ];
 
     public function pasien()

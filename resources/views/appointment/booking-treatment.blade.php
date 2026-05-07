@@ -10,11 +10,11 @@
 
     <!-- Main Card -->
     <div class="mx-auto max-w-2xl px-4 py-6">
-        <div class="rounded-2xl bg-white shadow-sm border border-[#E8E0D8]/60 overflow-hidden relative">
+        <div class="rounded-2xl bg-white shadow-sm border border-[#E8E0D8]/60 overflow-clip relative">
 
             <!-- Progress Header -->
             <div class="px-6 pt-8 pb-6 text-center sm:px-10 border-b border-gray-100">
-                <h1 class="font-serif text-3xl sm:text-4xl font-bold text-[#1A1A1A] mb-3">Booking Treatment</h1>
+                <h1 class="text-3xl sm:text-4xl font-bold text-[#1A1A1A] mb-3">Booking Treatment</h1>
 
                 <!-- 4-Step Stepper -->
                 <div class="mt-8 mb-6">
@@ -66,7 +66,7 @@
 
                 <!-- Section Title -->
                 <div class="mb-5">
-                    <h2 class="font-serif text-2xl font-bold text-[#1A1A1A]">Pilih Layanan</h2>
+                    <h2 class="text-2xl font-bold text-[#1A1A1A]">Pilih Layanan</h2>
                     <p class="text-sm text-gray-500 mt-1">Temukan treatment yang sesuai dengan kebutuhan Anda.</p>
                 </div>
 
@@ -184,7 +184,7 @@
                 <div class="px-6 sm:px-10">
                     <!-- Name + Price + Duration -->
                     <div class="flex items-start justify-between mt-6 mb-2">
-                        <h2 class="font-serif text-xl sm:text-2xl font-bold text-[#1A1A1A] leading-tight flex-1 pr-4" x-text="detailTreatment?.nama"></h2>
+                        <h2 class="text-xl sm:text-2xl font-bold text-[#1A1A1A] leading-tight flex-1 pr-4" x-text="detailTreatment?.nama"></h2>
                         <div class="text-right shrink-0">
                             <div class="text-base sm:text-lg font-bold text-[#1A1A1A]" x-text="'Rp ' + (detailTreatment?.harga || 0).toLocaleString('id-ID')"></div>
                             <div class="flex items-center gap-1 text-xs text-gray-400 justify-end mt-0.5">
@@ -225,7 +225,7 @@
                 <!-- Layanan Terpilih -->
                 <div class="mb-8">
                     <div class="flex items-center justify-between mb-4">
-                        <h2 class="font-serif text-xl font-bold text-[#1A1A1A]">Layanan Terpilih</h2>
+                        <h2 class="text-xl font-bold text-[#1A1A1A]">Layanan Terpilih</h2>
                         <button @click="step = 1" class="text-sm font-semibold text-[#8C7A63] hover:underline">+ Tambah</button>
                     </div>
                     <div class="space-y-3">
@@ -256,17 +256,18 @@
                 <!-- Pilih Tanggal -->
                 <div class="mb-8">
                     <div class="flex items-center justify-between mb-4">
-                        <h2 class="font-serif text-xl font-bold text-[#1A1A1A]">Pilih Tanggal</h2>
+                        <h2 class="text-xl font-bold text-[#1A1A1A]">Pilih Tanggal</h2>
                         <span class="text-xs text-[#C89B53] bg-[#FAF8F5] px-2 py-1 rounded-md font-medium" x-text="currentMonthYear"></span>
                     </div>
                     <div class="flex gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x">
                         <template x-for="day in availableDays" :key="day.date">
                             <label class="snap-start shrink-0 cursor-pointer">
-                                <input type="radio" name="tanggal" :value="day.date" x-model="tanggal" @change="displayDate = day.displayFull; jam = ''" class="peer sr-only">
-                                <div class="flex flex-col items-center justify-center w-[72px] h-[90px] rounded-2xl border transition-all duration-200"
+                                <input type="radio" name="tanggal" :value="day.date" x-model="tanggal" @change="displayDate = day.displayFull; jam = ''; fetchSlots()" class="peer sr-only">
+                                <div class="flex flex-col items-center justify-center w-[80px] h-[105px] rounded-2xl border transition-all duration-200"
                                     :class="tanggal === day.date ? 'border-[#3B3529] bg-[#3B3529] text-white shadow-md' : 'border-gray-200 bg-white hover:border-[#8C7A63] text-gray-600'">
-                                    <span class="text-[10px] uppercase mb-1 font-medium tracking-wide" :class="tanggal === day.date ? 'text-white/80' : 'text-gray-400'" x-text="day.dayName"></span>
-                                    <span class="text-2xl font-serif font-bold" :class="tanggal === day.date ? 'text-white' : 'text-[#1A1A1A]'" x-text="day.dayNum"></span>
+                                    <span class="text-xs uppercase mb-1 font-medium tracking-wide" :class="tanggal === day.date ? 'text-white/80' : 'text-gray-400'" x-text="day.dayName"></span>
+                                    <span class="text-3xl font-bold leading-none" :class="tanggal === day.date ? 'text-white' : 'text-[#1A1A1A]'" x-text="day.dayNum"></span>
+                                    <span class="text-[11px] mt-1 font-medium" :class="tanggal === day.date ? 'text-white/80' : 'text-gray-400'" x-text="day.monthShort"></span>
                                 </div>
                             </label>
                         </template>
@@ -275,18 +276,39 @@
 
                 <!-- Pilih Waktu -->
                 <div x-show="tanggal !== ''" class="mb-8">
-                    <h2 class="font-serif text-xl font-bold text-[#1A1A1A] mb-4">Pilih Waktu (WIB)</h2>
-                    <div class="grid grid-cols-2 gap-3">
+                    <h2 class="text-xl font-bold text-[#1A1A1A] mb-4">Pilih Waktu (WIB)</h2>
+                    
+                    <!-- Loading State -->
+                    <div x-show="loadingSlots" class="flex items-center justify-center py-8">
+                        <svg class="w-6 h-6 animate-spin text-[#CFAF53]" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span class="ml-2 text-sm text-slate-500">Mengecek ketersediaan...</span>
+                    </div>
+                    
+                    <div x-show="!loadingSlots" class="grid grid-cols-2 gap-3">
                         <template x-for="slot in timeSlots" :key="slot.value">
-                            <label class="cursor-pointer">
-                                <input type="radio" name="jam" :value="slot.value" x-model="jam" class="peer sr-only">
+                            <label :class="slot.penuh ? 'cursor-not-allowed' : 'cursor-pointer'">
+                                <input type="radio" name="jam" :value="slot.value" x-model="jam" class="peer sr-only" :disabled="slot.penuh">
                                 <div class="py-4 px-4 rounded-2xl border transition-all duration-200"
-                                    :class="jam === slot.value ? 'border-[#3B3529] bg-[#FAF8F5] shadow-sm' : 'border-gray-200 bg-white hover:border-[#8C7A63]'">
-                                    <div class="flex items-center gap-2 text-sm font-medium" :class="jam === slot.value ? 'text-[#1A1A1A] font-bold' : 'text-gray-500'">
+                                    :class="slot.penuh 
+                                        ? 'border-rose-200 bg-rose-50/50 opacity-60' 
+                                        : (jam === slot.value 
+                                            ? 'border-[#3B3529] bg-[#FAF8F5] shadow-sm' 
+                                            : 'border-gray-200 bg-white hover:border-[#8C7A63]')">
+                                    <div class="flex items-center gap-2 text-sm font-medium" 
+                                        :class="slot.penuh 
+                                            ? 'text-slate-400' 
+                                            : (jam === slot.value ? 'text-[#1A1A1A] font-bold' : 'text-gray-500')">
                                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                                         <span x-text="slot.value"></span>
                                     </div>
-                                    <span class="text-[10px] font-semibold mt-1 block" :class="jam === slot.value ? 'text-[#C89B53]' : 'text-gray-400'" x-text="slot.label"></span>
+                                    <span class="text-[10px] font-semibold mt-1 block" 
+                                        :class="slot.penuh 
+                                            ? 'text-rose-500' 
+                                            : (jam === slot.value ? 'text-[#C89B53]' : 'text-gray-400')" 
+                                        x-text="slot.label"></span>
                                 </div>
                             </label>
                         </template>
@@ -312,7 +334,7 @@
                  x-transition:enter="transition ease-out duration-300"
                  x-transition:enter-start="opacity-0"
                  x-transition:enter-end="opacity-100"
-                 class="border-t border-gray-200 bg-[#FDFCFB]">
+                 class="border-t border-gray-200 bg-[#FDFCFB] sticky bottom-0 z-40 shadow-[0_-10px_20px_-10px_rgba(0,0,0,0.05)]">
 
                 <!-- Expandable Detail -->
                 <div x-show="showDetail" x-cloak
@@ -355,7 +377,7 @@
 
             <!-- ================== STEP 3: DATA DIRI ================== -->
             <div x-show="step === 3" x-cloak x-transition.opacity.duration.300ms class="px-6 sm:px-10 pt-6 pb-6">
-                <h2 class="font-serif text-2xl font-bold text-[#1A1A1A] mb-2">Data Pasien</h2>
+                <h2 class="text-2xl font-bold text-[#1A1A1A] mb-2">Data Pasien</h2>
                 <p class="text-sm text-gray-500 mb-6">Silakan lengkapi data diri Anda untuk keperluan reservasi.</p>
 
                 <!-- Warning if profile incomplete -->
@@ -400,7 +422,7 @@
 
             <!-- ================== STEP 4: PEMBAYARAN ================== -->
             <div x-show="step === 4" x-cloak x-transition.opacity.duration.300ms class="px-6 sm:px-10 pt-6 pb-6">
-                <h2 class="font-serif text-2xl font-bold text-[#1A1A1A] mb-6">Detail Pembayaran</h2>
+                <h2 class="text-2xl font-bold text-[#1A1A1A] mb-6">Detail Pembayaran</h2>
 
                 <div class="rounded-[1.5rem] border border-[#F0EBE1] bg-[#FAF8F5]/30 p-5 sm:p-6 mb-6">
                     <!-- Jadwal Booking -->
@@ -507,7 +529,7 @@
             <div class="w-16 h-16 rounded-full border border-red-100 bg-red-50 flex items-center justify-center mx-auto mb-6">
                 <svg class="w-8 h-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
             </div>
-            <h3 class="font-serif text-2xl font-bold text-[#1A1A1A] mb-3">Batalkan Booking?</h3>
+            <h3 class="text-2xl font-bold text-[#1A1A1A] mb-3">Batalkan Booking?</h3>
             <p class="text-base text-gray-500 mb-8 leading-relaxed">
                 Jika Anda kembali, semua treatment yang telah dipilih akan terhapus. Apakah Anda yakin?
             </p>
@@ -544,12 +566,33 @@ function bookingTreatment() {
         nomor_wa: @json($user->phone ?? ''),
         email: @json($user->email ?? ''),
         treatmentsData: @json($treatmentsJson),
-        timeSlots: [
-            { value: '08:00 - 10:00', label: 'Tersedia' },
-            { value: '10:30 - 12:30', label: 'Tersedia' },
-            { value: '13:00 - 15:00', label: 'Tersedia' },
-            { value: '15:30 - 17:30', label: 'Tersedia' },
-        ],
+        timeSlots: [],
+        loadingSlots: false,
+
+        async fetchSlots() {
+            if (!this.tanggal) { this.timeSlots = []; return; }
+            this.loadingSlots = true;
+            this.jam = ''; // reset pilihan jam saat ganti tanggal
+            try {
+                const res = await fetch(`{{ route('appointment.booking-treatment.check-slots') }}?tanggal=${this.tanggal}`);
+                const data = await res.json();
+                this.timeSlots = data.map(s => ({
+                    value: s.value,
+                    label: s.penuh ? 'Penuh' : `Sisa ${s.sisa} slot`,
+                    penuh: s.penuh,
+                    sisa: s.sisa,
+                }));
+            } catch(e) {
+                // Fallback jika API gagal
+                this.timeSlots = [
+                    { value: '08:00 - 10:00', label: 'Tersedia', penuh: false, sisa: 2 },
+                    { value: '10:30 - 12:30', label: 'Tersedia', penuh: false, sisa: 2 },
+                    { value: '13:00 - 15:00', label: 'Tersedia', penuh: false, sisa: 2 },
+                    { value: '15:30 - 17:30', label: 'Tersedia', penuh: false, sisa: 2 },
+                ];
+            }
+            this.loadingSlots = false;
+        },
 
         get totalHarga() { return this.selectedTreatments.reduce((s, t) => s + t.harga, 0); },
         get isProfileComplete() { return !!(this.nama_pasien && this.nomor_wa); },
@@ -562,7 +605,13 @@ function bookingTreatment() {
             for (let i = 1; i <= 14; i++) {
                 const d = new Date(now); d.setDate(now.getDate() + i);
                 const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
-                days.push({ date: `${y}-${m}-${day}`, dayName: dayNames[d.getDay()], dayNum: d.getDate(), displayFull: `${d.getDate()} ${monthNames[d.getMonth()]} ${y}` });
+                days.push({ 
+                    date: `${y}-${m}-${day}`, 
+                    dayName: dayNames[d.getDay()], 
+                    dayNum: d.getDate(), 
+                    monthShort: d.toLocaleString('id-ID', {month:'short'}),
+                    displayFull: `${d.getDate()} ${monthNames[d.getMonth()]} ${y}` 
+                });
             }
             return days;
         },
@@ -629,15 +678,16 @@ function bookingTreatment() {
                 });
                 const data = await res.json();
                 if (data.status === 'success' && data.snap_token) {
+                    const aptId = data.appointment_id;
                     window.snap.pay(data.snap_token, {
-                        onSuccess: () => { window.location.href = '/dashboard'; },
-                        onPending: () => { alert('Pembayaran tertunda. Silakan cek dashboard.'); window.location.href = '/dashboard'; },
+                        onSuccess: () => { window.location.href = '/dashboard?tab=appointment&highlight=' + aptId; },
+                        onPending: () => { window.location.href = '/dashboard?tab=appointment&highlight=' + aptId; },
                         onError: () => { alert('Terjadi kesalahan pembayaran.'); this.isSubmitting = false; },
                         onClose: () => { this.isSubmitting = false; }
                     });
                 } else if (data.status === 'success_no_payment') {
                     alert(data.message);
-                    window.location.href = '/dashboard';
+                    window.location.href = '/dashboard?tab=appointment&highlight=' + (data.appointment_id || '');
                 } else { alert(data.message || 'Terjadi kesalahan.'); this.isSubmitting = false; }
             } catch (e) { alert('Gagal menghubungi server.'); this.isSubmitting = false; }
         }
