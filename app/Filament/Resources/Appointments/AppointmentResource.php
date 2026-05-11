@@ -2,8 +2,6 @@
 
 namespace App\Filament\Resources\Appointments;
 
-use App\Filament\Resources\Appointments\Pages\CreateAppointment;
-use App\Filament\Resources\Appointments\Pages\EditAppointment;
 use App\Filament\Resources\Appointments\Pages\ListAppointments;
 use App\Filament\Resources\Appointments\Schemas\AppointmentForm;
 use App\Filament\Resources\Appointments\Tables\AppointmentsTable;
@@ -45,7 +43,14 @@ class AppointmentResource extends Resource
         $query = parent::getEloquentQuery();
         
         // 2. Eager load relasi (biar enteng query-nya)
-        $query->with(['items.treatment', 'items.bundle', 'pasien', 'dokter','terapis']);
+        $query->with([
+            'items.treatment',
+            'items.bundle',
+            'items.consultation',
+            'pasien',
+            'dokter',
+            'terapis',
+        ]);
 
         // 3. Ambil user login
         $user = Filament::auth()->user();
@@ -72,8 +77,6 @@ class AppointmentResource extends Resource
     {
         return [
             'index' => ListAppointments::route('/'),
-            'create' => CreateAppointment::route('/create'),
-            'edit' => EditAppointment::route('/{record}/edit'),
         ];
     }
 

@@ -17,6 +17,7 @@
         "laravel/tinker": "^2.10.1",
         "maatwebsite/excel": "^3.1",
         "midtrans/midtrans-php": "^2.6",
+        "mike42/escpos-php": "^4.0",
         "pxlrbt/filament-excel": "^3.3",
         "spatie/laravel-permission": "^6.23"
     },

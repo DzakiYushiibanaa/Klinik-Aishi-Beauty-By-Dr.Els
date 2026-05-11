@@ -2,8 +2,6 @@
 
 namespace App\Filament\Resources\ForumQuestions;
 
-use App\Filament\Resources\ForumQuestions\Pages\CreateForumQuestion;
-use App\Filament\Resources\ForumQuestions\Pages\EditForumQuestion;
 use App\Filament\Resources\ForumQuestions\Pages\ListForumQuestions;
 use App\Filament\Resources\ForumQuestions\Schemas\ForumQuestionForm;
 use App\Filament\Resources\ForumQuestions\Tables\ForumQuestionsTable;
@@ -20,7 +18,13 @@ class ForumQuestionResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
-    protected static ?string $recordTitleAttribute = 'id';
+    protected static ?string $recordTitleAttribute = 'title';
+
+    protected static ?string $navigationLabel = 'Forum Tanya Jawab';
+
+    protected static ?string $pluralLabel = 'Forum Tanya Jawab';
+
+    protected static ?string $modelLabel = 'Pertanyaan';
 
     public static function form(Schema $schema): Schema
     {
@@ -43,23 +47,21 @@ class ForumQuestionResource extends Resource
     {
         return [
             'index' => ListForumQuestions::route('/'),
-            'create' => CreateForumQuestion::route('/create'),
-            'edit' => EditForumQuestion::route('/{record}/edit'),
         ];
     }
 
     public static function getNavigationIcon(): string
     {
-        return 'heroicon-o-chat-bubble-left-ellipsis';
+        return 'heroicon-o-chat-bubble-left-right';
     }
 
     public static function getNavigationGroup(): ?string
     {
-        return 'Forum';
+        return null;
     }
 
     public static function getNavigationSort(): ?int
     {
-        return 1;
+        return 3;
     }
 }

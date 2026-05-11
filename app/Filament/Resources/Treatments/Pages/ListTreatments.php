@@ -13,7 +13,15 @@ class ListTreatments extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            CreateAction::make(),
+            CreateAction::make()
+                ->slideOver()
+                ->stickyModalFooter()
+                ->modalHeading('Create Treatment')
+                ->modalWidth('2xl')
+                ->modalSubmitActionLabel('Simpan')
+                ->modalCancelActionLabel('Batal')
+                ->modalFooterActionsAlignment(\Filament\Support\Enums\Alignment::End)
+                ->createAnother(true),
         ];
     }
 }

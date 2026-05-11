@@ -1,0 +1,68 @@
+# Local helper to test the production Dockerfile end-to-end before deploying.
+# Run with:  docker compose up --build
+# Visit:     http://localhost:10000
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: aishi-beauty:latest
+    ports:
+      - "10000:10000"
+    environment:
+      APP_NAME: "Klinik Aishi Beauty (Local Docker)"
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:10000
+      APP_KEY: ""          # entrypoint will generate one on first boot
+
+      LOG_CHANNEL: stack
+      LOG_LEVEL: debug
+
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_DATABASE: klinik_aishi_beauty
+      DB_USERNAME: root
+      DB_PASSWORD: aishi_secret
+
+      CACHE_STORE: database
+      QUEUE_CONNECTION: database
+      SESSION_DRIVER: database
+      SESSION_LIFETIME: "120"
+
+      FILESYSTEM_DISK: public
+
+      MAIL_MAILER: log
+
+      RUN_MIGRATIONS: "true"
+      RUN_SEED: "false"
+
+      PORT: "10000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - app_storage:/var/www/html/storage/app
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: aishi
+      POSTGRES_USER: aishi
+      POSTGRES_PASSWORD: aishi_secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aishi -d aishi"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  app_storage:
+  db_data:

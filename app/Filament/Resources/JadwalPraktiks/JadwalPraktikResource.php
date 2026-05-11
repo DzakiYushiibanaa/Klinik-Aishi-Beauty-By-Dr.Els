@@ -2,8 +2,6 @@
 
 namespace App\Filament\Resources\JadwalPraktiks;
 
-use App\Filament\Resources\JadwalPraktiks\Pages\CreateJadwalPraktik;
-use App\Filament\Resources\JadwalPraktiks\Pages\EditJadwalPraktik;
 use App\Filament\Resources\JadwalPraktiks\Pages\ListJadwalPraktiks;
 use App\Filament\Resources\JadwalPraktiks\Schemas\JadwalPraktikForm;
 use App\Filament\Resources\JadwalPraktiks\Tables\JadwalPraktiksTable;
@@ -41,8 +39,6 @@ class JadwalPraktikResource extends Resource
     {
         return [
             'index' => ListJadwalPraktiks::route('/'),
-            'create' => CreateJadwalPraktik::route('/create'),
-            'edit' => EditJadwalPraktik::route('/{record}/edit'),
         ];
     }
 

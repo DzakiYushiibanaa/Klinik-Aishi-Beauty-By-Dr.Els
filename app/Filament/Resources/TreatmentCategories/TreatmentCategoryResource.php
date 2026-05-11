@@ -22,6 +22,8 @@ class TreatmentCategoryResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'nama';
 
+    protected static bool $shouldRegisterNavigation = false;
+
     public static function form(Schema $schema): Schema
     {
         return TreatmentCategoryForm::configure($schema);

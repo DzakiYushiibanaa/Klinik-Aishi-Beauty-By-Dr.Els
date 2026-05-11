@@ -20,7 +20,7 @@ class PatientFormForm
     {
         return $schema
             ->components([
-                Section::make('Identitas & Sumber Form')
+                Section::make('Identitas dan Sumber Form')
                     ->schema([
                         Select::make('pasien_id')
                             ->label('Pasien')
@@ -74,7 +74,7 @@ class PatientFormForm
                             ->default('pra_konsul'),
                     ])->columns(2),
 
-                Section::make('Keluhan & Bukti Foto')
+                Section::make('Keluhan dan Bukti Foto')
                     ->schema([
                         Textarea::make('keluhan_utama')
                             ->label('Keluhan Utama')
@@ -103,7 +103,7 @@ class PatientFormForm
                             ->maxSize(2048),
                     ])->columns(3),
 
-                Section::make('Data Kesehatan & Kondisi Kulit')
+                Section::make('Data Kesehatan dan Kondisi Kulit')
                     ->schema([
                         Select::make('golongan_darah')
                             ->options(['A' => 'A', 'B' => 'B', 'AB' => 'AB', 'O' => 'O', 'TIDAK_TAHU' => 'Tidak tahu'])
@@ -129,22 +129,23 @@ class PatientFormForm
                             ->columnSpanFull(),
                     ])->columns(2),
 
-                Section::make('Riwayat Skincare & Treatment')
+                Section::make('Riwayat Skincare dan Treatment')
                     ->schema([
                         TextInput::make('periode_skincare_bulan')
-                            ->label('Periode Pakai Skincare dlm bulan')
-                            ->numeric()->columnSpan(['default' => 1]),
+                            ->label('Periode Pakai')
+                            ->placeholder('Mis: 6 Bulan terakhir')
+                            ->columnSpan(['default' => 1]),
                             
-                        Textarea::make('skincare_sebelumnya')
+                        TextInput::make('skincare_sebelumnya')
                             ->label('Skincare Sebelumnya')
-                            ->rows(2)
-                            ->columnSpan(['default' => 3]),
+                            ->placeholder('Sebutkan brand/tipe...')
+                            ->columnSpan(['default' => 1]),
 
                         Toggle::make('pernah_facial')->label('Pernah Facial')->default(false),
-                        Toggle::make('pernah_skin_booster')->label('Pernah Skin Booster')->default(false),
-                        Toggle::make('pernah_laser')->label('Pernah Laser')->default(false),
-                        Toggle::make('pernah_inject_infus')->label('Pernah Inject/Infus')->default(false),
-                    ])->columns(4),
+                        Toggle::make('pernah_skin_booster')->label('Skin Booster')->default(false),
+                        Toggle::make('pernah_laser')->label('Laser')->default(false),
+                        Toggle::make('pernah_inject_infus')->label('Inject / Infus')->default(false),
+                    ])->columns(2),
 
                 Section::make('Review Dokter')
                     ->schema([

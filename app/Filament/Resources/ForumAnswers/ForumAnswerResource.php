@@ -22,6 +22,8 @@ class ForumAnswerResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'id';
 
+    protected static bool $shouldRegisterNavigation = false;
+
     public static function form(Schema $schema): Schema
     {
         return ForumAnswerForm::configure($schema);

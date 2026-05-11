@@ -13,7 +13,16 @@ class ListOrders extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            CreateAction::make(),
+            // Full-page "Transaksi Baru" — navigate to /create instead of slide-over
+            CreateAction::make()
+                ->label('New Transaksi')
+                ->icon('heroicon-o-plus')
+                ->color('primary'),
         ];
+    }
+
+    public function getSubheading(): ?string
+    {
+        return 'Kelola riwayat transaksi dan pembayaran klinik Aishi Beauty.';
     }
 }

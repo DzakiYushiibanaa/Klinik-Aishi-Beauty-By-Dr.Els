@@ -2,8 +2,6 @@
 
 namespace App\Filament\Resources\Dokters;
 
-use App\Filament\Resources\Dokters\Pages\CreateDokter;
-use App\Filament\Resources\Dokters\Pages\EditDokter;
 use App\Filament\Resources\Dokters\Pages\ListDokters;
 use App\Filament\Resources\Dokters\Schemas\DokterForm;
 use App\Filament\Resources\Dokters\Tables\DoktersTable;
@@ -19,13 +17,15 @@ class DokterResource extends Resource
 {
     protected static ?string $model = Dokter::class;
 
-    protected static string |UnitEnum| null $navigationGroup = 'Master Data';
+    protected static string|UnitEnum|null $navigationGroup = 'Master Data';
 
-    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-user';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-user-circle';
 
-    protected static ?string $navigationLabel = 'Dokter';
+    protected static ?string $navigationLabel = 'Data Dokter';
 
     protected static ?string $modelLabel = 'Dokter';
+
+    protected static ?string $pluralLabel = 'Data Dokter';
 
     protected static ?string $recordTitleAttribute = 'kode_dokter';
 
@@ -55,8 +55,6 @@ class DokterResource extends Resource
     {
         return [
             'index' => ListDokters::route('/'),
-            'create' => CreateDokter::route('/create'),
-            'edit' => EditDokter::route('/{record}/edit'),
         ];
     }
 

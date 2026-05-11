@@ -13,7 +13,18 @@ class ListProducts extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            CreateAction::make(),
+            CreateAction::make()
+                ->label('New Product')
+                ->icon('heroicon-o-plus')
+                ->color('primary')
+                ->slideOver()
+                ->stickyModalFooter()
+                ->modalHeading('Create Product')
+                ->modalWidth('xl')
+                ->modalSubmitActionLabel('Create')
+                ->modalCancelActionLabel('Cancel')
+                ->modalFooterActionsAlignment(\Filament\Support\Enums\Alignment::End)
+                ->createAnother(true),
         ];
     }
 }

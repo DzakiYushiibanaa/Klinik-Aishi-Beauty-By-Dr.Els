@@ -2,14 +2,18 @@
 
 namespace App\Filament\Resources\Appointments\Tables;
 
+use App\Filament\Resources\Appointments\Schemas\AppointmentForm;
+use App\Filament\Resources\Appointments\Schemas\MulaiLayananForm;
 use App\Models\Appointment;
 use App\Notifications\AppointmentStatusChanged; // Pastikan notifikasi di-import
+use App\Services\Appointments\StartServiceFinalizer;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification; 
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Facades\Filament;
+use Filament\Support\Enums\Alignment;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
@@ -22,6 +26,16 @@ class AppointmentsTable
     {
         return $table
             ->modifyQueryUsing(function (Builder $query) {
+                // Ensure item relations are eager-loaded for the LAYANAN & MEDIS column.
+                $query->with([
+                    'items.treatment',
+                    'items.bundle',
+                    'items.consultation',
+                    'pasien',
+                    'dokter',
+                    'terapis',
+                ]);
+
                 $user = Filament::auth()->user();
                 if (! $user) return;
 
@@ -43,54 +57,76 @@ class AppointmentsTable
                 }
             })
             ->columns([
-                TextColumn::make('appointment_id')->label('ID')->sortable()->searchable(),
-                TextColumn::make('pasien.name')->label('Pasien')->searchable(),
+                TextColumn::make('pasien.name')
+                    ->label('PASIEN & ID')
+                    ->weight('bold')
+                    ->searchable()
+                    ->description(fn (Appointment $record): string => $record->appointment_id ?? '-'),
                 
-                TextColumn::make('jenis')
-                    ->label('Jenis')
-                    ->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'konsultasi' => 'info',
-                        'treatment' => 'warning',
-                        default => 'gray',
-                    }),
+                TextColumn::make('tanggal_jam')
+                    ->label('JADWAL')
+                    ->weight('bold')
+                    ->formatStateUsing(fn ($state) => \Carbon\Carbon::parse($state)->format('d M Y'))
+                    ->description(fn (Appointment $record) => \Carbon\Carbon::parse($record->tanggal_jam)->format('H:i \W\I\B'))
+                    ->sortable(),
 
-                TextColumn::make('dokter.name')->label('Dokter')->toggleable(),
-                TextColumn::make('terapis.name')->label('Terapis')->toggleable(),
-                
                 TextColumn::make('items_summary')
-                    ->label('Treatment')
+                    ->label('LAYANAN & MEDIS')
+                    ->weight('bold')
                     ->getStateUsing(function (Appointment $record): string {
-                        return $record->items->map(function ($item) {
+                        // Group rows by type so "Konsultasi + 2 Treatment" reads nicely.
+                        $parts = $record->items->map(function ($item) {
                             $qty = (int) ($item->qty ?? 1);
+                            $suffix = $qty > 1 ? " x{$qty}" : '';
 
-                            if ($item->item_type === 'treatment' && $item->treatment) {
-                                return $item->treatment->nama . ($qty > 1 ? " x{$qty}" : '');
-                            }
+                            return match (true) {
+                                $item->item_type === 'consultation' && $item->consultation => $item->consultation->nama . $suffix,
+                                $item->item_type === 'treatment' && $item->treatment       => $item->treatment->nama . $suffix,
+                                $item->item_type === 'bundle' && $item->bundle             => 'Bundle: ' . $item->bundle->nama . $suffix,
+                                default                                                     => null,
+                            };
+                        })->filter()->values();
 
-                            if ($item->item_type === 'bundle' && $item->bundle) {
-                                return 'Bundle: ' . $item->bundle->nama . ($qty > 1 ? " x{$qty}" : '');
-                            }
+                        if ($parts->isEmpty()) {
+                            // Fallback so the cell is never blank — show the booking type at least.
+                            return $record->jenis
+                                ? ucfirst(str_replace('_', ' ', $record->jenis))
+                                : '—';
+                        }
 
-                            return null;
-                        })->filter()->implode(', ');
+                        return $parts->implode(', ');
+                    })
+                    ->description(function (Appointment $record): string {
+                        $dokter  = $record->dokter  ? 'Dr. ' . $record->dokter->name   : null;
+                        $terapis = $record->terapis ? 'Terapis: ' . $record->terapis->name : null;
+
+                        // Show only what's relevant for this appointment type.
+                        $bits = match ($record->jenis) {
+                            'konsultasi' => [$dokter],
+                            'treatment'  => [$terapis],
+                            default      => [$dokter, $terapis],
+                        };
+
+                        $bits = array_filter($bits);
+
+                        return empty($bits) ? '—' : implode(' | ', $bits);
                     })
                     ->wrap()
                     ->limit(60),
                 
-                TextColumn::make('tanggal_jam')->label('Jadwal')->dateTime('d M Y, H:i')->sortable(),
-                
                 TextColumn::make('status')
-                    ->label('Status')
+                    ->label('STATUS')
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
-                        'diajukan' => 'gray',
+                        'diajukan' => 'warning',
                         'disetujui' => 'success',
                         'batal' => 'danger',
                         'selesai' => 'info',
-                        'tidak_hadir' => 'warning',
+                        'tidak_hadir' => 'danger',
                         default => 'gray',
-                    })->sortable(),
+                    })
+                    ->formatStateUsing(fn (string $state): string => ucfirst($state))
+                    ->sortable(),
             ])
             ->defaultSort('tanggal_jam', 'desc')
             ->filters([
@@ -122,13 +158,63 @@ class AppointmentsTable
                     ->visible(fn () => (Filament::auth()->user()?->hasAnyRole(['dokter','terapis','pasien']) ?? false)),
             ])
             ->recordActions([
-                EditAction::make(),
+                // === VIEW DETAIL ===
+                Action::make('view_detail')
+                    ->label('')
+                    ->icon('heroicon-o-eye')
+                    ->color('gray')
+                    ->tooltip('Lihat Detail Appointment')
+                    ->slideOver()
+                    ->stickyModalFooter()
+                    ->modalHeading(fn (Appointment $record) => 'Detail Appointment #'
+                        . str_pad((string) $record->appointment_id, 4, '0', STR_PAD_LEFT))
+                    ->modalWidth('2xl')
+                    ->modalCancelActionLabel('Tutup')
+                    ->modalSubmitAction(false)
+                    ->modalFooterActionsAlignment(Alignment::End)
+                    ->modalContent(function (Appointment $record) {
+                        $appointment = Appointment::with([
+                            'items.treatment',
+                            'items.bundle',
+                            'items.consultation',
+                            'pasien.pasienProfile',
+                            'dokter',
+                            'terapis',
+                        ])->find($record->appointment_id);
+
+                        return view('filament.appointments.detail-slideover', compact('appointment'));
+                    }),
+
+                EditAction::make()
+                    ->iconButton()
+                    ->slideOver()
+                    ->stickyModalFooter()
+                    ->modalHeading('Edit Appointment')
+                    ->modalWidth('2xl')
+                    ->modalSubmitActionLabel('Save Changes')
+                    ->modalCancelActionLabel('Cancel')
+                    ->modalFooterActionsAlignment(\Filament\Support\Enums\Alignment::End)
+                    ->mutateFormDataUsing(function (array $data, Appointment $record) {
+                        // Strip non-column values before Filament writes the appointments row.
+                        $data = AppointmentForm::captureAndStripConsultationId($data, $record->getKey());
+                        $data = AppointmentForm::captureAndStripFollowupItems($data, $record->getKey());
+                        return $data;
+                    })
+                    ->after(function (Appointment $record) {
+                        AppointmentForm::syncConsultationItem(
+                            $record->fresh(),
+                            AppointmentForm::consumeConsultationId($record->getKey()),
+                        );
+                        AppointmentForm::syncFollowupItems($record->fresh(), $record->getKey());
+                    }),
 
                 // === TOMBOL SETUJUI ===
                 Action::make('setujui')
                     ->label('Setujui')
+                    ->iconButton()
                     ->icon('heroicon-o-check')
                     ->color('success')
+                    ->tooltip('Setujui Booking')
                     ->requiresConfirmation()
                     ->modalHeading('Setujui Booking')
                     ->visible(fn (Appointment $record) => $record->status === 'diajukan' && Filament::auth()->user()->hasRole('admin'))
@@ -147,8 +233,10 @@ class AppointmentsTable
                 // === TOMBOL TOLAK ===
                 Action::make('tolak')
                     ->label('Tolak')
+                    ->iconButton()
                     ->icon('heroicon-o-x-mark')
                     ->color('danger')
+                    ->tooltip('Tolak Booking')
                     ->requiresConfirmation()
                     ->visible(fn (Appointment $record) => $record->status === 'diajukan' && Filament::auth()->user()->hasRole('admin'))
                     ->action(function (Appointment $record) {
@@ -161,6 +249,90 @@ class AppointmentsTable
                         }
 
                         Notification::make()->title('Booking Dibatalkan')->danger()->send();
+                    }),
+
+                // === MULAI LAYANAN ===
+                // Buka modal besar untuk melakukan pemeriksaan, upload foto, pilih treatment,
+                // & finalisasi (buat rekam medis + order + notif ke pasien).
+                Action::make('mulai_layanan')
+                    ->label('Mulai Layanan')
+                    ->icon('heroicon-o-play')
+                    ->color('primary')
+                    ->tooltip('Mulai & selesaikan layanan')
+                    ->slideOver()
+                    ->stickyModalFooter()
+                    ->modalHeading('Mulai Layanan')
+                    ->modalDescription(fn (Appointment $record) => new \Illuminate\Support\HtmlString(
+                        '<div style="padding:12px 14px; background:#FEF7E6; border:1px solid #F3E4C4; border-radius:10px; color:#7A5A3A; font-size:0.875rem; line-height:1.5;">'
+                        . '<strong>Perhatian:</strong> Ketika Anda menekan <strong>Selesaikan Layanan</strong>, sistem akan otomatis membuat <strong>Rekam Medis</strong> dan <strong>Transaksi</strong>, lalu mengirim notifikasi + email invoice ke pasien ('
+                        . e($record->pasien?->email ?? '—') . ').'
+                        . '</div>'
+                    ))
+                    ->modalWidth('3xl')
+                    ->modalSubmitActionLabel('Selesaikan Layanan')
+                    ->modalCancelActionLabel('Cancel')
+                    ->modalFooterActionsAlignment(Alignment::End)
+                    ->visible(fn (Appointment $record) => $record->status === 'disetujui'
+                        && (Filament::auth()->user()?->hasAnyRole(['admin', 'dokter', 'terapis']) ?? false))
+                    ->schema(fn (Appointment $record) => MulaiLayananForm::schema($record))
+                    ->action(function (array $data, Appointment $record) {
+                        try {
+                            $result = app(StartServiceFinalizer::class)->complete($record, $data);
+                        } catch (\Throwable $e) {
+                            \Illuminate\Support\Facades\Log::error('StartServiceFinalizer failed', [
+                                'appointment_id' => $record->appointment_id,
+                                'error'          => $e->getMessage(),
+                            ]);
+
+                            Notification::make()
+                                ->title('Gagal menyelesaikan layanan')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+
+                            return;
+                        }
+
+                        $kodeOrder   = $result['order']?->kode_order;
+                        $noKunjungan = $result['rekam_medis']?->no_kunjungan;
+
+                        Notification::make()
+                            ->title('Layanan Selesai')
+                            ->body(
+                                'Rekam medis ' . ($noKunjungan ?: '-')
+                                . ($kodeOrder ? ' & transaksi ' . $kodeOrder : '')
+                                . ' berhasil dibuat. Notifikasi + email invoice telah dikirim ke pelanggan.'
+                            )
+                            ->success()
+                            ->duration(7000)
+                            ->send();
+                    }),
+
+                // === SIMPAN PROGRES (DRAFT) — tanpa membuat transaksi/notif ===
+                Action::make('simpan_progress_layanan')
+                    ->label('Simpan Draft Pemeriksaan')
+                    ->iconButton()
+                    ->icon('heroicon-o-clock')
+                    ->color('gray')
+                    ->tooltip('Simpan hasil pemeriksaan sementara (tanpa membuat transaksi)')
+                    ->slideOver()
+                    ->stickyModalFooter()
+                    ->modalHeading('Simpan Draft Pemeriksaan')
+                    ->modalWidth('3xl')
+                    ->modalSubmitActionLabel('Simpan Draft')
+                    ->modalCancelActionLabel('Cancel')
+                    ->modalFooterActionsAlignment(Alignment::End)
+                    ->visible(fn (Appointment $record) => $record->status === 'disetujui'
+                        && (Filament::auth()->user()?->hasAnyRole(['admin', 'dokter', 'terapis']) ?? false))
+                    ->schema(fn (Appointment $record) => MulaiLayananForm::schema($record))
+                    ->action(function (array $data, Appointment $record) {
+                        app(StartServiceFinalizer::class)->saveDraft($record, $data);
+
+                        Notification::make()
+                            ->title('Draft tersimpan')
+                            ->body('Anda dapat melanjutkan pemeriksaan ini nanti.')
+                            ->success()
+                            ->send();
                     }),
             ])
             ->toolbarActions([

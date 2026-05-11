@@ -21,6 +21,8 @@ class EditProfilDokter extends Page implements HasForms
 
     protected string $view = 'filament.pages.edit-profil-dokter';
 
+    protected static bool $shouldRegisterNavigation = false;
+
     public static function getNavigationIcon(): string
     {
         return 'heroicon-o-user-circle';
