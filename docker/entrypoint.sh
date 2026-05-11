@@ -1,35 +1,44 @@
 #!/usr/bin/env bash
 #
-# Container entrypoint for Laravel + Apache.
+# Container entrypoint untuk Laravel + Apache.
 #
 # Responsibilities:
-#   1. Substitute ${PORT} into Apache configs (Render injects a random port).
-#   2. Ensure APP_KEY exists (generated from env or on-the-fly fallback).
-#   3. Warm Laravel caches (config/route/view) for production performance.
-#   4. Run database migrations on boot (safe to re-run, uses --force).
-#   5. Hand off to the original command (apache2-foreground by default).
+#   1. Substitute ${PORT} ke Apache config (Railway inject port dinamis).
+#   2. Pastikan APP_KEY ada (generate kalau kosong).
+#   3. Warm Laravel cache (config/route/view) untuk performance production.
+#   4. Run database migrations saat boot (idempotent, pakai --force).
+#   5. Hand off ke command asli (apache2-foreground by default).
 #
-# Any non-zero exit here will kill the container and Render will restart it.
+# Non-zero exit di sini akan membunuh container dan Railway akan restart.
 # ──────────────────────────────────────────────────────────────────────────
 
 set -euo pipefail
 
 cd /var/www/html
 
-# 1. Render sets PORT; fall back to 10000 for `docker run` locally.
+# 1. Railway set PORT; fallback 10000 untuk `docker run` lokal.
 export PORT="${PORT:-10000}"
 envsubst '${PORT}' < /etc/apache2/ports.conf > /etc/apache2/ports.conf.tmp \
     && mv /etc/apache2/ports.conf.tmp /etc/apache2/ports.conf
 envsubst '${PORT}' < /etc/apache2/sites-available/000-default.conf > /etc/apache2/sites-available/000-default.conf.tmp \
     && mv /etc/apache2/sites-available/000-default.conf.tmp /etc/apache2/sites-available/000-default.conf
 
-# 2. APP_KEY — generate if missing so a brand-new Render service boots cleanly.
+# 2. APP_KEY — generate kalau missing supaya brand-new Railway service boot clean.
 if [ -z "${APP_KEY:-}" ] || [ "${APP_KEY}" = "" ]; then
-    echo "[entrypoint] APP_KEY empty; generating temporary key (set APP_KEY in Render dashboard)."
+    echo "[entrypoint] APP_KEY empty; generating temporary key (set APP_KEY di Railway Variables)."
     php artisan key:generate --force --no-interaction || true
 fi
 
-# Keep permissions sane — Render may mount a persistent disk on storage/.
+# 3. Railway MySQL plugin: kalau user set MYSQLHOST/MYSQLUSER dkk, mapping
+#    otomatis ke DB_HOST/DB_USERNAME dkk supaya Laravel baca.
+export DB_CONNECTION="${DB_CONNECTION:-mysql}"
+export DB_HOST="${DB_HOST:-${MYSQLHOST:-}}"
+export DB_PORT="${DB_PORT:-${MYSQLPORT:-3306}}"
+export DB_DATABASE="${DB_DATABASE:-${MYSQLDATABASE:-}}"
+export DB_USERNAME="${DB_USERNAME:-${MYSQLUSER:-}}"
+export DB_PASSWORD="${DB_PASSWORD:-${MYSQLPASSWORD:-}}"
+
+# Keep permissions sane — Railway may mount a persistent volume on storage/.
 mkdir -p storage/framework/{sessions,views,cache,testing} \
          storage/logs \
          bootstrap/cache
@@ -45,7 +54,7 @@ php artisan event:cache      || echo "[entrypoint] event:cache failed"
 php artisan filament:cache-components || true
 
 # 4. Storage symlink (public/storage → storage/app/public). Re-create each boot
-#    because Render doesn't persist the symlink by default.
+#    because Railway doesn't persist the symlink by default.
 php artisan storage:link --force || true
 
 # 5. DB migrations — idempotent thanks to migrations table.

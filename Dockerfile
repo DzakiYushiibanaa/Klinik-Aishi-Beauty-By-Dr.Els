@@ -3,12 +3,13 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Klinik Aishi Beauty — Laravel 12 + Filament 4 production image
 #
-# Target: Render.com (or any Docker host). Uses a multi-stage build:
+# Target: Railway.com (atau Docker host manapun). Uses a multi-stage build:
 #   1. composer  — install PHP dependencies (no dev)
 #   2. assets    — build front-end bundle with Vite + Tailwind
 #   3. runtime   — PHP 8.3 + Apache (mod_rewrite) with required extensions
 #
-# The container listens on $PORT (Render injects it, defaults to 10000 locally).
+# Container listen pada $PORT (Railway inject otomatis saat runtime; fallback
+# 10000 untuk local `docker run`).
 # ─────────────────────────────────────────────────────────────────────────────
 
 # =============================================================================
@@ -144,7 +145,7 @@ RUN mkdir -p storage/framework/{sessions,views,cache,testing} \
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-# Render sets PORT dynamically; fall back to 10000 for local `docker run`.
+# Railway sets PORT dynamically; fall back to 10000 for local `docker run`.
 ENV PORT=10000
 
 EXPOSE 10000
