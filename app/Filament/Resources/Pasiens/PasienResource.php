@@ -2,8 +2,6 @@
 
 namespace App\Filament\Resources\Pasiens;
 
-use App\Filament\Resources\Pasiens\Pages\CreatePasien;
-use App\Filament\Resources\Pasiens\Pages\EditPasien;
 use App\Filament\Resources\Pasiens\Pages\ListPasiens;
 use App\Filament\Resources\Pasiens\Schemas\PasienForm;
 use App\Filament\Resources\Pasiens\Tables\PasiensTable;
@@ -11,7 +9,6 @@ use App\Models\Pasien;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use UnitEnum;
 
@@ -19,15 +16,17 @@ class PasienResource extends Resource
 {
     protected static ?string $model = Pasien::class;
 
-    protected static string |UnitEnum| null $navigationGroup = 'Master Data';
+    protected static string|UnitEnum|null $navigationGroup = 'Master Data';
 
-    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-user';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-users';
 
-    protected static ?string $navigationLabel = 'Pasien';
+    protected static ?string $navigationLabel = 'Data Pasien';
 
     protected static ?string $modelLabel = 'Pasien';
 
-    protected static ?string $recordTitleAttribute = 'no_rekam_medis';
+    protected static ?string $pluralLabel = 'Data Pasien';
+
+    protected static ?string $recordTitleAttribute = 'nama';
 
     public static function form(Schema $schema): Schema
     {
@@ -50,7 +49,6 @@ class PasienResource extends Resource
     {
         return [
             'index' => ListPasiens::route('/'),
-            'create' => CreatePasien::route('/create'),
         ];
     }
 

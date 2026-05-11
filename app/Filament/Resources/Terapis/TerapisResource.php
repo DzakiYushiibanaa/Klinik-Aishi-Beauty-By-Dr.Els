@@ -2,8 +2,6 @@
 
 namespace App\Filament\Resources\Terapis;
 
-use App\Filament\Resources\Terapis\Pages\CreateTerapis;
-use App\Filament\Resources\Terapis\Pages\EditTerapis;
 use App\Filament\Resources\Terapis\Pages\ListTerapis;
 use App\Filament\Resources\Terapis\Schemas\TerapisForm;
 use App\Filament\Resources\Terapis\Tables\TerapisTable;
@@ -19,13 +17,15 @@ class TerapisResource extends Resource
 {
     protected static ?string $model = Terapis::class;
 
-    protected static string |UnitEnum| null $navigationGroup = 'Master Data';
+    protected static string|UnitEnum|null $navigationGroup = 'Master Data';
 
-    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-user';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-sparkles';
 
-    protected static ?string $navigationLabel = 'Terapis';
+    protected static ?string $navigationLabel = 'Data Terapis';
 
     protected static ?string $modelLabel = 'Terapis';
+
+    protected static ?string $pluralLabel = 'Data Terapis';
 
     protected static ?string $recordTitleAttribute = 'kode_terapis';
 
@@ -55,14 +55,12 @@ class TerapisResource extends Resource
     {
         return [
             'index' => ListTerapis::route('/'),
-            'create' => CreateTerapis::route('/create'),
-            'edit' => EditTerapis::route('/{record}/edit'),
         ];
     }
 
     public static function getNavigationIcon(): string
     {
-        return 'heroicon-o-user';
+        return 'heroicon-o-sparkles';
     }
 
     public static function getNavigationGroup(): ?string

@@ -23,15 +23,35 @@ class JadwalPraktiksTable
                 TextColumn::make('tenagaMedis.name')->label('Tenaga Medis')->searchable(),
                 TextColumn::make('jenis_layanan')->label('Layanan')->sortable(),
                 TextColumn::make('hari')->label('Hari')->sortable(),
-                TextColumn::make('jam_mulai')->label('Mulai'),
-                TextColumn::make('jam_selesai')->label('Selesai'),
+                TextColumn::make('jam_mulai')
+                    ->label('Mulai')
+                    ->time('H:i'),
+                TextColumn::make('jam_selesai')
+                    ->label('Selesai')
+                    ->time('H:i'),
                 IconColumn::make('is_active')->label('Aktif')->boolean(),
             ])
             ->filters([
                 //
             ])
             ->recordActions([
-                EditAction::make(),
+                \Filament\Actions\ViewAction::make()
+                    ->label('')
+                    ->icon('heroicon-o-eye')
+                    ->slideOver()
+                    ->modalHeading('Detail Jadwal Praktik')
+                    ->modalWidth('xl'),
+
+                EditAction::make()
+                    ->label('')
+                    ->icon('heroicon-o-pencil-square')
+                    ->slideOver()
+                    ->stickyModalFooter()
+                    ->modalHeading('Edit Jadwal Praktik')
+                    ->modalWidth('xl')
+                    ->modalSubmitActionLabel('Simpan Perubahan')
+                    ->modalCancelActionLabel('Batalkan')
+                    ->modalFooterActionsAlignment(\Filament\Support\Enums\Alignment::End),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

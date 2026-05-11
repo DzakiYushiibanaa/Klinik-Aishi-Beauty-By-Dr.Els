@@ -14,15 +14,18 @@ class Order extends Model
         'status','payment_method','payment_channel','payment_ref','midtrans_order_id','snap_token',
         'subtotal','diskon_total','ongkir','grand_total','total_weight_gram',
         'shipping_method','shipping_address','shipping_waybill','shipping_status','paid_at','expired_at',
+        'is_stock_deducted','cash_received',
     ];
 
     protected $casts = [
-        'subtotal'     => 'integer',
-        'diskon_total' => 'integer',
-        'ongkir'       => 'integer',
-        'grand_total'  => 'integer',
-        'paid_at'      => 'datetime',
-        'expired_at'   => 'datetime',
+        'subtotal'          => 'integer',
+        'diskon_total'      => 'integer',
+        'ongkir'            => 'integer',
+        'grand_total'       => 'integer',
+        'cash_received'     => 'integer',
+        'paid_at'           => 'datetime',
+        'expired_at'        => 'datetime',
+        'is_stock_deducted' => 'boolean',
     ];
 
     public function items()

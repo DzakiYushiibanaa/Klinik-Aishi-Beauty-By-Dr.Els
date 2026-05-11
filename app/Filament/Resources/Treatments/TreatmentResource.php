@@ -43,8 +43,6 @@ class TreatmentResource extends Resource
     {
         return [
             'index' => ListTreatments::route('/'),
-            'create' => CreateTreatment::route('/create'),
-            'edit' => EditTreatment::route('/{record}/edit'),
         ];
     }
 

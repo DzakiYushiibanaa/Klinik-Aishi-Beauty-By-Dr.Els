@@ -1,0 +1,119 @@
+# Render Blueprint — one-click provision for Klinik Aishi Beauty
+# Docs: https://render.com/docs/blueprint-spec
+#
+# Creates:
+#   - PostgreSQL database (managed)
+#   - Web service (Docker)       → runs Apache + Laravel
+#   - Disk                       → persistent storage for uploads & sessions
+#
+# Push this file plus the Dockerfile to GitHub, then "New Blueprint" in Render.
+
+databases:
+  - name: aishi-db
+    databaseName: aishi
+    user: aishi
+    plan: free
+    region: singapore      # closest region to Indonesia; change if needed
+
+services:
+  - type: web
+    name: aishi-beauty
+    runtime: docker
+    plan: free             # upgrade to starter ($7) for production
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /
+    autoDeploy: true
+
+    disk:
+      name: aishi-storage
+      mountPath: /var/www/html/storage/app
+      sizeGB: 1            # free plan cap
+
+    envVars:
+      # Laravel essentials — set these in the Render dashboard too if you want
+      # to override the blueprint defaults.
+      - key: APP_NAME
+        value: "Klinik Aishi Beauty"
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_URL
+        sync: false        # set manually to your Render URL
+      - key: APP_KEY
+        generateValue: true
+
+      - key: LOG_CHANNEL
+        value: stack
+      - key: LOG_LEVEL
+        value: warning
+
+      # Database — Render injects connection info from the aishi-db above.
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_HOST
+        fromDatabase:
+          name: aishi-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: aishi-db
+          property: port
+      - key: DB_DATABASE
+        fromDatabase:
+          name: aishi-db
+          property: database
+      - key: DB_USERNAME
+        fromDatabase:
+          name: aishi-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: aishi-db
+          property: password
+
+      # Cache / session — use DB driver by default (no Redis on free tier).
+      - key: CACHE_STORE
+        value: database
+      - key: QUEUE_CONNECTION
+        value: database
+      - key: SESSION_DRIVER
+        value: database
+      - key: SESSION_LIFETIME
+        value: "120"
+
+      # Filesystem — point storage to /var/www/html/storage/app (mounted disk)
+      - key: FILESYSTEM_DISK
+        value: public
+
+      # Mail — set these to your real SMTP credentials in Render dashboard.
+      - key: MAIL_MAILER
+        value: smtp
+      - key: MAIL_HOST
+        sync: false
+      - key: MAIL_PORT
+        sync: false
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: MAIL_FROM_ADDRESS
+        sync: false
+      - key: MAIL_FROM_NAME
+        value: "Aishi Beauty"
+
+      # Midtrans (payment gateway) — paste from your Midtrans dashboard.
+      - key: MIDTRANS_SERVER_KEY
+        sync: false
+      - key: MIDTRANS_CLIENT_KEY
+        sync: false
+      - key: MIDTRANS_IS_PRODUCTION
+        value: "false"
+
+      # Deployment behaviour for entrypoint.sh
+      - key: RUN_MIGRATIONS
+        value: "true"
+      - key: RUN_SEED
+        value: "false"

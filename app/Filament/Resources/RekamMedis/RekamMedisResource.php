@@ -2,8 +2,6 @@
 
 namespace App\Filament\Resources\RekamMedis;
 
-use App\Filament\Resources\RekamMedis\Pages\CreateRekamMedis;
-use App\Filament\Resources\RekamMedis\Pages\EditRekamMedis;
 use App\Filament\Resources\RekamMedis\Pages\ListRekamMedis;
 use App\Filament\Resources\RekamMedis\Schemas\RekamMedisForm;
 use App\Filament\Resources\RekamMedis\Tables\RekamMedisTable;
@@ -45,15 +43,20 @@ class RekamMedisResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with(['appointment', 'pasien.pasienProfile', 'dokter', 'terapis']);
+        return parent::getEloquentQuery()->with([
+            'appointment.items.treatment',
+            'appointment.items.bundle',
+            'appointment.items.consultation',
+            'pasien.pasienProfile',
+            'dokter',
+            'terapis',
+        ]);
     }
 
     public static function getPages(): array
     {
         return [
             'index' => ListRekamMedis::route('/'),
-            'create' => CreateRekamMedis::route('/create'),
-            'edit' => EditRekamMedis::route('/{record}/edit'),
         ];
     }
 

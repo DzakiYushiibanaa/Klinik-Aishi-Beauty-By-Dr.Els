@@ -1,0 +1,55 @@
+# Files that should NOT be copied into the Docker image.
+# Keeping the build context small reduces build time dramatically.
+
+# Dependencies — installed fresh inside the image
+node_modules
+vendor
+public/build
+
+# Local environment files (inject via Render dashboard instead)
+.env
+.env.*
+!.env.example
+
+# Runtime data
+storage/logs/*
+!storage/logs/.gitignore
+storage/framework/cache/data/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/framework/testing/*
+bootstrap/cache/*.php
+
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# IDE / editor
+.idea
+.vscode
+.kiro
+.agent
+.agents
+*.swp
+*.swo
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Tests & dev tooling
+tests
+phpunit.xml
+.phpunit.result.cache
+
+# Docker meta
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+
+# Misc
+*.log
+migrate_error.txt
+README.md

@@ -13,7 +13,18 @@ class ListJadwalPraktiks extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            CreateAction::make(),
+            CreateAction::make()
+                ->label('New Jadwal Praktik')
+                ->icon('heroicon-o-plus')
+                ->color('primary')
+                ->slideOver()
+                ->stickyModalFooter()
+                ->modalHeading('Create Jadwal Praktik')
+                ->modalWidth('xl')
+                ->modalSubmitActionLabel('Simpan')
+                ->modalCancelActionLabel('Batalkan')
+                ->modalFooterActionsAlignment(\Filament\Support\Enums\Alignment::End)
+                ->createAnother(true),
         ];
     }
 }

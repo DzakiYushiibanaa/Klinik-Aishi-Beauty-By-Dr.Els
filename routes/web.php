@@ -154,3 +154,12 @@ Route::middleware(['auth'])->group(function () {
 });
 
 require __DIR__ . '/auth.php';
+
+
+// ============================
+// ADMIN — INVOICE PRINT (POS)
+// ============================
+Route::middleware(['auth'])->prefix('admin/orders')->name('admin.orders.')->group(function () {
+    Route::get('/{order}/invoice/print', [\App\Http\Controllers\Admin\OrderInvoiceController::class, 'print'])
+        ->name('invoice');
+});
