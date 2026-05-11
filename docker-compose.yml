@@ -15,7 +15,7 @@ services:
       APP_ENV: local
       APP_DEBUG: "true"
       APP_URL: http://localhost:10000
-      APP_KEY: ""          # entrypoint will generate one on first boot
+      APP_KEY: "base64:OxLyVrwwbi4nd5KaRx7XnLbMgJoVsuBoevlloQla6zc="          # entrypoint will generate one on first boot
 
       LOG_CHANNEL: stack
       LOG_LEVEL: debug
