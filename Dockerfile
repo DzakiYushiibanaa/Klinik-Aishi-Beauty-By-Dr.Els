@@ -65,7 +65,7 @@ RUN npm run build
 FROM php:8.3-apache
 
 # Install system packages + PHP extensions required by the project:
-# - pdo_mysql, pdo_pgsql : database drivers (Render typically provides Postgres)
+# - pdo_mysql            : database driver (MySQL di production & dev)
 # - gd                   : DomPDF, Excel, image handling
 # - intl                 : Carbon translated formats, Filament locale features
 # - zip                  : phpspreadsheet (maatwebsite/excel)
@@ -85,14 +85,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libjpeg62-turbo-dev \
         libfreetype6-dev \
         libonig-dev \
-        libpq-dev \
         libxml2-dev \
         gettext-base \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j"$(nproc)" \
         pdo_mysql \
-        pdo_pgsql \
-        pgsql \
+        mysqli \
         gd \
         intl \
         zip \

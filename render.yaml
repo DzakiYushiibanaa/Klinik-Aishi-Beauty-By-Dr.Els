@@ -1,25 +1,24 @@
-# Render Blueprint — one-click provision for Klinik Aishi Beauty
+# Render Blueprint — Klinik Aishi Beauty (MySQL setup)
 # Docs: https://render.com/docs/blueprint-spec
 #
-# Creates:
-#   - PostgreSQL database (managed)
-#   - Web service (Docker)       → runs Apache + Laravel
-#   - Disk                       → persistent storage for uploads & sessions
+# Catatan penting:
+# Render tidak menyediakan managed MySQL, hanya PostgreSQL. Jadi untuk MySQL
+# Anda perlu pakai provider eksternal (gratisan/murah yang direkomendasikan):
 #
-# Push this file plus the Dockerfile to GitHub, then "New Blueprint" in Render.
-
-databases:
-  - name: aishi-db
-    databaseName: aishi
-    user: aishi
-    plan: free
-    region: singapore      # closest region to Indonesia; change if needed
+#   - Aiven MySQL          (free 1 bulan trial, lanjut paid)
+#   - Clever Cloud MySQL   (free tier 256MB RAM)
+#   - PlanetScale          (Hobby tier, gratis, MySQL compatible)
+#   - Railway MySQL        (trial credit bulanan)
+#   - Niagahoster / domain lokal — shared hosting MySQL
+#
+# Isi DB_HOST, DB_DATABASE, DB_USERNAME, DB_PASSWORD di dashboard Render
+# setelah service dibuat.
 
 services:
   - type: web
     name: aishi-beauty
     runtime: docker
-    plan: free             # upgrade to starter ($7) for production
+    plan: free             # upgrade ke starter ($7) untuk production serius
     region: singapore
     dockerfilePath: ./Dockerfile
     dockerContext: .
@@ -29,11 +28,10 @@ services:
     disk:
       name: aishi-storage
       mountPath: /var/www/html/storage/app
-      sizeGB: 1            # free plan cap
+      sizeGB: 1
 
     envVars:
-      # Laravel essentials — set these in the Render dashboard too if you want
-      # to override the blueprint defaults.
+      # ── Laravel core ──────────────────────────────────────
       - key: APP_NAME
         value: "Klinik Aishi Beauty"
       - key: APP_ENV
@@ -41,7 +39,7 @@ services:
       - key: APP_DEBUG
         value: "false"
       - key: APP_URL
-        sync: false        # set manually to your Render URL
+        sync: false        # set ke URL Render Anda (https://xxx.onrender.com)
       - key: APP_KEY
         generateValue: true
 
@@ -50,31 +48,22 @@ services:
       - key: LOG_LEVEL
         value: warning
 
-      # Database — Render injects connection info from the aishi-db above.
+      # ── MySQL (external) ──────────────────────────────────
+      # Isi semua nilai ini lewat dashboard Render setelah service running.
       - key: DB_CONNECTION
-        value: pgsql
+        value: mysql
       - key: DB_HOST
-        fromDatabase:
-          name: aishi-db
-          property: host
+        sync: false
       - key: DB_PORT
-        fromDatabase:
-          name: aishi-db
-          property: port
+        value: "3306"
       - key: DB_DATABASE
-        fromDatabase:
-          name: aishi-db
-          property: database
+        sync: false
       - key: DB_USERNAME
-        fromDatabase:
-          name: aishi-db
-          property: user
+        sync: false
       - key: DB_PASSWORD
-        fromDatabase:
-          name: aishi-db
-          property: password
+        sync: false
 
-      # Cache / session — use DB driver by default (no Redis on free tier).
+      # ── Cache / session / queue ───────────────────────────
       - key: CACHE_STORE
         value: database
       - key: QUEUE_CONNECTION
@@ -84,11 +73,11 @@ services:
       - key: SESSION_LIFETIME
         value: "120"
 
-      # Filesystem — point storage to /var/www/html/storage/app (mounted disk)
+      # ── Filesystem ────────────────────────────────────────
       - key: FILESYSTEM_DISK
         value: public
 
-      # Mail — set these to your real SMTP credentials in Render dashboard.
+      # ── Mail ──────────────────────────────────────────────
       - key: MAIL_MAILER
         value: smtp
       - key: MAIL_HOST
@@ -104,7 +93,7 @@ services:
       - key: MAIL_FROM_NAME
         value: "Aishi Beauty"
 
-      # Midtrans (payment gateway) — paste from your Midtrans dashboard.
+      # ── Midtrans ──────────────────────────────────────────
       - key: MIDTRANS_SERVER_KEY
         sync: false
       - key: MIDTRANS_CLIENT_KEY
@@ -112,7 +101,7 @@ services:
       - key: MIDTRANS_IS_PRODUCTION
         value: "false"
 
-      # Deployment behaviour for entrypoint.sh
+      # ── Entrypoint behaviour ──────────────────────────────
       - key: RUN_MIGRATIONS
         value: "true"
       - key: RUN_SEED
