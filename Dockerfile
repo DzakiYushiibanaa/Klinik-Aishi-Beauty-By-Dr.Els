@@ -120,8 +120,8 @@ RUN { \
 # Apache modules
 # php:8.3-apache already uses mpm_prefork by default.
 # Only disable conflicting MPM modules.
-RUN rm -rf /etc/apache2/mods-enabled/mpm_* \
-    && rm -rf /etc/apache2/mods-available/mpm_* \
+RUN find /etc/apache2 -name "mpm_*.load" -delete \
+    && find /etc/apache2 -name "mpm_*.conf" -delete \
     && a2enmod rewrite headers
 
 # Optional composer in runtime

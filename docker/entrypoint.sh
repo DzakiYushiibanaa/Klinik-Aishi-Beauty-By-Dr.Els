@@ -36,6 +36,8 @@ fi
 
 echo "[entrypoint] Apache starting on :${PORT}"
 
-apachectl -M
+echo "=== APACHE MODULES ==="
+apachectl -M || true
+echo "======================"
 
 exec "$@"
