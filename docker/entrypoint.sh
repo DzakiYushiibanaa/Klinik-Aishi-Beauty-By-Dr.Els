@@ -30,6 +30,9 @@ echo "Listen ${PORT}" > /etc/apache2/ports.conf
 php artisan config:clear || true
 php artisan route:clear || true
 php artisan view:clear || true
+php artisan cache:clear || true
+php artisan storage:link || true
+php artisan filament:optimize-clear || true
 
 php artisan migrate --force || true
 

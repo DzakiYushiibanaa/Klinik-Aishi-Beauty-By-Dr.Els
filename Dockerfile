@@ -73,6 +73,8 @@ RUN composer dump-autoload \
         --no-dev \
         --classmap-authoritative
 
+RUN php artisan package:discover --ansi
+
 # Build Vite assets
 RUN npm run build
 
