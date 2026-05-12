@@ -120,7 +120,10 @@ RUN { \
 # Apache modules
 # php:8.3-apache already uses mpm_prefork by default.
 # Only disable conflicting MPM modules.
-RUN a2dismod mpm_event mpm_worker 2>/dev/null || true \
+RUN a2dismod mpm_event || true \
+    && a2dismod mpm_worker || true \
+    && a2dismod mpm_prefork || true \
+    && a2enmod mpm_prefork \
     && a2enmod rewrite headers
 
 # Optional composer in runtime
