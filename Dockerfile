@@ -103,8 +103,11 @@ RUN { \
         echo 'opcache.validate_timestamps = 0'; \
     } > /usr/local/etc/php/conf.d/app.ini
 
-# Enable Apache modules
-RUN a2enmod rewrite headers
+# Enable Apache modules — pastikan hanya satu MPM yang aktif.
+# php:8.3-apache pakai mpm_prefork by default (dibutuhkan mod_php).
+# Paksa dismod yang lain kalau ada, lalu re-enable prefork.
+RUN a2dismod mpm_event mpm_worker 2>/dev/null || true \
+    && a2enmod mpm_prefork rewrite headers
 
 # Copy vhost template — $PORT akan di-substitute oleh entrypoint
 COPY docker/apache/vhost.conf /etc/apache2/sites-available/000-default.conf.tmpl

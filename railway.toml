@@ -6,9 +6,9 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-# Health check endpoint
-healthcheckPath = "/"
-healthcheckTimeout = 180
+# Laravel healthcheck endpoint (built-in sejak Laravel 11)
+healthcheckPath = "/up"
+healthcheckTimeout = 300
 
 # Restart kalau crash
 restartPolicyType = "ON_FAILURE"
