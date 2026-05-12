@@ -1,0 +1,57 @@
+# Nixpacks build config untuk Railway
+# Docs: https://nixpacks.com/docs/configuration/file
+#
+# Memastikan Railway pakai PHP 8.3 + ekstensi yang dibutuhkan Filament,
+# PhpSpreadsheet, DomPDF, dan Mike42 escpos.
+
+[phase.setup]
+# PHP 8.3 (composer.lock butuh php-64bit ^8.3) + semua ekstensi wajib.
+nixPkgs = [
+    "...",
+    "php83",
+    "php83Extensions.intl",
+    "php83Extensions.gd",
+    "php83Extensions.zip",
+    "php83Extensions.bcmath",
+    "php83Extensions.sockets",
+    "php83Extensions.exif",
+    "php83Extensions.mbstring",
+    "php83Extensions.pdo",
+    "php83Extensions.pdo_mysql",
+    "php83Extensions.mysqli",
+    "php83Extensions.opcache",
+    "php83Extensions.openssl",
+    "php83Extensions.tokenizer",
+    "php83Extensions.xml",
+    "php83Extensions.fileinfo",
+    "php83Extensions.ctype",
+    "php83Extensions.dom",
+    "php83Extensions.curl",
+    "php83Packages.composer",
+    "nodejs_20",
+]
+
+[phase.install]
+cmds = [
+    "composer install --no-dev --no-interaction --no-progress --prefer-dist --optimize-autoloader",
+    "npm ci --no-audit --no-fund",
+]
+
+[phase.build]
+cmds = [
+    "npm run build",
+    "php artisan config:cache",
+    "php artisan route:cache",
+    "php artisan view:cache",
+    "php artisan event:cache || true",
+]
+
+[start]
+# Laravel pakai php artisan serve listen di $PORT yang Railway inject.
+# Untuk production pakai built-in PHP server cukup (Railway edge cache di depan).
+cmd = "php artisan migrate --force --no-interaction && php artisan storage:link || true && php -S 0.0.0.0:${PORT:-8080} -t public"
+
+[variables]
+# Map auto-inject Railway MySQL plugin ke env var Laravel standar.
+APP_ENV = "production"
+LOG_CHANNEL = "stack"
