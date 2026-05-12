@@ -2,15 +2,16 @@
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Klinik Aishi Beauty — Laravel 12 + Filament 4
-# Target: Railway (atau platform Docker lainnya)
+# Target: Railway / Docker platforms
 #
 # Multi-stage:
-#   1. deps      — composer + npm build (semua dependencies + assets)
-#   2. runtime   — PHP 8.3 + Apache, ekstensi lengkap untuk Filament
+#   1. deps      — install composer deps + build Vite assets
+#   2. runtime   — PHP 8.3 + Apache production runtime
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 # =============================================================================
-# Stage 1: build dependencies & frontend assets
+# Stage 1 — Dependencies + Frontend Build
 # =============================================================================
 FROM php:8.3-cli AS deps
 
@@ -37,14 +38,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         bcmath \
         sockets \
         exif \
-    && curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer \
+    && curl -sS https://getcomposer.org/installer | php -- \
+        --install-dir=/usr/local/bin \
+        --filename=composer \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Install composer deps dulu (cached layer)
+# Copy composer manifest
 COPY composer.json composer.lock ./
+
+# Install PHP dependencies
 RUN composer install \
         --no-dev \
         --no-interaction \
@@ -53,18 +58,27 @@ RUN composer install \
         --prefer-dist \
         --no-autoloader
 
-# Install npm deps
+# Copy npm manifest
 COPY package.json package-lock.json* ./
+
+# Install node modules
 RUN npm ci --no-audit --no-fund
 
-# Bring in sisa source + build
+# Copy application source
 COPY . .
-RUN composer dump-autoload --optimize --no-dev --classmap-authoritative \
-    && npm run build
+
+# Generate optimized autoload
+RUN composer dump-autoload \
+        --optimize \
+        --no-dev \
+        --classmap-authoritative
+
+# Build Vite assets
+RUN npm run build
 
 
 # =============================================================================
-# Stage 2: runtime — PHP 8.3 + Apache
+# Stage 2 — Runtime
 # =============================================================================
 FROM php:8.3-apache
 
@@ -91,7 +105,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Production PHP config
+# PHP production config
 RUN { \
         echo 'memory_limit = 512M'; \
         echo 'upload_max_filesize = 20M'; \
@@ -103,26 +117,31 @@ RUN { \
         echo 'opcache.validate_timestamps = 0'; \
     } > /usr/local/etc/php/conf.d/app.ini
 
-# Enable Apache modules — pastikan hanya satu MPM yang aktif.
-# php:8.3-apache pakai mpm_prefork by default (dibutuhkan mod_php).
-# Paksa dismod yang lain kalau ada, lalu re-enable prefork.
+# Apache modules
+# php:8.3-apache already uses mpm_prefork by default.
+# Only disable conflicting MPM modules.
 RUN a2dismod mpm_event mpm_worker 2>/dev/null || true \
-    && a2enmod mpm_prefork rewrite headers
+    && a2enmod rewrite headers
 
-# Copy vhost template — $PORT akan di-substitute oleh entrypoint
+# Optional composer in runtime
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+# Apache vhost template
 COPY docker/apache/vhost.conf /etc/apache2/sites-available/000-default.conf.tmpl
-RUN rm -f /etc/apache2/sites-enabled/000-default.conf && \
-    ln -s /etc/apache2/sites-available/000-default.conf /etc/apache2/sites-enabled/000-default.conf
 
 WORKDIR /var/www/html
 
-# Bring in app + vendor + built assets
+# Copy app from build stage
 COPY --chown=www-data:www-data --from=deps /app ./
 
-# Writable dirs
-RUN mkdir -p storage/framework/{sessions,views,cache,testing} \
-             storage/logs \
-             bootstrap/cache \
+# Writable directories
+RUN mkdir -p \
+        storage/framework/sessions \
+        storage/framework/views \
+        storage/framework/cache \
+        storage/framework/testing \
+        storage/logs \
+        bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R ug+rwX storage bootstrap/cache
 
@@ -130,8 +149,11 @@ RUN mkdir -p storage/framework/{sessions,views,cache,testing} \
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
+# Railway dynamic port fallback
 ENV PORT=10000
+
 EXPOSE 10000
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+
 CMD ["apache2-foreground"]
