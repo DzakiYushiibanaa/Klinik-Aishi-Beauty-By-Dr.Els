@@ -1,13 +1,15 @@
-# Nixpacks build config untuk Railway
+# Nixpacks build config untuk Railway (Laravel 12 + Filament 4)
 # Docs: https://nixpacks.com/docs/configuration/file
 #
-# Memastikan Railway pakai PHP 8.3 + ekstensi yang dibutuhkan Filament,
-# PhpSpreadsheet, DomPDF, dan Mike42 escpos.
+# Target PHP 8.3 dengan ekstensi: intl, gd, zip, bcmath, sockets, exif,
+# mbstring, pdo_mysql, dan dependencies lain yang dibutuhkan Filament,
+# PhpSpreadsheet, DomPDF, Mike42 escpos.
 
-[phase.setup]
-# PHP 8.3 (composer.lock butuh php-64bit ^8.3) + semua ekstensi wajib.
+providers = ["php", "node"]
+
+[phases.setup]
+# Override daftar paket nix. Tambahkan PHP 8.3 + ekstensinya + composer + node.
 nixPkgs = [
-    "...",
     "php83",
     "php83Extensions.intl",
     "php83Extensions.gd",
@@ -27,31 +29,33 @@ nixPkgs = [
     "php83Extensions.ctype",
     "php83Extensions.dom",
     "php83Extensions.curl",
+    "php83Extensions.filter",
+    "php83Extensions.session",
+    "php83Extensions.simplexml",
     "php83Packages.composer",
     "nodejs_20",
 ]
 
-[phase.install]
+[phases.install]
+# Override command composer/npm default Nixpacks supaya pakai PHP 8.3 dari
+# setup phase dan skip dev deps.
 cmds = [
+    "php --version",
     "composer install --no-dev --no-interaction --no-progress --prefer-dist --optimize-autoloader",
     "npm ci --no-audit --no-fund",
 ]
 
-[phase.build]
+[phases.build]
 cmds = [
     "npm run build",
-    "php artisan config:cache",
-    "php artisan route:cache",
-    "php artisan view:cache",
-    "php artisan event:cache || true",
 ]
 
 [start]
-# Laravel pakai php artisan serve listen di $PORT yang Railway inject.
-# Untuk production pakai built-in PHP server cukup (Railway edge cache di depan).
-cmd = "php artisan migrate --force --no-interaction && php artisan storage:link || true && php -S 0.0.0.0:${PORT:-8080} -t public"
+# Jalankan migration + storage:link + cache warm-up, lalu PHP built-in server
+# listen di $PORT (Railway inject otomatis).
+cmd = "php artisan migrate --force --no-interaction && php artisan storage:link || true && php artisan config:cache && php artisan route:cache && php artisan view:cache && php -S 0.0.0.0:${PORT:-8080} -t public"
 
 [variables]
-# Map auto-inject Railway MySQL plugin ke env var Laravel standar.
 APP_ENV = "production"
 LOG_CHANNEL = "stack"
+NIXPACKS_PHP_ROOT_DIR = "/app/public"
