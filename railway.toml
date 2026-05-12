@@ -1,0 +1,17 @@
+# Force Railway untuk pakai Dockerfile, bukan Nixpacks (yang buggy untuk
+# Laravel + Vite stack).
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+# Health check endpoint
+healthcheckPath = "/"
+healthcheckTimeout = 180
+
+# Restart kalau crash
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+numReplicas = 1
