@@ -12,20 +12,22 @@
 # =============================================================================
 # Stage 1: composer + node (build dependencies & frontend assets)
 # =============================================================================
-FROM php:8.3-cli-alpine AS deps
+FROM php:8.3-cli AS deps
 
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
         unzip \
         curl \
-        icu-dev \
+        ca-certificates \
+        libicu-dev \
         libzip-dev \
         libpng-dev \
-        libjpeg-turbo-dev \
-        freetype-dev \
-        oniguruma-dev \
-        nodejs \
-        npm \
+        libjpeg62-turbo-dev \
+        libfreetype6-dev \
+        libonig-dev \
+        libxml2-dev \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j"$(nproc)" \
         pdo_mysql \
@@ -35,7 +37,9 @@ RUN apk add --no-cache \
         bcmath \
         sockets \
         exif \
-    && curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+    && curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
