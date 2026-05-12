@@ -121,7 +121,10 @@ RUN { \
 # IMPORTANT:
 # Do NOT enable/disable Apache MPM modules manually.
 # php:8.3-apache already has the correct MPM configuration.
-RUN a2enmod rewrite headers
+# Apache modules
+RUN a2enmod rewrite headers \
+    && echo "ServerName localhost" > /etc/apache2/conf-available/servername.conf \
+    && a2enconf servername
 
 # Optional composer in runtime
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
