@@ -118,11 +118,10 @@ RUN { \
     } > /usr/local/etc/php/conf.d/app.ini
 
 # Apache modules
-# php:8.3-apache already uses mpm_prefork by default.
-# Only disable conflicting MPM modules.
-RUN find /etc/apache2 -name "mpm_*.load" -delete \
-    && find /etc/apache2 -name "mpm_*.conf" -delete \
-    && a2enmod rewrite headers
+# IMPORTANT:
+# Do NOT enable/disable Apache MPM modules manually.
+# php:8.3-apache already has the correct MPM configuration.
+RUN a2enmod rewrite headers
 
 # Optional composer in runtime
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
