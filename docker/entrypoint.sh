@@ -36,4 +36,6 @@ fi
 
 echo "[entrypoint] Apache starting on :${PORT}"
 
+apachectl -M
+
 exec "$@"
