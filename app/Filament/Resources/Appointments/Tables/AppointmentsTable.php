@@ -13,9 +13,11 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\DatePicker;
 use Filament\Support\Enums\Alignment;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\Indicator;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -130,6 +132,111 @@ class AppointmentsTable
             ])
             ->defaultSort('tanggal_jam', 'desc')
             ->filters([
+                // === RANGE TANGGAL JADWAL ===
+                Filter::make('tanggal_jam')
+                    ->label('Rentang Tanggal')
+                    ->columnSpan(2)
+                    ->schema([
+                        DatePicker::make('from')
+                            ->label('Dari Tanggal')
+                            ->native(false)
+                            ->displayFormat('d M Y')
+                            ->closeOnDateSelection(),
+                        DatePicker::make('until')
+                            ->label('Sampai Tanggal')
+                            ->native(false)
+                            ->displayFormat('d M Y')
+                            ->closeOnDateSelection(),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        return $query
+                            ->when(
+                                $data['from'] ?? null,
+                                fn (Builder $q, $date): Builder => $q->whereDate('tanggal_jam', '>=', $date),
+                            )
+                            ->when(
+                                $data['until'] ?? null,
+                                fn (Builder $q, $date): Builder => $q->whereDate('tanggal_jam', '<=', $date),
+                            );
+                    })
+                    ->indicateUsing(function (array $data): array {
+                        $indicators = [];
+
+                        if ($data['from'] ?? null) {
+                            $indicators[] = Indicator::make('Dari ' . \Carbon\Carbon::parse($data['from'])->translatedFormat('d M Y'))
+                                ->removeField('from');
+                        }
+
+                        if ($data['until'] ?? null) {
+                            $indicators[] = Indicator::make('Sampai ' . \Carbon\Carbon::parse($data['until'])->translatedFormat('d M Y'))
+                                ->removeField('until');
+                        }
+
+                        return $indicators;
+                    }),
+
+                // === PRESET CEPAT ===
+                SelectFilter::make('preset_tanggal')
+                    ->label('Preset Cepat')
+                    ->options([
+                        'today'      => 'Hari Ini',
+                        'tomorrow'   => 'Besok',
+                        'this_week'  => 'Minggu Ini',
+                        'this_month' => 'Bulan Ini',
+                        'next_7'     => '7 Hari ke Depan',
+                        'next_30'    => '30 Hari ke Depan',
+                        'past'       => 'Sudah Lewat',
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        $value = $data['value'] ?? null;
+                        if (! $value) return $query;
+
+                        $now = \Carbon\Carbon::now();
+
+                        return match ($value) {
+                            'today'      => $query->whereDate('tanggal_jam', $now->toDateString()),
+                            'tomorrow'   => $query->whereDate('tanggal_jam', $now->copy()->addDay()->toDateString()),
+                            'this_week'  => $query->whereBetween('tanggal_jam', [
+                                $now->copy()->startOfWeek(),
+                                $now->copy()->endOfWeek(),
+                            ]),
+                            'this_month' => $query->whereBetween('tanggal_jam', [
+                                $now->copy()->startOfMonth(),
+                                $now->copy()->endOfMonth(),
+                            ]),
+                            'next_7'     => $query->whereBetween('tanggal_jam', [
+                                $now->copy()->startOfDay(),
+                                $now->copy()->addDays(7)->endOfDay(),
+                            ]),
+                            'next_30'    => $query->whereBetween('tanggal_jam', [
+                                $now->copy()->startOfDay(),
+                                $now->copy()->addDays(30)->endOfDay(),
+                            ]),
+                            'past'       => $query->where('tanggal_jam', '<', $now),
+                            default      => $query,
+                        };
+                    }),
+
+                // === STATUS ===
+                SelectFilter::make('status')
+                    ->label('Status')
+                    ->multiple()
+                    ->options([
+                        'diajukan'    => 'Diajukan',
+                        'disetujui'   => 'Disetujui',
+                        'selesai'     => 'Selesai',
+                        'batal'       => 'Batal',
+                        'tidak_hadir' => 'Tidak Hadir',
+                    ]),
+
+                // === JENIS LAYANAN ===
+                SelectFilter::make('jenis')
+                    ->label('Jenis Layanan')
+                    ->options([
+                        'konsultasi' => 'Konsultasi',
+                        'treatment'  => 'Treatment',
+                    ]),
+
                 SelectFilter::make('dokter_id')
                     ->label('Filter Dokter')
                     ->relationship('dokter', 'name', fn (Builder $query) => $query->role('dokter'))
@@ -157,6 +264,7 @@ class AppointmentsTable
                     })
                     ->visible(fn () => (Filament::auth()->user()?->hasAnyRole(['dokter','terapis','pasien']) ?? false)),
             ])
+            ->filtersFormColumns(2)
             ->recordActions([
                 // === VIEW DETAIL ===
                 Action::make('view_detail')
