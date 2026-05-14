@@ -45,6 +45,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->font('Plus Jakarta Sans')
             ->sidebarCollapsibleOnDesktop()
+            ->spa(hasPrefetching: true)
             ->navigationGroups([
                 NavigationGroup::make('Layanan Klinik')
                     ->label('Layanan Klinik')
