@@ -449,7 +449,7 @@ function konsultasiWizard() {
                 
                 if (activeDays.includes(dayName.toLowerCase())) {
                     days.push({
-                        date: d.toISOString().split('T')[0],
+                        date: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`,
                         dayName: dayName.substring(0, 3), // Sen, Sel, etc.
                         dayNum: d.getDate(),
                         monthShort: d.toLocaleString('id-ID', {month:'short'}), // Apr, Mei, etc.

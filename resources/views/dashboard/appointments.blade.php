@@ -232,24 +232,70 @@
                         newTanggal: '', 
                         newJam: '',
                         displayDate: '',
+                        jenis: @js(strtolower($apt->jenis)),
                         jadwalData: @js($aptJadwalData),
-                        
+                        treatmentSlots: [],
+                        loadingTreatmentSlots: false,
+
+                        async fetchTreatmentSlots() {
+                            if (this.jenis !== 'treatment' || !this.newTanggal) { this.treatmentSlots = []; return; }
+                            this.loadingTreatmentSlots = true;
+                            try {
+                                const res = await fetch(`{{ route('appointment.booking-treatment.check-slots') }}?tanggal=${this.newTanggal}`);
+                                const data = await res.json();
+                                const today = new Date(); today.setSeconds(0,0);
+                                this.treatmentSlots = data.map(s => {
+                                    const startStr = s.value.split(' - ')[0];
+                                    const slotStart = new Date(`${this.newTanggal}T${startStr}:00`);
+                                    const isPast = slotStart < today;
+                                    const isFull = !!s.penuh;
+                                    return {
+                                        value: s.value.replace(/:/g, '.'),
+                                        rawValue: s.value,
+                                        sisa: s.sisa,
+                                        penuh: isFull,
+                                        isPast: isPast,
+                                        isDisabled: isFull || isPast,
+                                        label: isPast ? 'Lewat' : (isFull ? 'Penuh' : `Sisa ${s.sisa} slot`),
+                                    };
+                                });
+                            } catch (e) {
+                                this.treatmentSlots = [];
+                            }
+                            this.loadingTreatmentSlots = false;
+                        },
+
                         get availableDays() {
-                            const docJadwals = this.jadwalData;
-                            const activeDays = docJadwals.map(j => j.hari.toLowerCase());
-                            
                             const days = [];
                             const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
                             const today = new Date();
-                            
+
+                            // Treatment: 14 hari ke depan, semua hari (slot dikelola admin via endpoint)
+                            if (this.jenis === 'treatment') {
+                                for (let i = 1; i <= 14; i++) {
+                                    const d = new Date(today);
+                                    d.setDate(today.getDate() + i);
+                                    days.push({
+                                        date: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`,
+                                        dayName: dayNames[d.getDay()].substring(0, 3),
+                                        dayNum: d.getDate(),
+                                        monthShort: d.toLocaleString('id-ID', {month:'short'}),
+                                        displayFull: `${dayNames[d.getDay()]}, ${d.getDate()} ${d.toLocaleString('id-ID', {month:'short'})} ${d.getFullYear()}`
+                                    });
+                                }
+                                return days;
+                            }
+
+                            // Konsultasi: ikuti hari praktik dokter
+                            const activeDays = this.jadwalData.map(j => j.hari.toLowerCase());
                             for (let i = 0; i < 30; i++) {
                                 const d = new Date(today);
                                 d.setDate(today.getDate() + i);
                                 const dayName = dayNames[d.getDay()];
-                                
+
                                 if (activeDays.includes(dayName.toLowerCase())) {
                                     days.push({
-                                        date: d.toISOString().split('T')[0],
+                                        date: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`,
                                         dayName: dayName.substring(0, 3),
                                         dayNum: d.getDate(),
                                         monthShort: d.toLocaleString('id-ID', {month:'short'}),
@@ -262,40 +308,48 @@
 
                         get availableTimes() {
                             if (!this.newTanggal) return [];
-                            
-                            const selectedDate = new Date(this.newTanggal);
+
+                            // Treatment: pakai slot dari API (sudah di-fetch)
+                            if (this.jenis === 'treatment') return this.treatmentSlots;
+
+                            // Konsultasi: generate slot 30 menit dari jadwal dokter
+                            const [yy, mm, dd] = this.newTanggal.split('-').map(Number);
+                            const selectedDate = new Date(yy, mm - 1, dd);
                             const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
                             const dayName = dayNames[selectedDate.getDay()].toLowerCase();
-                            
+
                             const docJadwals = this.jadwalData.filter(j => j.hari.toLowerCase() === dayName);
                             if (docJadwals.length === 0) return [];
-                            
+
                             const jadwal = docJadwals[0];
                             const startTime = jadwal.jam_mulai;
                             const endTime = jadwal.jam_selesai;
                             const duration = jadwal.durasi_slot_menit || 30;
-                            
+
                             const times = [];
                             let current = new Date(`${this.newTanggal}T${startTime}`);
                             const end = new Date(`${this.newTanggal}T${endTime}`);
                             const now = new Date();
-                            
+
                             while (current < end) {
                                 const nextSlot = new Date(current);
                                 nextSlot.setMinutes(current.getMinutes() + duration);
-                                
+
                                 const startH = current.getHours().toString().padStart(2, '0');
                                 const startM = current.getMinutes().toString().padStart(2, '0');
                                 const endH = nextSlot.getHours().toString().padStart(2, '0');
                                 const endM = nextSlot.getMinutes().toString().padStart(2, '0');
-                                
+
                                 const isPast = current < now;
-                                
+
                                 times.push({
                                     value: `${startH}.${startM} - ${endH}.${endM}`,
-                                    isDisabled: isPast
+                                    isDisabled: isPast,
+                                    label: isPast ? 'Lewat' : 'Tersedia',
+                                    penuh: false,
+                                    isPast: isPast,
                                 });
-                                
+
                                 current = nextSlot;
                             }
                             return times;
@@ -460,7 +514,7 @@
 
                             {{-- Modal Nota Treatment --}}
                             @if($relatedOrder && in_array($relatedOrder->status, ['sudah_dibayar', 'lunas']))
-                                <div x-show="showNotaTreatment" style="display:none" class="fixed inset-0 z-[999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" x-transition>
+                                <div x-show="showNotaTreatment" @click.stop style="display:none" class="fixed inset-0 z-[999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" x-transition>
                                     <div class="bg-white w-full max-w-3xl max-h-[90vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden relative" @click.away="showNotaTreatment = false"
                                          x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-8 scale-95" x-transition:enter-end="opacity-100 translate-y-0 scale-100"
                                          x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 scale-100" x-transition:leave-end="opacity-0 translate-y-8 scale-95">
@@ -623,7 +677,7 @@
                         </div>
 
                         {{-- Modal Batal --}}
-                        <div x-show="openCancelModal" style="display:none" class="fixed inset-0 z-[999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" x-transition>
+                        <div x-show="openCancelModal" @click.stop style="display:none" class="fixed inset-0 z-[999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" x-transition>
                             <div class="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl" @click.away="openCancelModal = false">
                                 <h3 class="text-lg font-bold text-[#1A1A1A]">Batalkan Janji?</h3>
                                 <p class="text-sm text-slate-500 mt-2">Tindakan ini tidak dapat dibatalkan.</p>
@@ -639,23 +693,37 @@
                         </div>
 
                         {{-- Modal Reschedule 1 (Pilih Tanggal & Jam) --}}
-                        <div x-show="openRescheduleModal" style="display:none" class="fixed inset-0 z-[999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" x-transition>
+                        <div x-show="openRescheduleModal" @click.stop style="display:none" class="fixed inset-0 z-[999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" x-transition>
                             <div class="bg-white w-full max-w-lg rounded-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto" @click.away="openRescheduleModal = false">
                                 <h3 class="text-xl font-bold text-[#1A1A1A]">Ubah Jadwal</h3>
-                                <p class="text-sm text-slate-500 mt-1 mb-6">Pilih jadwal baru sesuai hari praktik dokter Anda.</p>
+                                <p class="text-sm text-slate-500 mt-1 mb-6">
+                                    <template x-if="jenis === 'treatment'">
+                                        <span>Pilih tanggal dan slot treatment baru. Setiap slot menampung maksimal 2 pasien.</span>
+                                    </template>
+                                    <template x-if="jenis !== 'treatment'">
+                                        <span>Pilih jadwal baru sesuai hari praktik dokter Anda.</span>
+                                    </template>
+                                </p>
                                 
                                 {{-- Pilih Tanggal --}}
                                 <div class="mb-6">
                                     <div class="text-sm font-bold text-[#1A1A1A] mb-3">Pilih Tanggal Baru</div>
                                     
                                     <div x-show="availableDays.length === 0" class="p-4 bg-gray-50 border border-gray-200 rounded-xl text-center">
-                                        <p class="text-sm text-gray-500">Dokter ini belum memiliki jadwal praktik aktif.</p>
+                                        <p class="text-sm text-gray-500">
+                                            <template x-if="jenis === 'treatment'">
+                                                <span>Belum ada tanggal tersedia.</span>
+                                            </template>
+                                            <template x-if="jenis !== 'treatment'">
+                                                <span>Dokter ini belum memiliki jadwal praktik aktif.</span>
+                                            </template>
+                                        </p>
                                     </div>
 
                                     <div class="flex gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x">
                                         <template x-for="day in availableDays" :key="day.date">
                                             <label class="snap-start shrink-0 cursor-pointer">
-                                                <input type="radio" name="reschedule_tanggal_{{ $apt->appointment_id }}" :value="day.date" x-model="newTanggal" @change="displayDate = day.displayFull; newJam = ''" class="peer sr-only">
+                                                <input type="radio" name="reschedule_tanggal_{{ $apt->appointment_id }}" :value="day.date" x-model="newTanggal" @change="displayDate = day.displayFull; newJam = ''; fetchTreatmentSlots();" class="peer sr-only">
                                                 <div class="flex flex-col items-center justify-center w-[70px] h-[105px] rounded-2xl border transition-all duration-200"
                                                     :class="newTanggal === day.date ? 'border-[#3B3529] bg-[#3B3529] text-white shadow-md' : 'border-gray-200 bg-white hover:border-[#8C7A63] text-gray-600'">
                                                     <span class="text-xs uppercase mb-1 font-medium tracking-wide" :class="newTanggal === day.date ? 'text-white/80' : 'text-gray-400'" x-text="day.dayName"></span>
@@ -669,34 +737,85 @@
 
                                 {{-- Pilih Jam --}}
                                 <div x-show="newTanggal !== ''" x-cloak>
-                                    <div class="text-sm font-bold text-[#1A1A1A] mb-3">Pilih Jam Baru (WIB)</div>
-                                    
-                                    <div x-show="availableTimes.length === 0" class="p-4 bg-gray-50 border border-gray-200 rounded-xl text-center">
+                                    <div class="text-sm font-bold text-[#1A1A1A] mb-3">
+                                        <template x-if="jenis === 'treatment'">
+                                            <span>Pilih Slot Treatment Baru (WIB)</span>
+                                        </template>
+                                        <template x-if="jenis !== 'treatment'">
+                                            <span>Pilih Jam Baru (WIB)</span>
+                                        </template>
+                                    </div>
+
+                                    {{-- Loading state khusus treatment --}}
+                                    <div x-show="jenis === 'treatment' && loadingTreatmentSlots" class="flex items-center justify-center py-8">
+                                        <svg class="w-5 h-5 animate-spin text-[#CFAF53]" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        <span class="ml-2 text-sm text-slate-500">Mengecek ketersediaan slot...</span>
+                                    </div>
+
+                                    <div x-show="!(jenis === 'treatment' && loadingTreatmentSlots) && availableTimes.length === 0" class="p-4 bg-gray-50 border border-gray-200 rounded-xl text-center">
                                         <p class="text-sm text-gray-500">Tidak ada jadwal tersedia pada tanggal ini.</p>
                                     </div>
 
-                                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                        <template x-for="timeSlot in availableTimes" :key="timeSlot.value">
-                                            <label :class="timeSlot.isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'">
-                                                <input type="radio" name="reschedule_jam_{{ $apt->appointment_id }}" :value="timeSlot.value" x-model="newJam" class="peer sr-only" :disabled="timeSlot.isDisabled">
-                                                <div class="py-3.5 px-4 rounded-xl text-sm font-medium border transition-all text-center"
-                                                    :class="timeSlot.isDisabled ? 'bg-gray-100 border-gray-200 text-gray-400' : (newJam === timeSlot.value ? 'border-[#3B3529] bg-[#FAF8F5] text-[#1A1A1A] font-bold shadow-sm' : 'border-gray-200 bg-white text-gray-500 hover:border-[#8C7A63]')">
-                                                    <span x-text="timeSlot.value"></span>
-                                                </div>
-                                            </label>
-                                        </template>
-                                    </div>
+                                    {{-- Grid slot - Treatment (slot 2 jam dengan info kapasitas) --}}
+                                    <template x-if="jenis === 'treatment' && !loadingTreatmentSlots">
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            <template x-for="slot in availableTimes" :key="slot.value">
+                                                <label :class="slot.isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'">
+                                                    <input type="radio" name="reschedule_jam_{{ $apt->appointment_id }}" :value="slot.value" x-model="newJam" class="peer sr-only" :disabled="slot.isDisabled">
+                                                    <div class="py-3.5 px-4 rounded-xl border transition-all duration-200"
+                                                        :class="slot.isDisabled
+                                                            ? (slot.penuh ? 'border-rose-200 bg-rose-50/50' : 'border-gray-200 bg-gray-50') + ' opacity-60'
+                                                            : (newJam === slot.value
+                                                                ? 'border-[#3B3529] bg-[#FAF8F5] shadow-sm'
+                                                                : 'border-gray-200 bg-white hover:border-[#8C7A63]')">
+                                                        <div class="flex items-center gap-2 text-sm font-medium"
+                                                            :class="slot.isDisabled
+                                                                ? 'text-slate-400'
+                                                                : (newJam === slot.value ? 'text-[#1A1A1A] font-bold' : 'text-gray-600')">
+                                                            <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                                            <span x-text="slot.value"></span>
+                                                        </div>
+                                                        <span class="text-[10px] font-semibold mt-1 block uppercase tracking-wide"
+                                                            :class="slot.penuh
+                                                                ? 'text-rose-500'
+                                                                : (slot.isPast
+                                                                    ? 'text-slate-400'
+                                                                    : (newJam === slot.value ? 'text-[#C89B53]' : 'text-emerald-600'))"
+                                                            x-text="slot.label"></span>
+                                                    </div>
+                                                </label>
+                                            </template>
+                                        </div>
+                                    </template>
+
+                                    {{-- Grid slot - Konsultasi (slot 30 menit dari jadwal dokter) --}}
+                                    <template x-if="jenis !== 'treatment'">
+                                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                            <template x-for="timeSlot in availableTimes" :key="timeSlot.value">
+                                                <label :class="timeSlot.isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'">
+                                                    <input type="radio" name="reschedule_jam_{{ $apt->appointment_id }}" :value="timeSlot.value" x-model="newJam" class="peer sr-only" :disabled="timeSlot.isDisabled">
+                                                    <div class="py-3.5 px-4 rounded-xl text-sm font-medium border transition-all text-center"
+                                                        :class="timeSlot.isDisabled ? 'bg-gray-100 border-gray-200 text-gray-400' : (newJam === timeSlot.value ? 'border-[#3B3529] bg-[#FAF8F5] text-[#1A1A1A] font-bold shadow-sm' : 'border-gray-200 bg-white text-gray-500 hover:border-[#8C7A63]')">
+                                                        <span x-text="timeSlot.value"></span>
+                                                    </div>
+                                                </label>
+                                            </template>
+                                        </div>
+                                    </template>
                                 </div>
 
                                 <div class="flex gap-3 mt-6">
-                                    <button type="button" @click="openRescheduleModal = false; newTanggal = ''; newJam = ''" class="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50">Batal</button>
-                                    <button type="button" @click="if(newTanggal && newJam) { openRescheduleModal = false; openRescheduleConfirmModal = true; } else { alert('Mohon pilih tanggal dan jam baru.'); }" class="flex-1 py-2.5 rounded-xl bg-[#CFAF53] hover:bg-[#b09444] text-white text-sm font-bold transition-colors">Lanjutkan</button>
+                                    <button type="button" @click="openRescheduleModal = false; newTanggal = ''; newJam = ''" class="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50 cursor-pointer">Batal</button>
+                                    <button type="button" @click="if(newTanggal && newJam) { openRescheduleModal = false; openRescheduleConfirmModal = true; } else { alert('Mohon pilih tanggal dan ' + (jenis === 'treatment' ? 'slot' : 'jam') + ' baru.'); }" class="flex-1 py-2.5 rounded-xl bg-[#CFAF53] hover:bg-[#b09444] text-white text-sm font-bold transition-colors cursor-pointer">Lanjutkan</button>
                                 </div>
                             </div>
                         </div>
 
                         {{-- Modal Reschedule 2 (Konfirmasi) --}}
-                        <div x-show="openRescheduleConfirmModal" style="display:none" class="fixed inset-0 z-[999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" x-transition>
+                        <div x-show="openRescheduleConfirmModal" @click.stop style="display:none" class="fixed inset-0 z-[999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" x-transition>
                             <div class="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl" @click.away="openRescheduleConfirmModal = false">
                                 <h3 class="text-lg font-bold text-[#1A1A1A]">Konfirmasi Perubahan</h3>
                                 <p class="text-sm text-slate-500 mt-2">Anda akan mengubah jadwal janji temu ini.</p>
