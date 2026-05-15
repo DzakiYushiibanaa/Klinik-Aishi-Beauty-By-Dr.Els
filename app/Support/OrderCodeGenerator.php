@@ -7,10 +7,10 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Generator kode order yang konsisten di seluruh aplikasi.
+ * Generator kode order yang konsisten untuk transaksi reguler (ORD).
  *
- * Format: {PREFIX}-{YYYYMMDD}-{XXX}
- * Contoh: ORD-20260509-001, MEM-20260509-002
+ * Format: ORD-{YYYYMMDD}-{XXX}
+ * Contoh: ORD-20260509-001
  *
  * - Reset sekuens setiap hari.
  * - Default 3 digit (sesuai standar nota klinik).
@@ -18,16 +18,19 @@ use Illuminate\Support\Facades\DB;
  *   (jarang, tapi tetap aman: tidak akan tabrakan unique constraint).
  * - Tahan terhadap data lama berformat 4 digit (membaca MAX numerik
  *   apa pun panjangnya).
+ *
+ * Catatan: Pendaftaran member memakai format sendiri (MEM-YYYYMMDD-XXXX,
+ * 4 digit) karena bersifat sekali per pasien — lihat
+ * MemberRegistrationController::generateKodeOrder().
  */
 class OrderCodeGenerator
 {
-    public const PREFIX_ORDER      = 'ORD';
-    public const PREFIX_MEMBERSHIP = 'MEM';
+    public const PREFIX_ORDER = 'ORD';
 
     /**
      * Generate kode order baru.
      *
-     * @param string $prefix Prefix kode (ORD / MEM / dll). Default ORD.
+     * @param string $prefix Prefix kode (default ORD).
      * @param Carbon|null $now Waktu acuan (untuk testing). Default now().
      * @param int $minDigits Minimal panjang sekuens. Default 3.
      */

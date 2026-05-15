@@ -152,8 +152,21 @@ class MemberRegistrationController extends Controller
      * Helper Generate Kode Order (Sama seperti CheckoutController)
      * Sebaiknya ini di-refactor ke Service/Trait jika dipakai banyak tempat
      */
+    /**
+     * Helper Generate Kode Order Membership.
+     * Format khusus member tetap dipertahankan: MEM-YYYYMMDD-XXXX (4 digit).
+     */
     private function generateKodeOrder(): string
     {
-        return \App\Support\OrderCodeGenerator::next(\App\Support\OrderCodeGenerator::PREFIX_MEMBERSHIP);
+        $date = now()->format('Ymd');
+        $prefix = "MEM-{$date}-";
+
+        $lastOrder = Order::where('kode_order', 'like', "{$prefix}%")
+            ->orderBy('order_id', 'desc')
+            ->first();
+
+        $newNumber = $lastOrder ? (int) substr($lastOrder->kode_order, -4) + 1 : 1;
+
+        return $prefix . str_pad($newNumber, 4, '0', STR_PAD_LEFT);
     }
 }
