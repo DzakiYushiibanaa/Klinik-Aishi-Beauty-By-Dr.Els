@@ -265,7 +265,7 @@ class DashboardController extends Controller
             Cache::forget($key);
         }
         
-        return back()->with('success', 'Cache wilayah berhasil dihapus!');
+        return back()->with('success', 'Cache wilayah berhasil dihapus.');
     }
 
     // ==========================================
@@ -327,7 +327,7 @@ class DashboardController extends Controller
             });
 
             Log::info('Profile updated successfully', ['user_id' => $user->id]);
-            return back()->with('success', 'Profil berhasil diperbarui! ✅');
+            return back()->with('success', 'Profil berhasil diperbarui.');
             
         } catch (\Exception $e) {
             Log::error('Error updating profile: ' . $e->getMessage(), [
@@ -357,7 +357,7 @@ class DashboardController extends Controller
 
         Log::info('Order completed by user', ['order_id' => $order->order_id, 'user_id' => Auth::id()]);
 
-        return back()->with('success', 'Terima kasih! Pesanan telah diselesaikan. 🎉');
+        return back()->with('success', 'Terima kasih, pesanan Anda telah ditandai selesai.');
     }
 
     public function cancelOrder(Order $order)

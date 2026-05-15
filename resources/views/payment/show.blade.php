@@ -26,7 +26,7 @@
                 <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Kode Order</span>
                 <div class="flex items-center gap-2">
                     <span class="font-mono font-bold text-slate-700 text-lg">#{{ $order->kode_order }}</span>
-                    <button onclick="navigator.clipboard.writeText('{{ $order->kode_order }}'); alert('Kode disalin!');" class="text-slate-400 hover:text-[#CFAF53] transition">
+                    <button onclick="navigator.clipboard.writeText('{{ $order->kode_order }}'); window.showToast && window.showToast('success', 'Kode pesanan disalin ke clipboard.', 'Berhasil');" class="text-slate-400 hover:text-[#CFAF53] transition cursor-pointer" aria-label="Salin kode pesanan">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                     </button>
                 </div>
@@ -155,12 +155,12 @@
                 },
                 onPending: function(result) {
                     console.log('Payment pending:', result);
-                    alert('Pembayaran tertunda. Silakan cek dashboard.');
-                    window.location.href = "{{ route('dashboard') }}?status=pending";
+                    window.showToast && window.showToast('warning', 'Pembayaran Anda masih tertunda. Silakan cek halaman dashboard.', 'Pembayaran Tertunda');
+                    setTimeout(() => { window.location.href = "{{ route('dashboard') }}?status=pending"; }, 1200);
                 },
                 onError: function(result) {
                     console.log('Payment error:', result);
-                    alert('Terjadi kesalahan saat memproses pembayaran.');
+                    window.showToast && window.showToast('error', 'Terjadi kesalahan saat memproses pembayaran. Silakan coba lagi.', 'Pembayaran Gagal');
                     resetButton();
                 },
                 onClose: function() {

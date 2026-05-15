@@ -33,7 +33,7 @@ class AppointmentController extends Controller
         $user = Auth::user();
 
         if (!$user->phone || !$user->tanggal_lahir) {
-            return redirect('/dashboard')->with('error', 'Silakan lengkapi Nomor WhatsApp dan Tanggal Lahir Anda di tab Profil sebelum membuat janji temu.')->with('active_tab', 'profile');
+            return redirect('/dashboard')->with('error', 'Mohon lengkapi Nomor WhatsApp dan Tanggal Lahir di tab Profil sebelum membuat janji temu.')->with('active_tab', 'profile');
         }
 
         $treatments = Treatment::with('category')
@@ -290,7 +290,7 @@ class AppointmentController extends Controller
         
         // Pengecekan Kelengkapan Profil
         if (!$user->phone || !$user->tanggal_lahir) {
-            return redirect('/dashboard')->with('error', 'Silakan lengkapi Nomor WhatsApp dan Tanggal Lahir Anda di tab Profil sebelum membuat janji temu.')->with('active_tab', 'profile');
+            return redirect('/dashboard')->with('error', 'Mohon lengkapi Nomor WhatsApp dan Tanggal Lahir di tab Profil sebelum membuat janji temu.')->with('active_tab', 'profile');
         }
 
         // Dummy data for Doctors (since we need them for Step 2)
@@ -534,7 +534,7 @@ class AppointmentController extends Controller
         });
 
         return redirect('/dashboard?tab=appointment&highlight=' . $appointment->appointment_id)
-            ->with('success', 'Janji temu berhasil diajukan! Menunggu konfirmasi admin.');
+            ->with('success', 'Janji temu berhasil diajukan. Menunggu konfirmasi admin.');
     }
 
     /**

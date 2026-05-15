@@ -809,7 +809,7 @@
 
                                 <div class="flex gap-3 mt-6">
                                     <button type="button" @click="openRescheduleModal = false; newTanggal = ''; newJam = ''" class="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50 cursor-pointer">Batal</button>
-                                    <button type="button" @click="if(newTanggal && newJam) { openRescheduleModal = false; openRescheduleConfirmModal = true; } else { alert('Mohon pilih tanggal dan ' + (jenis === 'treatment' ? 'slot' : 'jam') + ' baru.'); }" class="flex-1 py-2.5 rounded-xl bg-[#CFAF53] hover:bg-[#b09444] text-white text-sm font-bold transition-colors cursor-pointer">Lanjutkan</button>
+                                    <button type="button" @click="if(newTanggal && newJam) { openRescheduleModal = false; openRescheduleConfirmModal = true; } else { window.showToast && window.showToast('warning', 'Mohon pilih tanggal dan ' + (jenis === 'treatment' ? 'slot' : 'jam') + ' baru terlebih dahulu.', 'Data Belum Lengkap'); }" class="flex-1 py-2.5 rounded-xl bg-[#CFAF53] hover:bg-[#b09444] text-white text-sm font-bold transition-colors cursor-pointer">Lanjutkan</button>
                                 </div>
                             </div>
                         </div>
@@ -937,13 +937,13 @@
             }
             
             if (response.ok && data.success) {
-                alert('✅ ' + data.message);
+                window.showToast && window.showToast('success', data.message || 'Email berhasil dikirim.', 'Berhasil');
             } else {
-                alert('❌ ' + (data.error || 'Gagal mengirim email'));
+                window.showToast && window.showToast('error', data.error || 'Gagal mengirim email. Silakan coba lagi.', 'Gagal');
             }
         } catch (err) {
             console.error('Email send error:', err);
-            alert('Gagal mengirim email: ' + err.message);
+            window.showToast && window.showToast('error', 'Gagal mengirim email: ' + err.message, 'Gagal');
         } finally {
             btn.disabled = false;
             btn.innerHTML = originalText;

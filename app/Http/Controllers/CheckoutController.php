@@ -22,7 +22,7 @@ class CheckoutController extends Controller
         $cart = session()->get('cart', []);
         
         if (empty($cart)) {
-            return redirect()->route('shop.index')->with('error', 'Keranjang Anda kosong.');
+            return redirect()->route('shop.index')->with('error', 'Keranjang Anda kosong. Silakan tambahkan produk terlebih dahulu.');
         }
         
         $subtotal = collect($cart)->sum(fn ($i) => (int)$i['harga'] * (int)$i['qty']);
@@ -211,12 +211,12 @@ class CheckoutController extends Controller
 
         $cart = session()->get('cart', []);
         if (empty($cart)) {
-            return redirect()->route('cart.index')->with('error', 'Keranjang kosong.');
+            return redirect()->route('cart.index')->with('error', 'Keranjang Anda kosong. Silakan tambahkan produk terlebih dahulu.');
         }
 
         $pasien = auth()->user()->pasienProfile;
         if (!$pasien || !$pasien->district_id) {
-            return redirect()->route('dashboard')->with('error', 'Lengkapi alamat dulu.')->with('active_tab', 'profile');
+            return redirect()->route('dashboard')->with('error', 'Mohon lengkapi alamat di profil Anda sebelum melanjutkan pembayaran.')->with('active_tab', 'profile');
         }
 
         DB::beginTransaction();
@@ -337,12 +337,12 @@ class CheckoutController extends Controller
             session()->forget('cart'); // HAPUS CART SETELAH SUKSES
 
             return redirect()->route('payment.show', $order->order_id)
-                ->with('success', 'Pesanan dibuat!');
+                ->with('success', 'Pesanan berhasil dibuat. Silakan lanjutkan pembayaran.');
 
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Checkout Error: ' . $e->getMessage());
-            return redirect()->back()->with('error', $e->getMessage());
+            return redirect()->back()->with('error', 'Gagal memproses pesanan. Silakan coba lagi.');
         }
     }
 
@@ -406,7 +406,7 @@ class CheckoutController extends Controller
             ]);
 
             return redirect()->route('dashboard')
-                ->with('error', 'Gagal memproses pembayaran: ' . $e->getMessage());
+                ->with('error', 'Gagal memproses pembayaran. Silakan coba lagi.');
         }
     }
 

@@ -34,5 +34,6 @@
         </div>
         
         <x-toast />
+        <x-confirm-dialog />
     </body>
 </html>

@@ -421,13 +421,13 @@
             }
             
             if (response.ok && data.success) {
-                alert('✅ ' + data.message);
+                window.showToast && window.showToast('success', data.message || 'Email berhasil dikirim.', 'Berhasil');
             } else {
-                alert('❌ ' + (data.error || 'Gagal mengirim email'));
+                window.showToast && window.showToast('error', data.error || 'Gagal mengirim email. Silakan coba lagi.', 'Gagal');
             }
         } catch (err) {
             console.error('Email send error:', err);
-            alert('Gagal mengirim email: ' + err.message);
+            window.showToast && window.showToast('error', 'Gagal mengirim email: ' + err.message, 'Gagal');
         } finally {
             btn.disabled = false;
             btn.innerHTML = originalText;
@@ -445,9 +445,9 @@
             const data = await response.json();
             
             if (!response.ok) {
-                alert(data.error || 'Gagal memproses pembayaran');
+                window.showToast && window.showToast('error', data.error || 'Gagal memproses pembayaran. Silakan coba lagi.', 'Gagal');
                 if (data.reload) {
-                    window.location.reload();
+                    setTimeout(() => window.location.reload(), 1200);
                 } else {
                     btn.disabled = false;
                     btn.innerHTML = originalText;
@@ -459,21 +459,19 @@
             window.snap.pay(data.token, {
                 onSuccess: function(result) {
                     paymentCompleted = true;
-                    // result.order_id dari Midtrans adalah kode_order + timestamp suffix
-                    // strip suffix agar cocok dengan kode_order di DB
                     const rawOrderId = result.order_id || orderKode;
                     const kodeOrder = rawOrderId.replace(/-[0-9]+$/, '');
                     window.location.href = "/payment-status/success?order_id=" + kodeOrder;
                 },
                 onPending: function(result) {
                     paymentCompleted = true;
-                    alert('Pembayaran tertunda.');
-                    window.location.reload();
+                    window.showToast && window.showToast('warning', 'Pembayaran Anda masih tertunda.', 'Pembayaran Tertunda');
+                    setTimeout(() => window.location.reload(), 1200);
                 },
                 onError: function(result) {
                     paymentCompleted = true;
-                    alert('Pembayaran gagal atau waktu telah habis.');
-                    window.location.reload();
+                    window.showToast && window.showToast('error', 'Pembayaran gagal atau waktu pembayaran telah habis.', 'Pembayaran Gagal');
+                    setTimeout(() => window.location.reload(), 1200);
                 },
                 onClose: function() {
                     if (!paymentCompleted) {
@@ -482,7 +480,7 @@
                 }
             });
         } catch (err) {
-            alert('Terjadi kesalahan koneksi.');
+            window.showToast && window.showToast('error', 'Terjadi kesalahan koneksi. Silakan periksa jaringan Anda.', 'Gagal Terhubung');
             btn.disabled = false;
             btn.innerHTML = originalText;
         }

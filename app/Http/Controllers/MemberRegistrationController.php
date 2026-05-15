@@ -20,7 +20,7 @@ class MemberRegistrationController extends Controller
         
         // Cek apakah user sudah member
         if ($user->pasienProfile && $user->pasienProfile->is_member) {
-            return redirect()->route('dashboard')->with('info', 'Anda sudah menjadi member.');
+            return redirect()->route('dashboard')->with('info', 'Anda sudah terdaftar sebagai member.');
         }
 
         $pasienId = \App\Models\Pasien::where('user_id', $user->id)->value('pasien_id');
@@ -139,12 +139,12 @@ class MemberRegistrationController extends Controller
 
             // 6. Redirect ke Halaman Pembayaran
             return redirect()->route('payment.show', $order->order_id)
-                ->with('success', 'Formulir terkirim! Silakan selesaikan pembayaran member.');
+                ->with('success', 'Pendaftaran member berhasil dikirim. Silakan selesaikan pembayaran.');
 
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Member Registration Error: ' . $e->getMessage());
-            return redirect()->back()->withInput()->with('error', 'Gagal memproses pendaftaran: ' . $e->getMessage());
+            return redirect()->back()->withInput()->with('error', 'Gagal memproses pendaftaran member. Silakan coba lagi.');
         }
     }
 

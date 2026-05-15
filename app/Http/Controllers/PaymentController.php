@@ -53,7 +53,7 @@ class PaymentController extends Controller
                 $order->update(['snap_token' => $snapToken]);
             }
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Midtrans Error: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Gagal memproses pembayaran. Silakan coba lagi atau hubungi admin.');
         }
 
         // Return View (Pastikan view ini ada: resources/views/payment/show.blade.php)
@@ -498,15 +498,15 @@ class PaymentController extends Controller
         $highlightId = $order ? $order->order_id : '';
         
         return redirect()->to(route('dashboard') . "?tab={$tab}&highlight={$highlightId}")
-            ->with('success', 'Pembayaran Berhasil! Pesanan Anda sedang diproses.');
+            ->with('success', 'Pembayaran berhasil. Pesanan Anda sedang diproses.');
     }
 
     public function unfinish(Request $request) { 
         return redirect()->to(route('dashboard') . '?tab=orders')
-            ->with('warning', 'Pembayaran belum selesai.'); 
+            ->with('warning', 'Pembayaran belum selesai. Silakan lanjutkan dari halaman pesanan.'); 
     }
     public function error(Request $request) { 
         return redirect()->to(route('dashboard') . '?tab=orders')
-            ->with('error', 'Terjadi kesalahan pembayaran.'); 
+            ->with('error', 'Terjadi kesalahan saat memproses pembayaran. Silakan coba lagi.'); 
     }
 }

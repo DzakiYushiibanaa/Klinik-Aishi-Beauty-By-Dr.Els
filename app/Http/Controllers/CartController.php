@@ -39,7 +39,7 @@ class CartController extends Controller
         $key  = 'product_' . $product->product_id; // 🔥 Prefix agar konsisten
 
         if (isset($cart[$key])) {
-             return back()->with('info', 'Produk sudah ada di keranjang.');
+             return back()->with('info', 'Produk sudah ada di keranjang Anda.');
         }
 
         $cart[$key] = [
@@ -55,7 +55,7 @@ class CartController extends Controller
         ];
 
         $this->putCart($cart);
-        return redirect()->route('cart.index')->with('success', 'Produk masuk keranjang.');
+        return redirect()->route('cart.index')->with('success', 'Produk berhasil ditambahkan ke keranjang.');
     }
 
     // ==========================================
@@ -70,7 +70,7 @@ class CartController extends Controller
         $key  = 'bundle_' . $bundle->bundle_id;
 
         if (isset($cart[$key])) {
-            return back()->with('info', 'Paket sudah ada di keranjang.');
+            return back()->with('info', 'Paket sudah ada di keranjang Anda.');
         }
 
         // 🔥 HITUNG BERAT REAL DARI ISI BUNDLE
@@ -106,7 +106,7 @@ class CartController extends Controller
         ];
 
         $this->putCart($cart);
-        return back()->with('success', 'Paket hemat masuk keranjang!');
+        return back()->with('success', 'Paket hemat berhasil ditambahkan ke keranjang.');
     }
 
     // ==========================================
@@ -127,7 +127,7 @@ class CartController extends Controller
             }
         }
         $this->putCart($cart);
-        return back()->with('success', 'Keranjang diperbarui.');
+        return back()->with('success', 'Keranjang berhasil diperbarui.');
     }
 
     // ==========================================
@@ -140,6 +140,6 @@ class CartController extends Controller
             unset($cart[$id]);
             $this->putCart($cart);
         }
-        return back()->with('success', 'Item dihapus.');
+        return back()->with('success', 'Item berhasil dihapus dari keranjang.');
     }
 }

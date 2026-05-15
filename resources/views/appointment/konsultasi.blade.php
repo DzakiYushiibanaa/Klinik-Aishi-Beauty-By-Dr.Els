@@ -557,14 +557,13 @@ function konsultasiWizard() {
                 });
 
                 if (response.ok || response.redirected) {
-                    // Backend returns redirect, grab the URL for highlight param
                     this.redirectUrl = response.url || '/dashboard?tab=appointment';
                     this.showModal = true;
                 } else {
-                    alert('Terjadi kesalahan saat memproses janji temu. Silakan coba lagi.');
+                    window.showToast && window.showToast('error', 'Terjadi kesalahan saat memproses janji temu. Silakan coba lagi.', 'Gagal');
                 }
             } catch (error) {
-                alert('Terjadi kesalahan koneksi.');
+                window.showToast && window.showToast('error', 'Terjadi kesalahan koneksi. Silakan periksa jaringan Anda.', 'Gagal Terhubung');
             } finally {
                 this.isSubmitting = false;
             }

@@ -39,7 +39,7 @@
                                 reader.readAsDataURL(file);
                                 profileIsDirty = true;
                             } else if(file) {
-                                alert('Ukuran gambar maksimal 1 MB');
+                                window.showToast && window.showToast('warning', 'Ukuran gambar maksimal 1 MB. Silakan pilih file yang lebih kecil.', 'Ukuran Terlalu Besar');
                                 $refs.photo.value = '';
                             }
                        ">

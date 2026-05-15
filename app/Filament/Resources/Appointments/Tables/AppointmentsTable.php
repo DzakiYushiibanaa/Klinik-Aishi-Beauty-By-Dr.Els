@@ -335,7 +335,7 @@ class AppointmentsTable
                             $record->pasien->notify(new AppointmentStatusChanged($record, 'Disetujui'));
                         }
 
-                        Notification::make()->title('Berhasil Disetujui')->success()->send();
+                        Notification::make()->title('Janji temu berhasil disetujui')->success()->send();
                     }),
 
                 // === TOMBOL TOLAK ===
@@ -356,7 +356,7 @@ class AppointmentsTable
                             $record->pasien->notify(new AppointmentStatusChanged($record, 'Dibatalkan'));
                         }
 
-                        Notification::make()->title('Booking Dibatalkan')->danger()->send();
+                        Notification::make()->title('Booking dibatalkan')->body('Pasien akan menerima notifikasi pembatalan.')->danger()->send();
                     }),
 
                 // === MULAI LAYANAN ===

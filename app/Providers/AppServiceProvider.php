@@ -25,10 +25,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Cek apakah request datang dari 'ngrok' ATAU sedang di production
+        // Force HTTPS untuk ngrok / production
         if (str_contains(request()->getHost(), 'ngrok') || $this->app->environment('production')) {
             URL::forceScheme('https');
         }
+
+        // Locale Bahasa Indonesia untuk Carbon (->translatedFormat, diffForHumans, dll)
+        \Carbon\Carbon::setLocale(config('app.locale', 'id'));
+        setlocale(LC_TIME, 'id_ID.UTF-8', 'id_ID', 'ID');
 
         // DAFTARKAN WIDGET AGAR BISA DIPANGGIL DI BLADE
         Livewire::component('financial-stats', FinancialStats::class);

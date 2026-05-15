@@ -682,14 +682,20 @@ function bookingTreatment() {
                     window.snap.pay(data.snap_token, {
                         onSuccess: () => { window.location.href = '/dashboard?tab=appointment&highlight=' + aptId; },
                         onPending: () => { window.location.href = '/dashboard?tab=appointment&highlight=' + aptId; },
-                        onError: () => { alert('Terjadi kesalahan pembayaran.'); this.isSubmitting = false; },
+                        onError: () => { window.showToast && window.showToast('error', 'Terjadi kesalahan saat memproses pembayaran. Silakan coba lagi.', 'Pembayaran Gagal'); this.isSubmitting = false; },
                         onClose: () => { this.isSubmitting = false; }
                     });
                 } else if (data.status === 'success_no_payment') {
-                    alert(data.message);
-                    window.location.href = '/dashboard?tab=appointment&highlight=' + (data.appointment_id || '');
-                } else { alert(data.message || 'Terjadi kesalahan.'); this.isSubmitting = false; }
-            } catch (e) { alert('Gagal menghubungi server.'); this.isSubmitting = false; }
+                    window.showToast && window.showToast('success', data.message || 'Janji temu berhasil dibuat.', 'Berhasil');
+                    setTimeout(() => { window.location.href = '/dashboard?tab=appointment&highlight=' + (data.appointment_id || ''); }, 800);
+                } else {
+                    window.showToast && window.showToast('error', data.message || 'Terjadi kesalahan saat memproses janji temu.', 'Gagal');
+                    this.isSubmitting = false;
+                }
+            } catch (e) {
+                window.showToast && window.showToast('error', 'Tidak dapat terhubung ke server. Silakan periksa jaringan Anda.', 'Gagal Terhubung');
+                this.isSubmitting = false;
+            }
         }
     }
 }
