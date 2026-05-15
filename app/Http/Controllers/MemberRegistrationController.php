@@ -154,15 +154,6 @@ class MemberRegistrationController extends Controller
      */
     private function generateKodeOrder(): string
     {
-        $date = now()->format('Ymd');
-        $prefix = "MEM-{$date}-"; // Prefix beda dikit biar tau ini Membership
-        
-        $lastOrder = Order::where('kode_order', 'like', "{$prefix}%")
-            ->orderBy('order_id', 'desc')
-            ->first();
-        
-        $newNumber = $lastOrder ? (int) substr($lastOrder->kode_order, -4) + 1 : 1;
-        
-        return $prefix . str_pad($newNumber, 4, '0', STR_PAD_LEFT);
+        return \App\Support\OrderCodeGenerator::next(\App\Support\OrderCodeGenerator::PREFIX_MEMBERSHIP);
     }
 }

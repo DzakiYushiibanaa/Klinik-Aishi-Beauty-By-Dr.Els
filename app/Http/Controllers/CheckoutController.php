@@ -412,15 +412,6 @@ class CheckoutController extends Controller
 
     private function generateKodeOrder(): string
     {
-        $date = now()->format('Ymd');
-        $prefix = "ORD-{$date}-";
-        
-        $lastOrder = Order::where('kode_order', 'like', "{$prefix}%")
-            ->orderBy('order_id', 'desc')
-            ->first();
-        
-        $newNumber = $lastOrder ? (int) substr($lastOrder->kode_order, -4) + 1 : 1;
-        
-        return $prefix . str_pad($newNumber, 4, '0', STR_PAD_LEFT);
+        return \App\Support\OrderCodeGenerator::next();
     }
 }

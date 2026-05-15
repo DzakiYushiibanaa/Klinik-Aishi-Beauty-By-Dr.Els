@@ -360,16 +360,7 @@ class StartServiceFinalizer
      */
     protected function generateKodeOrder(): string
     {
-        $date   = now()->format('Ymd');
-        $prefix = "ORD-{$date}-";
-
-        $last = Order::where('kode_order', 'like', $prefix . '%')
-            ->orderByDesc('order_id')
-            ->value('kode_order');
-
-        $next = $last ? ((int) substr($last, -4) + 1) : 1;
-
-        return $prefix . str_pad((string) $next, 4, '0', STR_PAD_LEFT);
+        return \App\Support\OrderCodeGenerator::next();
     }
 
     // ───────────────────────────────────────────────────────

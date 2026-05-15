@@ -186,7 +186,7 @@ class AppointmentController extends Controller
                 }
 
                 // C. Buat Order
-                $kodeOrder       = 'ORD-' . strtoupper(Str::random(8));
+                $kodeOrder       = \App\Support\OrderCodeGenerator::next();
                 $midtransOrderId = $kodeOrder . '-' . time();
                 
                 $order = Order::create([

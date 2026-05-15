@@ -91,13 +91,7 @@ class CreateOrder extends CreateRecord
         ]);
 
         if (empty($data['kode_order'])) {
-            $today = now()->format('Ymd');
-            $prefix = "ORD-{$today}-";
-            $last = Order::where('kode_order', 'like', "{$prefix}%")
-                ->orderBy('kode_order', 'desc')
-                ->value('kode_order');
-            $seq = $last ? (int) substr($last, -3) + 1 : 1;
-            $data['kode_order'] = $prefix . str_pad((string) $seq, 3, '0', STR_PAD_LEFT);
+            $data['kode_order'] = \App\Support\OrderCodeGenerator::next();
         }
 
         if ($data['status'] === 'lunas' && empty($data['paid_at'])) {
