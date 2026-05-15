@@ -671,11 +671,18 @@
             @if($latestOrder)
                 <div class="bg-[#FAF8F5] rounded-2xl border border-[#E8E0D8]/60 p-5">
                     @php
-                        $shipIcon = match ($latestOrder->shipping_status) {
-                            'dikirim' => '<svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l2-1 2 1 2-1 2 1m0 0V6a1 1 0 011-1h2a1 1 0 011 1v4l4 2v6h-3m-7 0h7m-7 0a2 2 0 11-4 0m11 0a2 2 0 11-4 0"/></svg>',
-                            'selesai' => '<svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',
-                            default => '<svg class="w-5 h-5 text-[#CFAF53]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>',
-                        };
+                        // Deteksi apakah order ini terkait janji temu (treatment/konsultasi)
+                        $linkedAppointmentId = $latestOrder->items->firstWhere('appointment_id', '!=', null)?->appointment_id;
+                        $isAppointmentBased = $linkedAppointmentId
+                            || in_array($latestOrder->order_type, ['treatment', 'konsultasi']);
+
+                        $shipIcon = $isAppointmentBased
+                            ? '<svg class="w-5 h-5 text-[#CFAF53]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>'
+                            : match ($latestOrder->shipping_status) {
+                                'dikirim' => '<svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l2-1 2 1 2-1 2 1m0 0V6a1 1 0 011-1h2a1 1 0 011 1v4l4 2v6h-3m-7 0h7m-7 0a2 2 0 11-4 0m11 0a2 2 0 11-4 0"/></svg>',
+                                'selesai' => '<svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',
+                                default => '<svg class="w-5 h-5 text-[#CFAF53]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>',
+                            };
                         $orderStatusLabel = match ($latestOrder->status) {
                             'menunggu_pembayaran' => 'Belum Bayar',
                             'sudah_dibayar', 'lunas' => match ($latestOrder->shipping_status) {
@@ -716,9 +723,23 @@
                         </div>
                     </div>
                     <div class="mt-4 pt-4 border-t border-[#E8E0D8]/40 flex justify-end">
-                        <button @click="activeTab = 'orders'" class="w-full sm:w-auto text-center px-5 py-2.5 rounded-full font-bold text-sm text-[#1A1A1A] bg-white border border-[#E8E0D8] hover:bg-slate-50 transition-colors shadow-sm">
-                            Lihat Pesanan
-                        </button>
+                        @if($isAppointmentBased)
+                            <button
+                                @click="activeTab = 'appointment'; @if($linkedAppointmentId) highlightId = '{{ $linkedAppointmentId }}'; setTimeout(() => highlightId = null, 4000); @endif"
+                                class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full font-bold text-sm text-[#1A1A1A] bg-white border border-[#E8E0D8] hover:border-[#CFAF53] hover:bg-[#CFAF53]/5 transition-colors shadow-sm cursor-pointer">
+                                Lihat Janji Temu
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                                </svg>
+                            </button>
+                        @else
+                            <button @click="activeTab = 'orders'" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full font-bold text-sm text-[#1A1A1A] bg-white border border-[#E8E0D8] hover:border-[#CFAF53] hover:bg-[#CFAF53]/5 transition-colors shadow-sm cursor-pointer">
+                                Lihat Pesanan
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                                </svg>
+                            </button>
+                        @endif
                     </div>
                 </div>
             @endif
