@@ -195,12 +195,12 @@
                             </div>
                             <ul class="space-y-2.5 max-h-64 overflow-y-auto custom-scrollbar pr-1">
                                 @foreach($cart as $key => $item)
-                                    <li class="flex items-start gap-3">
-                                        <span class="shrink-0 inline-flex items-center justify-center min-w-[28px] h-6 rounded-md bg-[#CFAF53]/10 text-[#CFAF53] text-xs font-extrabold px-1.5">
-                                            {{ (int) $item['qty'] }}×
-                                        </span>
-                                        <div class="flex-1 min-w-0 leading-tight">
-                                            <p class="text-sm font-semibold text-[#1A1A1A] line-clamp-2">{{ $item['nama'] }}</p>
+                                    <li class="flex items-start justify-between gap-3">
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm font-semibold text-[#1A1A1A] line-clamp-2 leading-snug">{{ $item['nama'] }}</p>
+                                            <span class="inline-flex items-center justify-center mt-1 rounded-md bg-[#CFAF53]/10 text-[#CFAF53] text-[11px] font-extrabold px-1.5 h-5">
+                                                {{ (int) $item['qty'] }}× qty
+                                            </span>
                                         </div>
                                         <span class="shrink-0 text-sm font-bold text-[#1A1A1A] tabular-nums">
                                             Rp {{ number_format((int) $item['harga'] * (int) $item['qty'], 0, ',', '.') }}
