@@ -27,15 +27,23 @@
                 {{-- LIST ITEM --}}
                 <div class="lg:col-span-8 space-y-4">
                     @foreach ($cart as $key => $item)
-                        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-5 rounded-2xl border border-[#E8E0D8] bg-white p-5 shadow-sm hover:shadow-md hover:border-[#CFAF53]/40 transition-all group">
+                        <div class="flex items-start gap-3 sm:gap-5 rounded-2xl border border-[#E8E0D8] bg-white p-3 sm:p-5 shadow-sm hover:shadow-md hover:border-[#CFAF53]/40 transition-all group">
                             
                             {{-- Foto --}}
-                            <div class="h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-[#FAF8F5] border border-[#E8E0D8] flex items-center justify-center relative">
+                            <div class="h-20 w-20 sm:h-24 sm:w-24 shrink-0 overflow-hidden rounded-xl bg-gradient-to-br from-[#FAF8F5] to-[#F2EFE9] border border-[#E8E0D8] flex items-center justify-center relative">
                                 @if(isset($item['type']) && $item['type'] === 'bundle')
                                     <div class="absolute top-0 left-0 w-full h-1.5 bg-[#CFAF53] z-10"></div>
                                 @endif
-                                <img src="{{ $item['foto_path'] ? asset('storage/' . $item['foto_path']) : 'https://via.placeholder.com/150' }}" 
-                                     class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110">
+                                @if(!empty($item['foto_path']))
+                                    <img src="{{ asset('storage/' . $item['foto_path']) }}"
+                                         alt="{{ $item['nama'] ?? 'Item' }}"
+                                         loading="lazy"
+                                         class="h-full w-full object-contain p-2 transition-transform duration-500 group-hover:scale-105">
+                                @else
+                                    <svg class="h-8 w-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                    </svg>
+                                @endif
                             </div>
 
                             {{-- Info --}}
@@ -120,7 +128,6 @@
                 <div class="lg:col-span-4 sticky top-24">
                     <div class="rounded-3xl border border-[#E8E0D8] bg-white p-6 shadow-sm">
                         <h3 class="text-lg font-bold text-[#1A1A1A] mb-5 flex items-center gap-2">
-                            <svg class="w-5 h-5 text-[#CFAF53]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                             Ringkasan Belanja
                         </h3>
                         
