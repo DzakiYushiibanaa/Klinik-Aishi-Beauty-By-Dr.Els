@@ -120,38 +120,40 @@
 
                         <article class="group/card relative flex flex-col rounded-2xl bg-white border border-[#E8E0D8]/60 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-[#CFAF53]/10 hover:border-[#CFAF53]/50">
 
-                            <a href="{{ route('bundle.show', $bundle) }}" class="relative block overflow-hidden aspect-square bg-gradient-to-br from-[#FAF8F5] to-[#F2EFE9]">
-                                @if($bundle->foto_path)
-                                    <img src="{{ asset('storage/' . $bundle->foto_path) }}"
-                                         alt="{{ $bundle->nama }}"
-                                         loading="lazy"
-                                         class="h-full w-full object-cover transition duration-500 group-hover/card:scale-105">
-                                @else
-                                    <div class="flex h-full w-full items-center justify-center">
-                                        <svg class="h-16 w-16 text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-                                        </svg>
-                                    </div>
-                                @endif
+                            <div class="relative aspect-square overflow-hidden bg-gradient-to-br from-[#FAF8F5] to-[#F2EFE9]">
+                                <a href="{{ route('bundle.show', $bundle) }}" class="absolute inset-0 z-0 block" aria-label="{{ $bundle->nama }}">
+                                    @if($bundle->foto_path)
+                                        <img src="{{ asset('storage/' . $bundle->foto_path) }}"
+                                             alt="{{ $bundle->nama }}"
+                                             loading="lazy"
+                                             class="h-full w-full object-cover transition duration-500 group-hover/card:scale-105">
+                                    @else
+                                        <div class="flex h-full w-full items-center justify-center">
+                                            <svg class="h-16 w-16 text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                                            </svg>
+                                        </div>
+                                    @endif
+                                </a>
 
-                                {{-- Diskon ribbon (kalau ada) --}}
+                                {{-- Diskon ribbon --}}
                                 @if($hasPromo)
-                                    <span class="absolute left-0 top-3 rounded-r-full bg-rose-500 pl-3 pr-4 py-1 text-[10px] font-extrabold tracking-widest text-white uppercase shadow-md">
+                                    <span class="absolute left-0 top-3 z-10 rounded-r-full bg-rose-500 pl-3 pr-4 py-1 text-[10px] font-extrabold tracking-widest text-white uppercase shadow-md pointer-events-none">
                                         Hemat {{ $persen }}%
                                     </span>
                                 @endif
 
                                 {{-- Hover CTA --}}
-                                <div class="absolute inset-x-3 bottom-3 opacity-0 translate-y-3 group-hover/card:opacity-100 group-hover/card:translate-y-0 transition-all duration-300">
+                                <div class="absolute inset-x-3 bottom-3 z-20 opacity-0 translate-y-3 group-hover/card:opacity-100 group-hover/card:translate-y-0 transition-all duration-300">
                                     <a href="{{ route('bundle.show', $bundle) }}"
-                                       class="w-full inline-flex items-center justify-center gap-2 rounded-full bg-[#1A1A1A] hover:bg-[#CFAF53] text-white text-xs font-bold uppercase tracking-widest py-3 transition-colors cursor-pointer shadow-lg">
-                                        Lihat Detail Paket
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                       class="w-full inline-flex items-center justify-center gap-1.5 rounded-full bg-[#1A1A1A] hover:bg-[#CFAF53] text-white text-[10px] sm:text-[11px] font-bold uppercase tracking-wider py-2.5 transition-colors cursor-pointer shadow-lg whitespace-nowrap">
+                                        Lihat Detail
+                                        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
                                         </svg>
                                     </a>
                                 </div>
-                            </a>
+                            </div>
 
                             <div class="flex flex-col p-4 border-t border-[#E8E0D8]/60">
                                 {{-- Jenis paket --}}
@@ -163,7 +165,7 @@
                                     <a href="{{ route('bundle.show', $bundle) }}" class="hover:text-[#8C7A63] transition-colors">{{ $bundle->nama }}</a>
                                 </h3>
 
-                                <div class="mt-2 flex items-baseline gap-2">
+                                <div class="mt-2 flex items-baseline gap-2 flex-wrap">
                                     <span class="text-base sm:text-lg font-extrabold text-[#CFAF53]">
                                         Rp {{ number_format($hasPromo ? $bundle->harga_promo : $bundle->harga_normal, 0, ',', '.') }}
                                     </span>
