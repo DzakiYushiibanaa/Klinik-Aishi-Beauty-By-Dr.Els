@@ -1,10 +1,5 @@
 <x-guest-layout :title="'Keranjang Belanja'">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {{-- Header Section --}}
-        <div class="mb-8">
-            <h1 class="text-3xl font-bold text-[#1A1A1A] tracking-tight">Keranjang Belanja</h1>
-            <p class="text-sm text-slate-500 mt-2">Periksa kembali item Anda sebelum melanjutkan ke pembayaran.</p>
-        </div>
 
         @if (empty($cart))
             {{-- Empty State --}}
@@ -130,8 +125,37 @@
                         <h3 class="text-lg font-bold text-[#1A1A1A] mb-5 flex items-center gap-2">
                             Ringkasan Belanja
                         </h3>
-                        
-                        <div class="space-y-3 mb-6">
+
+                        {{-- Detail item --}}
+                        <div class="mb-5">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="text-[10px] font-bold uppercase tracking-widest text-[#8C7A63]">Detail Item</span>
+                                <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">{{ count($cart) }} produk</span>
+                            </div>
+                            <ul class="space-y-2.5 max-h-64 overflow-y-auto custom-scrollbar pr-1">
+                                @foreach($cart as $key => $item)
+                                    @php
+                                        $isBundle = ($item['type'] ?? null) === 'bundle';
+                                    @endphp
+                                    <li class="flex items-start gap-3">
+                                        <span class="shrink-0 inline-flex items-center justify-center min-w-[28px] h-6 rounded-md bg-[#CFAF53]/10 text-[#CFAF53] text-xs font-extrabold px-1.5">
+                                            {{ (int) $item['qty'] }}×
+                                        </span>
+                                        <div class="flex-1 min-w-0 leading-tight">
+                                            @if($isBundle)
+                                                <span class="block text-[10px] font-bold uppercase tracking-wider text-amber-600 mb-0.5">Paket Bundle</span>
+                                            @endif
+                                            <p class="text-sm font-semibold text-[#1A1A1A] line-clamp-2">{{ $item['nama'] }}</p>
+                                        </div>
+                                        <span class="shrink-0 text-sm font-bold text-[#1A1A1A] tabular-nums">
+                                            Rp {{ number_format((int) $item['harga'] * (int) $item['qty'], 0, ',', '.') }}
+                                        </span>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </div>
+
+                        <div class="space-y-3 mb-6 border-t border-[#E8E0D8]/60 pt-5">
                             <div class="flex items-center justify-between text-sm">
                                 <span class="text-slate-500 font-medium">Total Item</span>
                                 <span class="font-bold text-[#1A1A1A]">{{ array_reduce($cart, function($carry, $item) { return $carry + $item['qty']; }, 0) }} Item</span>
