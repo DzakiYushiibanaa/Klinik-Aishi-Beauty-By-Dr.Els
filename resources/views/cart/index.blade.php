@@ -1,4 +1,26 @@
 <x-guest-layout :title="'Keranjang Belanja'">
+
+    @php
+        // Eager-load isi bundle (sekali query, tidak per item) untuk tampil rincian.
+        $bundleIds = collect($cart ?? [])
+            ->filter(fn ($i) => ($i['type'] ?? null) === 'bundle')
+            ->pluck('bundle_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $bundleDetails = [];
+        if ($bundleIds->isNotEmpty()) {
+            $bundleDetails = \App\Models\Bundle::whereIn('bundle_id', $bundleIds)
+                ->with([
+                    'productItems.product:product_id,nama',
+                    'treatmentItems.treatment:treatment_id,nama',
+                ])
+                ->get()
+                ->keyBy('bundle_id');
+        }
+    @endphp
+
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         @if (empty($cart))
@@ -45,19 +67,62 @@
                             <div class="flex-1 min-w-0 w-full">
                                 <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-2">
                                     <div class="flex-1 pr-4">
-                                        @if(isset($item['type']) && $item['type'] === 'bundle')
-                                            <div class="flex items-center gap-2 mb-1.5">
-                                                <span class="shrink-0 rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-bold tracking-wider text-amber-700 uppercase border border-amber-200">
-                                                    Paket Bundle
-                                                </span>
-                                            </div>
-                                        @endif
                                         <a href="{{ isset($item['type']) && $item['type'] === 'bundle' ? route('bundle.show', $item['id']) : route('shop.show', $item['id']) }}" class="font-bold text-lg text-[#1A1A1A] hover:text-[#CFAF53] transition-colors line-clamp-2">
                                             {{ $item['nama'] }}
                                         </a>
                                         <p class="text-sm font-bold text-[#CFAF53] mt-1">
                                             Rp {{ number_format((int)$item['harga'], 0, ',', '.') }}
                                         </p>
+
+                                        {{-- Rincian isi bundle --}}
+                                        @if(isset($item['type']) && $item['type'] === 'bundle')
+                                            @php
+                                                $bundleDetail = $bundleDetails[$item['bundle_id']] ?? null;
+                                                $rincian = collect();
+                                                if ($bundleDetail) {
+                                                    foreach ($bundleDetail->productItems as $bi) {
+                                                        $rincian->push([
+                                                            'qty' => (int) $bi->qty,
+                                                            'nama' => $bi->product->nama ?? 'Produk',
+                                                            'tipe' => 'produk',
+                                                        ]);
+                                                    }
+                                                    foreach ($bundleDetail->treatmentItems as $bi) {
+                                                        $rincian->push([
+                                                            'qty' => (int) $bi->qty,
+                                                            'nama' => $bi->treatment->nama ?? 'Treatment',
+                                                            'tipe' => 'treatment',
+                                                        ]);
+                                                    }
+                                                }
+                                            @endphp
+
+                                            @if($rincian->isNotEmpty())
+                                                <div class="mt-3 rounded-xl bg-[#FAF8F5] border border-[#E8E0D8]/60 p-3">
+                                                    <div class="flex items-center gap-1.5 mb-2">
+                                                        <svg class="w-3.5 h-3.5 text-[#CFAF53]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                                                        </svg>
+                                                        <span class="text-[10px] font-bold uppercase tracking-widest text-[#8C7A63]">Isi Paket</span>
+                                                    </div>
+                                                    <ul class="space-y-1.5">
+                                                        @foreach($rincian as $r)
+                                                            <li class="flex items-start gap-2 text-xs">
+                                                                <span class="shrink-0 inline-flex items-center justify-center min-w-[24px] h-5 rounded-md bg-white border border-[#E8E0D8] text-[#CFAF53] font-extrabold px-1.5 text-[11px]">
+                                                                    {{ $r['qty'] }}×
+                                                                </span>
+                                                                <span class="text-[#1A1A1A] font-medium leading-tight pt-0.5">
+                                                                    {{ $r['nama'] }}
+                                                                    @if($r['tipe'] === 'treatment')
+                                                                        <span class="text-[10px] text-slate-400 font-normal ml-1">(treatment)</span>
+                                                                    @endif
+                                                                </span>
+                                                            </li>
+                                                        @endforeach
+                                                    </ul>
+                                                </div>
+                                            @endif
+                                        @endif
                                     </div>
                                     
                                     {{-- Subtotal per item (Desktop) --}}
@@ -130,17 +195,11 @@
                             </div>
                             <ul class="space-y-2.5 max-h-64 overflow-y-auto custom-scrollbar pr-1">
                                 @foreach($cart as $key => $item)
-                                    @php
-                                        $isBundle = ($item['type'] ?? null) === 'bundle';
-                                    @endphp
                                     <li class="flex items-start gap-3">
                                         <span class="shrink-0 inline-flex items-center justify-center min-w-[28px] h-6 rounded-md bg-[#CFAF53]/10 text-[#CFAF53] text-xs font-extrabold px-1.5">
                                             {{ (int) $item['qty'] }}×
                                         </span>
                                         <div class="flex-1 min-w-0 leading-tight">
-                                            @if($isBundle)
-                                                <span class="block text-[10px] font-bold uppercase tracking-wider text-amber-600 mb-0.5">Paket Bundle</span>
-                                            @endif
                                             <p class="text-sm font-semibold text-[#1A1A1A] line-clamp-2">{{ $item['nama'] }}</p>
                                         </div>
                                         <span class="shrink-0 text-sm font-bold text-[#1A1A1A] tabular-nums">
