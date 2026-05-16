@@ -103,7 +103,7 @@
                 @endif
 
                 {{-- GRID BUNDLES --}}
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-6">
+                <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5 lg:gap-6">
                     @forelse($bundles as $bundle)
                         @php
                             $hasPromo = $bundle->harga_normal > $bundle->harga_promo && $bundle->harga_promo > 0;
@@ -143,8 +143,8 @@
                                     </span>
                                 @endif
 
-                                {{-- Hover CTA --}}
-                                <div class="absolute inset-x-3 bottom-3 z-20 opacity-0 translate-y-3 group-hover/card:opacity-100 group-hover/card:translate-y-0 transition-all duration-300">
+                                {{-- Hover CTA — tablet+ saja --}}
+                                <div class="hidden sm:block absolute inset-x-3 bottom-3 z-20 opacity-0 translate-y-3 group-hover/card:opacity-100 group-hover/card:translate-y-0 transition-all duration-300">
                                     <a href="{{ route('bundle.show', $bundle) }}"
                                        class="w-full inline-flex items-center justify-center gap-1.5 rounded-full bg-[#1A1A1A] hover:bg-[#CFAF53] text-white text-[10px] sm:text-[11px] font-bold uppercase tracking-wider py-2.5 transition-colors cursor-pointer shadow-lg whitespace-nowrap">
                                         Lihat Detail
@@ -155,22 +155,31 @@
                                 </div>
                             </div>
 
-                            <div class="flex flex-col p-4 border-t border-[#E8E0D8]/60">
+                            {{-- Mobile-only CTA bar --}}
+                            <a href="{{ route('bundle.show', $bundle) }}"
+                               class="sm:hidden mx-3 mt-2 mb-3 inline-flex items-center justify-center gap-1.5 rounded-full bg-[#1A1A1A] hover:bg-[#CFAF53] text-white text-[11px] font-bold uppercase tracking-wider py-2.5 transition-colors cursor-pointer">
+                                Lihat Detail
+                                <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                                </svg>
+                            </a>
+
+                            <div class="flex flex-col p-3 sm:p-4 border-t border-[#E8E0D8]/60">
                                 {{-- Jenis paket --}}
-                                <span class="text-[11px] font-semibold tracking-wide text-[#8C7A63] mb-1.5">
+                                <span class="text-[10px] sm:text-[11px] font-semibold tracking-wide text-[#8C7A63] mb-1 sm:mb-1.5">
                                     {{ $jenisLabel }}
                                 </span>
 
-                                <h3 class="text-sm sm:text-base font-bold text-[#1A1A1A] line-clamp-2 leading-snug min-h-[2.5rem]">
+                                <h3 class="text-[13px] sm:text-base font-bold text-[#1A1A1A] line-clamp-2 leading-snug min-h-[2.25rem] sm:min-h-[2.5rem]">
                                     <a href="{{ route('bundle.show', $bundle) }}" class="hover:text-[#8C7A63] transition-colors">{{ $bundle->nama }}</a>
                                 </h3>
 
-                                <div class="mt-2 flex items-baseline gap-2 flex-wrap">
-                                    <span class="text-base sm:text-lg font-extrabold text-[#CFAF53]">
+                                <div class="mt-1.5 sm:mt-2 flex items-baseline gap-1.5 sm:gap-2 flex-wrap">
+                                    <span class="text-sm sm:text-lg font-extrabold text-[#CFAF53]">
                                         Rp {{ number_format($hasPromo ? $bundle->harga_promo : $bundle->harga_normal, 0, ',', '.') }}
                                     </span>
                                     @if($hasPromo)
-                                        <span class="text-xs text-slate-400 line-through">
+                                        <span class="text-[10px] sm:text-xs text-slate-400 line-through">
                                             Rp {{ number_format($bundle->harga_normal, 0, ',', '.') }}
                                         </span>
                                     @endif

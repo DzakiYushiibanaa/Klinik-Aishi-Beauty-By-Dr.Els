@@ -125,7 +125,7 @@
                 @endif
 
                 {{-- GRID PRODUK --}}
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-6">
+                <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5 lg:gap-6">
                     @forelse($products as $p)
                         @php
                             $inStock = (int) $p->stok > 0;
@@ -162,9 +162,9 @@
                                     </span>
                                 @endif
 
-                                {{-- Hover CTA (sibling, bukan nested di link) --}}
+                                {{-- Hover CTA (sibling, bukan nested di link) — tablet+ saja --}}
                                 @if($inStock)
-                                    <div class="absolute inset-x-3 bottom-3 z-20 opacity-0 translate-y-3 group-hover/card:opacity-100 group-hover/card:translate-y-0 transition-all duration-300">
+                                    <div class="hidden sm:block absolute inset-x-3 bottom-3 z-20 opacity-0 translate-y-3 group-hover/card:opacity-100 group-hover/card:translate-y-0 transition-all duration-300">
                                         <form method="POST" action="{{ route('cart.add', $p) }}">
                                             @csrf
                                             <input type="hidden" name="qty" value="1">
@@ -180,21 +180,36 @@
                                 @endif
                             </div>
 
+                            {{-- Mobile-only CTA bar (selalu tampil di sm bawah) --}}
+                            @if($inStock)
+                                <form method="POST" action="{{ route('cart.add', $p) }}" class="sm:hidden px-3 pt-2 pb-3">
+                                    @csrf
+                                    <input type="hidden" name="qty" value="1">
+                                    <button type="submit"
+                                            class="w-full inline-flex items-center justify-center gap-1.5 rounded-full bg-[#1A1A1A] hover:bg-[#CFAF53] text-white text-[11px] font-bold uppercase tracking-wider py-2.5 transition-colors cursor-pointer">
+                                        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
+                                        </svg>
+                                        Tambah
+                                    </button>
+                                </form>
+                            @endif
+
                             {{-- Body --}}
-                            <div class="flex flex-col p-4 border-t border-[#E8E0D8]/60">
+                            <div class="flex flex-col p-3 sm:p-4 border-t border-[#E8E0D8]/60">
                                 {{-- Kategori --}}
-                                <span class="text-[11px] font-semibold tracking-wide text-[#8C7A63] mb-1.5">
+                                <span class="text-[10px] sm:text-[11px] font-semibold tracking-wide text-[#8C7A63] mb-1 sm:mb-1.5">
                                     {{ $p->category->nama ?? 'Skincare' }}
                                 </span>
 
                                 {{-- Nama produk --}}
-                                <h3 class="text-sm sm:text-base font-bold text-[#1A1A1A] line-clamp-2 leading-snug min-h-[2.5rem]">
+                                <h3 class="text-[13px] sm:text-base font-bold text-[#1A1A1A] line-clamp-2 leading-snug min-h-[2.25rem] sm:min-h-[2.5rem]">
                                     <a href="{{ route('shop.show', $p) }}" class="hover:text-[#8C7A63] transition-colors">{{ $p->nama }}</a>
                                 </h3>
 
                                 {{-- Harga --}}
-                                <div class="mt-2">
-                                    <span class="text-base sm:text-lg font-extrabold text-[#CFAF53]">
+                                <div class="mt-1.5 sm:mt-2">
+                                    <span class="text-sm sm:text-lg font-extrabold text-[#CFAF53]">
                                         Rp {{ number_format((int)$p->harga, 0, ',', '.') }}
                                     </span>
                                 </div>
