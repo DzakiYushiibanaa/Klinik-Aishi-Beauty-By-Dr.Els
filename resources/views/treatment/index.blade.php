@@ -94,14 +94,15 @@
                 {{-- GRID TREATMENT --}}
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-6">
                     @forelse($treatments as $item)
-                        <article class="group flex flex-col rounded-2xl bg-white border border-[#E8E0D8]/60 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-[#CFAF53]/10 hover:border-[#CFAF53]/40">
+                        <article class="group/card relative flex flex-col rounded-2xl bg-white border border-[#E8E0D8]/60 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-[#CFAF53]/10 hover:border-[#CFAF53]/50">
 
-                            <a href="{{ route('treatment.show', $item) }}" class="relative block overflow-hidden aspect-square bg-[#FAF8F5]">
+                            {{-- Image Area --}}
+                            <a href="{{ route('treatment.show', $item) }}" class="relative block overflow-hidden aspect-square bg-gradient-to-br from-[#FAF8F5] to-[#F2EFE9]">
                                 @if($item->foto_path)
                                     <img src="{{ asset('storage/' . $item->foto_path) }}"
                                          alt="{{ $item->nama }}"
                                          loading="lazy"
-                                         class="h-full w-full object-cover transition duration-700 group-hover:scale-105">
+                                         class="h-full w-full object-cover transition duration-500 group-hover/card:scale-105">
                                 @else
                                     <div class="flex h-full w-full items-center justify-center">
                                         <svg class="h-16 w-16 text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -110,50 +111,45 @@
                                     </div>
                                 @endif
 
-                                <span class="absolute left-3 top-3 rounded-full bg-white/90 backdrop-blur-sm px-3 py-1 text-[10px] font-bold tracking-widest text-[#1A1A1A] uppercase shadow-sm">
-                                    {{ $item->category->nama ?? 'Umum' }}
-                                </span>
-
+                                {{-- Badge durasi (info penting untuk treatment) --}}
                                 @if($item->durasi_menit)
-                                    <span class="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-[#1A1A1A]/85 backdrop-blur-sm px-3 py-1 text-[10px] font-bold tracking-widest text-white uppercase shadow-sm">
-                                        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <span class="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-white/95 backdrop-blur-sm text-[#1A1A1A] px-3 py-1 text-[10px] font-extrabold tracking-widest uppercase shadow-md">
+                                        <svg class="h-3 w-3 text-[#CFAF53]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                         </svg>
                                         {{ $item->durasi_menit }} mnt
                                     </span>
                                 @endif
 
-                                <div class="absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 bg-gradient-to-t from-black/60 via-black/30 to-transparent p-4 flex justify-end">
-                                    <span class="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-[#1A1A1A] shadow-lg">
-                                        Lihat Detail
-                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
-                                        </svg>
-                                    </span>
-                                </div>
-                            </a>
-
-                            <div class="flex flex-1 flex-col p-5">
-                                <a href="{{ route('treatment.show', $item) }}" class="group/link">
-                                    <h3 class="text-base font-bold text-[#1A1A1A] line-clamp-2 leading-snug min-h-[2.75rem] group-hover/link:text-[#8C7A63] transition-colors">
-                                        {{ $item->nama }}
-                                    </h3>
-                                </a>
-
-                                <div class="mt-2 flex items-baseline gap-2">
-                                    <span class="text-lg font-extrabold text-[#1A1A1A]">
-                                        Rp {{ number_format((int)$item->harga, 0, ',', '.') }}
-                                    </span>
-                                </div>
-
-                                <div class="mt-4 pt-4 border-t border-[#E8E0D8]/60">
+                                {{-- Hover CTA: Buat Janji --}}
+                                <div class="absolute inset-x-3 bottom-3 opacity-0 translate-y-3 group-hover/card:opacity-100 group-hover/card:translate-y-0 transition-all duration-300">
                                     <a href="{{ route('appointment.create', ['treatment_id' => $item->treatment_id]) }}"
-                                       class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#1A1A1A] hover:bg-[#CFAF53] text-white text-sm font-bold py-2.5 transition-colors cursor-pointer">
+                                       class="w-full inline-flex items-center justify-center gap-2 rounded-full bg-[#1A1A1A] hover:bg-[#CFAF53] text-white text-xs font-bold uppercase tracking-widest py-3 transition-colors cursor-pointer shadow-lg">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                                         </svg>
                                         Buat Janji Temu
                                     </a>
+                                </div>
+                            </a>
+
+                            {{-- Body --}}
+                            <div class="flex flex-col p-4 border-t border-[#E8E0D8]/60">
+                                {{-- Kategori --}}
+                                <span class="text-[11px] font-semibold tracking-wide text-[#8C7A63] mb-1.5">
+                                    {{ $item->category->nama ?? 'Treatment' }}
+                                </span>
+
+                                {{-- Nama treatment --}}
+                                <h3 class="text-sm sm:text-base font-bold text-[#1A1A1A] line-clamp-2 leading-snug min-h-[2.5rem]">
+                                    <a href="{{ route('treatment.show', $item) }}" class="hover:text-[#8C7A63] transition-colors">{{ $item->nama }}</a>
+                                </h3>
+
+                                {{-- Harga --}}
+                                <div class="mt-2">
+                                    <span class="text-base sm:text-lg font-extrabold text-[#CFAF53]">
+                                        Rp {{ number_format((int)$item->harga, 0, ',', '.') }}
+                                    </span>
                                 </div>
                             </div>
                         </article>
@@ -180,8 +176,8 @@
                 </div>
 
                 @if($treatments->hasPages())
-                    <div class="mt-10 border-t border-[#E8E0D8]/60 pt-8">
-                        {{ $treatments->links() }}
+                    <div class="mt-10 pt-8 border-t border-[#E8E0D8]/60 flex justify-center">
+                        {{ $treatments->links('vendor.pagination.aishi') }}
                     </div>
                 @endif
             </div>

@@ -131,15 +131,15 @@
                             $inStock = (int) $p->stok > 0;
                             $isLow   = $inStock && (int) $p->stok <= 5;
                         @endphp
-                        <article class="group flex flex-col rounded-2xl bg-white border border-[#E8E0D8]/60 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-[#CFAF53]/10 hover:border-[#CFAF53]/40">
+                        <article class="group/card relative flex flex-col rounded-2xl bg-white border border-[#E8E0D8]/60 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-[#CFAF53]/10 hover:border-[#CFAF53]/50">
 
-                            {{-- Image --}}
+                            {{-- Image Area --}}
                             <a href="{{ route('shop.show', $p) }}" class="relative block overflow-hidden aspect-square bg-gradient-to-br from-[#FAF8F5] to-[#F2EFE9]">
                                 @if($p->foto_path)
                                     <img src="{{ asset('storage/' . $p->foto_path) }}"
                                          alt="{{ $p->nama }}"
                                          loading="lazy"
-                                         class="h-full w-full object-contain p-6 sm:p-8 transition duration-500 group-hover:scale-105">
+                                         class="h-full w-full object-contain p-6 sm:p-8 transition duration-500 group-hover/card:scale-105">
                                 @else
                                     <div class="flex h-full w-full items-center justify-center">
                                         <svg class="h-16 w-16 text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -148,68 +148,52 @@
                                     </div>
                                 @endif
 
-                                {{-- Top-left: Category badge --}}
-                                @if($p->category)
-                                    <span class="absolute left-3 top-3 rounded-full bg-white/90 backdrop-blur-sm px-3 py-1 text-[10px] font-bold tracking-widest text-[#1A1A1A] uppercase shadow-sm">
-                                        {{ $p->category->nama }}
-                                    </span>
-                                @endif
-
-                                {{-- Top-right: Stock badge --}}
+                                {{-- Stok warning corner ribbon (hanya saat low/habis) --}}
                                 @if(!$inStock)
-                                    <span class="absolute right-3 top-3 rounded-full bg-rose-500 px-3 py-1 text-[10px] font-bold tracking-widest text-white uppercase shadow-sm">
+                                    <span class="absolute left-0 top-3 rounded-r-full bg-rose-500 pl-3 pr-4 py-1 text-[10px] font-extrabold tracking-widest text-white uppercase shadow-md">
                                         Habis
                                     </span>
                                 @elseif($isLow)
-                                    <span class="absolute right-3 top-3 rounded-full bg-amber-500 px-3 py-1 text-[10px] font-bold tracking-widest text-white uppercase shadow-sm">
-                                        Stok {{ $p->stok }}
+                                    <span class="absolute left-0 top-3 rounded-r-full bg-amber-500 pl-3 pr-4 py-1 text-[10px] font-extrabold tracking-widest text-white uppercase shadow-md">
+                                        Sisa {{ $p->stok }}
                                     </span>
                                 @endif
 
-                                {{-- Hover overlay: Lihat Detail --}}
-                                <div class="absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 bg-gradient-to-t from-black/60 via-black/30 to-transparent p-4 flex justify-end">
-                                    <span class="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-[#1A1A1A] shadow-lg">
-                                        Lihat Detail
-                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
-                                        </svg>
-                                    </span>
-                                </div>
-                            </a>
-
-                            {{-- Body --}}
-                            <div class="flex flex-1 flex-col p-5">
-                                <a href="{{ route('shop.show', $p) }}" class="group/link">
-                                    <h3 class="text-base font-bold text-[#1A1A1A] line-clamp-2 leading-snug min-h-[2.75rem] group-hover/link:text-[#8C7A63] transition-colors">
-                                        {{ $p->nama }}
-                                    </h3>
-                                </a>
-
-                                <div class="mt-2 flex items-baseline gap-2">
-                                    <span class="text-lg font-extrabold text-[#1A1A1A]">
-                                        Rp {{ number_format((int)$p->harga, 0, ',', '.') }}
-                                    </span>
-                                </div>
-
-                                <div class="mt-4 pt-4 border-t border-[#E8E0D8]/60">
-                                    @if($inStock)
+                                {{-- Hover overlay: CTA Tambah ke Keranjang --}}
+                                @if($inStock)
+                                    <div class="absolute inset-x-3 bottom-3 opacity-0 translate-y-3 group-hover/card:opacity-100 group-hover/card:translate-y-0 transition-all duration-300">
                                         <form method="POST" action="{{ route('cart.add', $p) }}">
                                             @csrf
                                             <input type="hidden" name="qty" value="1">
                                             <button type="submit"
-                                                    class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#1A1A1A] hover:bg-[#CFAF53] text-white text-sm font-bold py-2.5 transition-colors cursor-pointer group/btn">
+                                                    class="w-full inline-flex items-center justify-center gap-2 rounded-full bg-[#1A1A1A] hover:bg-[#CFAF53] text-white text-xs font-bold uppercase tracking-widest py-3 transition-colors cursor-pointer shadow-lg">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
                                                 </svg>
-                                                <span>Tambah ke Keranjang</span>
+                                                Tambah ke Keranjang
                                             </button>
                                         </form>
-                                    @else
-                                        <button disabled
-                                                class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-slate-100 text-slate-400 text-sm font-bold py-2.5 cursor-not-allowed">
-                                            Stok Habis
-                                        </button>
-                                    @endif
+                                    </div>
+                                @endif
+                            </a>
+
+                            {{-- Body --}}
+                            <div class="flex flex-col p-4 border-t border-[#E8E0D8]/60">
+                                {{-- Kategori --}}
+                                <span class="text-[11px] font-semibold tracking-wide text-[#8C7A63] mb-1.5">
+                                    {{ $p->category->nama ?? 'Skincare' }}
+                                </span>
+
+                                {{-- Nama produk --}}
+                                <h3 class="text-sm sm:text-base font-bold text-[#1A1A1A] line-clamp-2 leading-snug min-h-[2.5rem]">
+                                    <a href="{{ route('shop.show', $p) }}" class="hover:text-[#8C7A63] transition-colors">{{ $p->nama }}</a>
+                                </h3>
+
+                                {{-- Harga --}}
+                                <div class="mt-2">
+                                    <span class="text-base sm:text-lg font-extrabold text-[#CFAF53]">
+                                        Rp {{ number_format((int)$p->harga, 0, ',', '.') }}
+                                    </span>
                                 </div>
                             </div>
                         </article>
@@ -235,10 +219,9 @@
                     @endforelse
                 </div>
 
-                {{-- Pagination --}}
                 @if($products->hasPages())
-                    <div class="mt-10 border-t border-[#E8E0D8]/60 pt-8">
-                        {{ $products->links() }}
+                    <div class="mt-10 pt-8 border-t border-[#E8E0D8]/60 flex justify-center">
+                        {{ $products->links('vendor.pagination.aishi') }}
                     </div>
                 @endif
             </div>

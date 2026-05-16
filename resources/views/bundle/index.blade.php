@@ -118,14 +118,14 @@
                             $displayItems = $bundle->productItems->take(2)->merge($bundle->treatmentItems->take(2));
                         @endphp
 
-                        <article class="group relative flex flex-col rounded-2xl bg-white border border-[#E8E0D8]/60 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-[#CFAF53]/10 hover:border-[#CFAF53]/40">
+                        <article class="group/card relative flex flex-col rounded-2xl bg-white border border-[#E8E0D8]/60 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-[#CFAF53]/10 hover:border-[#CFAF53]/50">
 
-                            <a href="{{ route('bundle.show', $bundle) }}" class="relative block overflow-hidden aspect-square bg-[#FAF8F5]">
+                            <a href="{{ route('bundle.show', $bundle) }}" class="relative block overflow-hidden aspect-square bg-gradient-to-br from-[#FAF8F5] to-[#F2EFE9]">
                                 @if($bundle->foto_path)
                                     <img src="{{ asset('storage/' . $bundle->foto_path) }}"
                                          alt="{{ $bundle->nama }}"
                                          loading="lazy"
-                                         class="h-full w-full object-cover transition duration-700 group-hover:scale-105">
+                                         class="h-full w-full object-cover transition duration-500 group-hover/card:scale-105">
                                 @else
                                     <div class="flex h-full w-full items-center justify-center">
                                         <svg class="h-16 w-16 text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -134,67 +134,44 @@
                                     </div>
                                 @endif
 
-                                <span class="absolute left-3 top-3 rounded-full bg-white/90 backdrop-blur-sm px-3 py-1 text-[10px] font-bold tracking-widest text-[#1A1A1A] uppercase shadow-sm">
-                                    {{ $jenisLabel }}
-                                </span>
-
+                                {{-- Diskon ribbon (kalau ada) --}}
                                 @if($hasPromo)
-                                    <span class="absolute right-3 top-3 rounded-full bg-rose-500 px-3 py-1 text-[10px] font-bold tracking-widest text-white uppercase shadow-sm">
+                                    <span class="absolute left-0 top-3 rounded-r-full bg-rose-500 pl-3 pr-4 py-1 text-[10px] font-extrabold tracking-widest text-white uppercase shadow-md">
                                         Hemat {{ $persen }}%
                                     </span>
                                 @endif
 
-                                <div class="absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 bg-gradient-to-t from-black/60 via-black/30 to-transparent p-4 flex justify-end">
-                                    <span class="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-[#1A1A1A] shadow-lg">
-                                        Lihat Detail
-                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
-                                        </svg>
-                                    </span>
-                                </div>
-                            </a>
-
-                            <div class="flex flex-1 flex-col p-5">
-                                <a href="{{ route('bundle.show', $bundle) }}" class="group/link">
-                                    <h3 class="text-base font-bold text-[#1A1A1A] line-clamp-2 leading-snug min-h-[2.75rem] group-hover/link:text-[#8C7A63] transition-colors">
-                                        {{ $bundle->nama }}
-                                    </h3>
-                                </a>
-
-                                {{-- Items preview --}}
-                                @if($totalItems > 0)
-                                    <div class="mt-2 flex flex-wrap gap-1.5">
-                                        @foreach($displayItems->take(2) as $item)
-                                            <span class="inline-flex items-center gap-1 rounded-md bg-[#FAF8F5] border border-[#E8E0D8]/60 px-2 py-0.5 text-[10px] text-slate-600">
-                                                <span class="font-bold text-[#CFAF53]">{{ $item->qty }}×</span>
-                                                <span class="truncate max-w-[100px]">{{ $item->product->nama ?? $item->treatment->nama ?? 'Item' }}</span>
-                                            </span>
-                                        @endforeach
-                                        @if($totalItems > 2)
-                                            <span class="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
-                                                +{{ $totalItems - 2 }} item
-                                            </span>
-                                        @endif
-                                    </div>
-                                @endif
-
-                                <div class="mt-3">
-                                    @if($hasPromo)
-                                        <span class="block text-xs text-slate-400 line-through">Rp {{ number_format($bundle->harga_normal, 0, ',', '.') }}</span>
-                                    @endif
-                                    <span class="text-lg font-extrabold text-[#1A1A1A]">
-                                        Rp {{ number_format($hasPromo ? $bundle->harga_promo : $bundle->harga_normal, 0, ',', '.') }}
-                                    </span>
-                                </div>
-
-                                <div class="mt-4 pt-4 border-t border-[#E8E0D8]/60">
+                                {{-- Hover CTA --}}
+                                <div class="absolute inset-x-3 bottom-3 opacity-0 translate-y-3 group-hover/card:opacity-100 group-hover/card:translate-y-0 transition-all duration-300">
                                     <a href="{{ route('bundle.show', $bundle) }}"
-                                       class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#1A1A1A] hover:bg-[#CFAF53] text-white text-sm font-bold py-2.5 transition-colors cursor-pointer">
+                                       class="w-full inline-flex items-center justify-center gap-2 rounded-full bg-[#1A1A1A] hover:bg-[#CFAF53] text-white text-xs font-bold uppercase tracking-widest py-3 transition-colors cursor-pointer shadow-lg">
                                         Lihat Detail Paket
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
                                         </svg>
                                     </a>
+                                </div>
+                            </a>
+
+                            <div class="flex flex-col p-4 border-t border-[#E8E0D8]/60">
+                                {{-- Jenis paket --}}
+                                <span class="text-[11px] font-semibold tracking-wide text-[#8C7A63] mb-1.5">
+                                    {{ $jenisLabel }}
+                                </span>
+
+                                <h3 class="text-sm sm:text-base font-bold text-[#1A1A1A] line-clamp-2 leading-snug min-h-[2.5rem]">
+                                    <a href="{{ route('bundle.show', $bundle) }}" class="hover:text-[#8C7A63] transition-colors">{{ $bundle->nama }}</a>
+                                </h3>
+
+                                <div class="mt-2 flex items-baseline gap-2">
+                                    <span class="text-base sm:text-lg font-extrabold text-[#CFAF53]">
+                                        Rp {{ number_format($hasPromo ? $bundle->harga_promo : $bundle->harga_normal, 0, ',', '.') }}
+                                    </span>
+                                    @if($hasPromo)
+                                        <span class="text-xs text-slate-400 line-through">
+                                            Rp {{ number_format($bundle->harga_normal, 0, ',', '.') }}
+                                        </span>
+                                    @endif
                                 </div>
                             </div>
                         </article>
@@ -221,8 +198,8 @@
                 </div>
 
                 @if($bundles->hasPages())
-                    <div class="mt-10 border-t border-[#E8E0D8]/60 pt-8">
-                        {{ $bundles->links() }}
+                    <div class="mt-10 pt-8 border-t border-[#E8E0D8]/60 flex justify-center">
+                        {{ $bundles->links('vendor.pagination.aishi') }}
                     </div>
                 @endif
             </div>
