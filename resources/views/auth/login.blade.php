@@ -81,9 +81,11 @@
                                     </a>
                                 @endif
                             </div>
-                            <input id="password" type="password" name="password" required autocomplete="current-password"
-                                class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 placeholder-slate-400 focus:border-[#CFAF53] focus:bg-white focus:ring-2 focus:ring-[#CFAF53]/20 transition-all"
-                                placeholder="••••••••">
+                            <x-password-input
+                                id="password"
+                                name="password"
+                                autocomplete="current-password"
+                                placeholder="••••••••" />
                             <x-input-error :messages="$errors->get('password')" class="mt-2" />
                         </div>
 

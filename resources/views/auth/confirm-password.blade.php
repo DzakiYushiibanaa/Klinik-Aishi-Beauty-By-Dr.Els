@@ -58,9 +58,12 @@
 
                         <div>
                             <label for="password" class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Password Anda</label>
-                            <input id="password" type="password" name="password" required autocomplete="current-password" autofocus
-                                   class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 placeholder-slate-400 focus:border-[#CFAF53] focus:bg-white focus:ring-2 focus:ring-[#CFAF53]/20 transition-all"
-                                   placeholder="••••••••">
+                            <x-password-input
+                                id="password"
+                                name="password"
+                                autocomplete="current-password"
+                                :autofocus="true"
+                                placeholder="••••••••" />
                             <x-input-error :messages="$errors->get('password')" class="mt-2" />
                         </div>
 

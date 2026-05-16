@@ -139,8 +139,12 @@
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <div class="col-span-1 lg:col-span-2">
                 <label class="block text-xs font-bold text-slate-500 mb-1">Password Saat Ini</label>
-                <input type="password" name="current_password" required autocomplete="current-password"
-                       class="w-full lg:w-1/2 rounded-xl border-[#E8E0D8]/60 text-sm focus:border-[#CFAF53]">
+                <div class="w-full lg:w-1/2">
+                    <x-password-input
+                        name="current_password"
+                        autocomplete="current-password"
+                        variant="compact" />
+                </div>
                 @error('current_password', 'updatePassword')
                     <span class="text-xs text-rose-500 mt-1 block">{{ $message }}</span>
                 @enderror
@@ -148,8 +152,10 @@
 
             <div>
                 <label class="block text-xs font-bold text-slate-500 mb-1">Password Baru</label>
-                <input type="password" name="password" required autocomplete="new-password"
-                       class="w-full rounded-xl border-[#E8E0D8]/60 text-sm focus:border-[#CFAF53]">
+                <x-password-input
+                    name="password"
+                    autocomplete="new-password"
+                    variant="compact" />
                 @error('password', 'updatePassword')
                     <span class="text-xs text-rose-500 mt-1 block">{{ $message }}</span>
                 @enderror
@@ -157,8 +163,10 @@
 
             <div>
                 <label class="block text-xs font-bold text-slate-500 mb-1">Konfirmasi Password Baru</label>
-                <input type="password" name="password_confirmation" required autocomplete="new-password"
-                       class="w-full rounded-xl border-[#E8E0D8]/60 text-sm focus:border-[#CFAF53]">
+                <x-password-input
+                    name="password_confirmation"
+                    autocomplete="new-password"
+                    variant="compact" />
                 @error('password_confirmation', 'updatePassword')
                     <span class="text-xs text-rose-500 mt-1 block">{{ $message }}</span>
                 @enderror

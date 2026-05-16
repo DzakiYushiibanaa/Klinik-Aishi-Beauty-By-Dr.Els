@@ -87,17 +87,21 @@
 
                         <div>
                             <label for="password" class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Kata Sandi</label>
-                            <input id="password" type="password" name="password" required autocomplete="new-password"
-                                class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 placeholder-slate-400 focus:border-[#CFAF53] focus:bg-white focus:ring-2 focus:ring-[#CFAF53]/20 transition-all"
-                                placeholder="Minimal 8 karakter">
+                            <x-password-input
+                                id="password"
+                                name="password"
+                                autocomplete="new-password"
+                                placeholder="Minimal 8 karakter" />
                             <x-input-error :messages="$errors->get('password')" class="mt-2" />
                         </div>
 
                         <div>
                             <label for="password_confirmation" class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Konfirmasi Sandi</label>
-                            <input id="password_confirmation" type="password" name="password_confirmation" required autocomplete="new-password"
-                                class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 placeholder-slate-400 focus:border-[#CFAF53] focus:bg-white focus:ring-2 focus:ring-[#CFAF53]/20 transition-all"
-                                placeholder="Ulangi kata sandi">
+                            <x-password-input
+                                id="password_confirmation"
+                                name="password_confirmation"
+                                autocomplete="new-password"
+                                placeholder="Ulangi kata sandi" />
                             <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
                         </div>
 
