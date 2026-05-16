@@ -134,12 +134,12 @@
                         <article class="group flex flex-col rounded-2xl bg-white border border-[#E8E0D8]/60 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-[#CFAF53]/10 hover:border-[#CFAF53]/40">
 
                             {{-- Image --}}
-                            <a href="{{ route('shop.show', $p) }}" class="relative block overflow-hidden aspect-square bg-[#FAF8F5]">
+                            <a href="{{ route('shop.show', $p) }}" class="relative block overflow-hidden aspect-square bg-gradient-to-br from-[#FAF8F5] to-[#F2EFE9]">
                                 @if($p->foto_path)
                                     <img src="{{ asset('storage/' . $p->foto_path) }}"
                                          alt="{{ $p->nama }}"
                                          loading="lazy"
-                                         class="h-full w-full object-cover transition duration-700 group-hover:scale-105">
+                                         class="h-full w-full object-contain p-6 sm:p-8 transition duration-500 group-hover:scale-105">
                                 @else
                                     <div class="flex h-full w-full items-center justify-center">
                                         <svg class="h-16 w-16 text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
