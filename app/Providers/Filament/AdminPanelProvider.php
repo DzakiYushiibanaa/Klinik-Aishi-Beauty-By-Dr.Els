@@ -385,7 +385,8 @@ class AdminPanelProvider extends PanelProvider
 
                         /* ----- SIDEBAR ITEMS ----- */
                         .fi-sidebar-item > a,
-                        .fi-sidebar-item > button {
+                        .fi-sidebar-item > button,
+                        .fi-sidebar-item .fi-sidebar-item-btn {
                             border-radius: 0.625rem !important;
                             padding: 0.5rem 0.75rem !important;
                             transition: all 200ms ease !important;
@@ -404,29 +405,48 @@ class AdminPanelProvider extends PanelProvider
 
                         /* Hover */
                         .fi-sidebar-item > a:hover,
-                        .fi-sidebar-item > button:hover {
+                        .fi-sidebar-item > button:hover,
+                        .fi-sidebar-item .fi-sidebar-item-btn:hover {
                             background-color: rgba(255, 255, 255, 0.06) !important;
                         }
                         .fi-sidebar-item > a:hover .fi-sidebar-item-label,
-                        .fi-sidebar-item > button:hover .fi-sidebar-item-label {
+                        .fi-sidebar-item > button:hover .fi-sidebar-item-label,
+                        .fi-sidebar-item .fi-sidebar-item-btn:hover .fi-sidebar-item-label {
                             color: #FAF9F6 !important;
                         }
                         .fi-sidebar-item > a:hover .fi-sidebar-item-icon,
-                        .fi-sidebar-item > button:hover .fi-sidebar-item-icon {
+                        .fi-sidebar-item > button:hover .fi-sidebar-item-icon,
+                        .fi-sidebar-item .fi-sidebar-item-btn:hover .fi-sidebar-item-icon {
                             color: #D4C4B0 !important;
                         }
 
-                        /* Active */
+                        /* Active
+                         * Filament v4 menggunakan modifier .fi-active pada .fi-sidebar-item.
+                         * Class lama .fi-sidebar-item-active dibiarkan untuk kompatibilitas. */
+                        .fi-sidebar-item.fi-active > a,
+                        .fi-sidebar-item.fi-active > button,
+                        .fi-sidebar-item.fi-active .fi-sidebar-item-btn,
                         .fi-sidebar-item-active > a,
                         .fi-sidebar-item-active > button {
                             background-color: #B8956F !important;
+                            background-image: none !important;
                             border-radius: 0.625rem !important;
+                            box-shadow: 0 2px 6px -1px rgba(184, 149, 111, 0.35) !important;
                         }
+                        .fi-sidebar-item.fi-active > a:hover,
+                        .fi-sidebar-item.fi-active > button:hover,
+                        .fi-sidebar-item.fi-active .fi-sidebar-item-btn:hover,
+                        .fi-sidebar-item-active > a:hover,
+                        .fi-sidebar-item-active > button:hover {
+                            background-color: #A07E5A !important;
+                        }
+                        .fi-sidebar-item.fi-active .fi-sidebar-item-label,
                         .fi-sidebar-item-active > a .fi-sidebar-item-label,
                         .fi-sidebar-item-active > button .fi-sidebar-item-label {
                             color: #FFFFFF !important;
                             font-weight: 600 !important;
                         }
+                        .fi-sidebar-item.fi-active .fi-sidebar-item-icon,
                         .fi-sidebar-item-active > a .fi-sidebar-item-icon,
                         .fi-sidebar-item-active > button .fi-sidebar-item-icon {
                             color: #FFFFFF !important;
