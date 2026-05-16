@@ -13,7 +13,7 @@
                             this.activeSlide = this.activeSlide === this.slides.length - 1 ? 0 : this.activeSlide + 1;
                         }, 5000);
                     }
-                 }" class="relative w-full h-[600px] lg:h-[800px] overflow-hidden bg-black">
+                 }" class="relative w-full min-h-[600px] md:min-h-[calc(100vh-5rem)] md:max-h-[900px] overflow-hidden bg-black flex">
 
             {{-- Background Images Slider --}}
             <template x-for="(slide, index) in slides" :key="index">
@@ -30,7 +30,7 @@
                 class="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-transparent z-10 pointer-events-none">
             </div>
 
-            <div class="relative z-20 mx-auto h-full max-w-7xl px-4 sm:px-6 lg:px-8 flex items-center">
+            <div class="relative z-20 mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 flex items-center py-16 sm:py-20">
                 <div class="max-w-2xl text-white">
                     <h1
                         class="text-4xl sm:text-5xl lg:text-[4.5rem] font-bold font-sans mb-6 leading-tight drop-shadow-lg">
