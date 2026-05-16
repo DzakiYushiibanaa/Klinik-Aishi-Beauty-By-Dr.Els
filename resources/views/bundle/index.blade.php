@@ -103,7 +103,7 @@
                 @endif
 
                 {{-- GRID BUNDLES --}}
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-6">
                     @forelse($bundles as $bundle)
                         @php
                             $hasPromo = $bundle->harga_normal > $bundle->harga_promo && $bundle->harga_promo > 0;

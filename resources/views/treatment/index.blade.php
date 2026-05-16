@@ -92,7 +92,7 @@
                 @endif
 
                 {{-- GRID TREATMENT --}}
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-6">
                     @forelse($treatments as $item)
                         <article class="group flex flex-col rounded-2xl bg-white border border-[#E8E0D8]/60 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-[#CFAF53]/10 hover:border-[#CFAF53]/40">
 
