@@ -45,17 +45,13 @@
                             <div class="flex-1 min-w-0 w-full">
                                 <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-2">
                                     <div class="flex-1 pr-4">
-                                        <div class="flex items-center gap-2 mb-1.5">
-                                            @if(isset($item['type']) && $item['type'] === 'bundle')
+                                        @if(isset($item['type']) && $item['type'] === 'bundle')
+                                            <div class="flex items-center gap-2 mb-1.5">
                                                 <span class="shrink-0 rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-bold tracking-wider text-amber-700 uppercase border border-amber-200">
                                                     Paket Bundle
                                                 </span>
-                                            @else
-                                                <span class="shrink-0 rounded-md bg-slate-50 px-2 py-0.5 text-[10px] font-bold tracking-wider text-slate-500 uppercase border border-slate-200">
-                                                    Produk
-                                                </span>
-                                            @endif
-                                        </div>
+                                            </div>
+                                        @endif
                                         <a href="{{ isset($item['type']) && $item['type'] === 'bundle' ? route('bundle.show', $item['id']) : route('shop.show', $item['id']) }}" class="font-bold text-lg text-[#1A1A1A] hover:text-[#CFAF53] transition-colors line-clamp-2">
                                             {{ $item['nama'] }}
                                         </a>
