@@ -5,7 +5,6 @@
 
         <x-catalog-header
             title="Pilihan Treatment"
-            subtitle="Layanan perawatan kulit & kecantikan langsung dari dokter dan terapis berpengalaman."
             breadcrumb-current="Treatment"
             :search-route="route('treatment.index')"
             search-placeholder="Cari treatment..."
@@ -198,7 +197,7 @@
          x-show="show"
          x-cloak
          x-transition.opacity
-         class="fixed bottom-24 right-6 z-40">
+         class="fixed bottom-40 lg:bottom-24 right-6 z-40">
         <button @click="window.scrollTo({ top: 0, behavior: 'smooth' })"
                 aria-label="Kembali ke atas"
                 class="flex h-11 w-11 items-center justify-center rounded-full bg-[#1A1A1A] text-white shadow-lg hover:bg-[#CFAF53] transition-colors cursor-pointer">
