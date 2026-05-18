@@ -15,7 +15,15 @@
             :extra-search-params="[
                 'category'     => (array) request('category'),
                 'availability' => (array) request('availability'),
+                'sort'         => $sort ?? 'price_low',
             ]"
+            :sort-options="[
+                'price_low'  => 'Harga Termurah',
+                'price_high' => 'Harga Tertinggi',
+                'newest'     => 'Terbaru',
+                'name'       => 'Nama A-Z',
+            ]"
+            :current-sort="$sort ?? 'price_low'"
         />
 
         {{-- LAYOUT 2 KOLOM (SIDEBAR & KONTEN UTAMA) --}}
@@ -38,6 +46,9 @@
                     <form id="filter-form" action="{{ route('shop.index') }}" method="GET" class="space-y-6">
                         @if(request('search'))
                             <input type="hidden" name="search" value="{{ request('search') }}">
+                        @endif
+                        @if(request('sort'))
+                            <input type="hidden" name="sort" value="{{ request('sort') }}">
                         @endif
 
                         {{-- Kategori --}}
