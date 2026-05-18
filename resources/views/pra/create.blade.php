@@ -17,7 +17,7 @@
                     <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                     Hanya butuh waktu sekitar 3-5 menit untuk melengkapi.
                 </div>
-                <h1 class="font-serif text-2xl sm:text-3xl font-bold italic text-[#1A1A1A] mb-3">Identifikasi Kebutuhan Kulit</h1>
+                <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#1A1A1A] mb-3">Identifikasi Kebutuhan Kulit</h1>
                 <p class="text-sm text-gray-500 max-w-md mx-auto leading-relaxed">Bantu kami mengenal kulit Anda lebih dalam. Pengisian data riwayat dan unggah foto wajah akan memudahkan dokter kami dalam menyusun rencana perawatan yang paling efektif khusus untuk Anda.</p>
 
                 <!-- Stepper -->
