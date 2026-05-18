@@ -37,8 +37,10 @@ class AppointmentController extends Controller
             // setelah profil dilengkapi user bisa langsung kembali ke flow ini.
             session(['profile_required_redirect' => $request->fullUrl()]);
 
+            // Tidak pakai flash 'error' karena UI sudah ditangani oleh modal
+            // <x-profile-required-modal /> di dashboard. Toast error akan
+            // duplikat dengan modal dan terkesan ribut.
             return redirect('/dashboard')
-                ->with('error', 'Mohon lengkapi Nomor WhatsApp dan Tanggal Lahir di tab Profil sebelum membuat janji temu.')
                 ->with('active_tab', 'profile')
                 ->with('show_profile_required_modal', true);
         }
@@ -299,8 +301,8 @@ class AppointmentController extends Controller
         if (!$user->phone || !$user->tanggal_lahir) {
             session(['profile_required_redirect' => $request->fullUrl()]);
 
+            // Tidak pakai flash 'error' — UI sudah ditangani oleh modal global.
             return redirect('/dashboard')
-                ->with('error', 'Mohon lengkapi Nomor WhatsApp dan Tanggal Lahir di tab Profil sebelum membuat janji temu.')
                 ->with('active_tab', 'profile')
                 ->with('show_profile_required_modal', true);
         }
