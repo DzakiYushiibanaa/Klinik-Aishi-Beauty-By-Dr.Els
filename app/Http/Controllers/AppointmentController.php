@@ -367,78 +367,13 @@ class AppointmentController extends Controller
 
     public function create(Request $request)
     {
-        $linkedFormId = $request->query('patient_form_id');
-        $selectedTreatmentId = $request->query('treatment_id');
-
-        $autoTreatments = [];
-        $autoDoctorId   = null;
-
-        // Auto-fill Logic
-        if ($linkedFormId) {
-            $form = PatientForm::find($linkedFormId);
-            if ($form) {
-                $autoDoctorId = $form->dokter_id;
-                $autoTreatments = PraKonsultasiRekomendasiItem::where('patient_form_id', $linkedFormId)
-                    ->whereNotNull('treatment_id')
-                    ->pluck('treatment_id')
-                    ->toArray();
-            }
-        }
-
-        if ($selectedTreatmentId) {
-            $autoTreatments[] = $selectedTreatmentId;
-            $autoTreatments = array_unique($autoTreatments);
-        }
-
-        // ============================================================
-        // 1. LOAD TREATMENTS (FIX: Nama Kolom 'min_level')
-        // ============================================================
-        $treatments = Treatment::with('category')
-            ->where('is_active', true)
-            ->get()
-            ->map(function($t) {
-                // Sesuai schema Filament: kolomnya 'min_level'
-                $t->min_level = $t->min_level ?? 1; 
-                return $t;
-            });
-
-        // ============================================================
-        // 2. LOAD THERAPISTS (FIX: Logic Jabatan 'Senior' via Helper)
-        // ============================================================
-        $therapists = User::role('terapis')
-            ->get()
-            ->map(function($user) {
-                // Panggil Helper private function (sama kayak Filament)
-                $level = $this->terapisLevelFromUserId($user->id);
-                
-                $displayLabel = ($level === 2) ? 'Senior Beautician' : 'Junior Beautician';
-
-                return [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'level' => $level, // 1=Junior, 2=Senior
-                    'display_label' => $displayLabel, 
-                    'initial' => substr($user->name, 0, 1),
-                ];
-            });
-
-        // 3. LOAD DOCTORS
-        $doctors = User::role('dokter')
-            ->with('dokterProfile')
-            ->whereHas('dokterProfile', function($q) {
-                $q->where('status_praktik', 'aktif');
-            })
-            ->get();
-
-        return view('appointment.create', [
-            'treatments'      => $treatments,
-            'doctors'         => $doctors,
-            'therapists_json' => $therapists->toJson(), 
-            'therapists'      => $therapists,
-            'linkedFormId'    => $linkedFormId,
-            'autoTreatments'  => $autoTreatments,
-            'autoDoctorId'    => $autoDoctorId,
-        ]);
+        // Form booking treatment lama (create.blade.php) sudah deprecated.
+        // Sekarang semua entry point (treatment list, footer, banner, deep link
+        // dari pra-konsultasi) diarahkan ke wizard 4-langkah booking-treatment.
+        // Param treatment_id, bundle_id, dan patient_form_id tetap ikut supaya
+        // wizard bisa pre-select kalau dibutuhkan ke depan.
+        $params = $request->only(['treatment_id', 'bundle_id', 'patient_form_id']);
+        return redirect()->route('appointment.booking-treatment', array_filter($params));
     }
 
     public function store(Request $request)
