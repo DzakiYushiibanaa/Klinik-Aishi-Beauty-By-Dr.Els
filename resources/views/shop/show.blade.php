@@ -95,7 +95,12 @@
                     {{-- Action Area (Add to Cart) --}}
                     <div class="mt-auto border-t border-slate-100 pt-8">
                         @if($product->stok > 0)
-                            <form method="POST" action="{{ route('cart.add', $product) }}" class="flex flex-col sm:flex-row items-center gap-4 justify-center" x-data="{ qty: 1 }">
+                            <form method="POST"
+                                  action="{{ route('cart.add', $product) }}"
+                                  data-cart-form
+                                  data-cart-name="{{ $product->nama }}"
+                                  class="flex flex-col sm:flex-row items-center gap-4 justify-center"
+                                  x-data="{ qty: 1 }">
                                 @csrf
                                 
                                 {{-- Input Qty Custom --}}

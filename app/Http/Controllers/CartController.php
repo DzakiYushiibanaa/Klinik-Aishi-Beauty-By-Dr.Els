@@ -39,23 +39,38 @@ class CartController extends Controller
         $key  = 'product_' . $product->product_id; // 🔥 Prefix agar konsisten
 
         if (isset($cart[$key])) {
-             return back()->with('info', 'Produk sudah ada di keranjang Anda.');
+            // Update qty kalau dipanggil ulang dengan jumlah berbeda (misal dari halaman detail).
+            $cart[$key]['qty'] = min(99, max((int) $cart[$key]['qty'], $qty));
+            $this->putCart($cart);
+
+            $message = 'Jumlah produk di keranjang Anda diperbarui.';
+        } else {
+            $cart[$key] = [
+                'type'       => 'product',
+                'id'         => $product->product_id,
+                'product_id' => $product->product_id,
+                'bundle_id'  => null,
+                'nama'       => $product->nama,
+                'harga'      => (int) $product->harga,
+                'berat_gram' => (int) $product->berat_gram,
+                'foto_path'  => $product->foto_path,
+                'qty'        => $qty,
+            ];
+            $this->putCart($cart);
+
+            $message = 'Produk berhasil ditambahkan ke keranjang.';
         }
 
-        $cart[$key] = [
-            'type'       => 'product',
-            'id'         => $product->product_id,
-            'product_id' => $product->product_id, 
-            'bundle_id'  => null, 
-            'nama'       => $product->nama,
-            'harga'      => (int) $product->harga,
-            'berat_gram' => (int) $product->berat_gram,
-            'foto_path'  => $product->foto_path,
-            'qty'        => $qty,
-        ];
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success'    => true,
+                'message'    => $message,
+                'name'       => $product->nama,
+                'cart_count' => collect($this->cart())->sum('qty'),
+            ]);
+        }
 
-        $this->putCart($cart);
-        return redirect()->route('cart.index')->with('success', 'Produk berhasil ditambahkan ke keranjang.');
+        return redirect()->route('cart.index')->with('success', $message);
     }
 
     // ==========================================
@@ -69,44 +84,52 @@ class CartController extends Controller
         $cart = $this->cart();
         $key  = 'bundle_' . $bundle->bundle_id;
 
-        if (isset($cart[$key])) {
-            return back()->with('info', 'Paket sudah ada di keranjang Anda.');
-        }
+        $alreadyExists = isset($cart[$key]);
 
-        // 🔥 HITUNG BERAT REAL DARI ISI BUNDLE
-        $totalBerat = 0;
-        
-        // Load relasi untuk hitung berat
-        $bundle->load(['productItems.product', 'treatmentItems.treatment']);
-        
-        foreach ($bundle->productItems as $item) {
-            if ($item->product) {
-                $totalBerat += (int)$item->product->berat_gram * (int)$item->qty;
+        if ($alreadyExists) {
+            $cart[$key]['qty'] = min(99, max((int) $cart[$key]['qty'], $qty));
+            $this->putCart($cart);
+
+            $message = 'Jumlah paket di keranjang Anda diperbarui.';
+        } else {
+            // 🔥 HITUNG BERAT REAL DARI ISI BUNDLE
+            $totalBerat = 0;
+            $bundle->load(['productItems.product', 'treatmentItems.treatment']);
+            foreach ($bundle->productItems as $item) {
+                if ($item->product) {
+                    $totalBerat += (int) $item->product->berat_gram * (int) $item->qty;
+                }
             }
+            $totalBerat = max($totalBerat, 100);
+
+            $harga = $bundle->harga_promo > 0 ? $bundle->harga_promo : $bundle->harga_normal;
+
+            $cart[$key] = [
+                'type'       => 'bundle',
+                'id'         => $bundle->bundle_id,
+                'product_id' => null,
+                'bundle_id'  => $bundle->bundle_id,
+                'nama'       => $bundle->nama,
+                'harga'      => (int) $harga,
+                'berat_gram' => $totalBerat,
+                'foto_path'  => $bundle->foto_path,
+                'qty'        => $qty,
+            ];
+            $this->putCart($cart);
+
+            $message = 'Paket hemat berhasil ditambahkan ke keranjang.';
         }
-        
-        // Treatment gak ada berat fisik, tapi kalau mau set default per treatment (optional)
-        // Misal: 1 treatment = 0 gram (karena jasa)
-        
-        // Minimal 100 gram sebagai fallback
-        $totalBerat = max($totalBerat, 100);
 
-        $harga = $bundle->harga_promo > 0 ? $bundle->harga_promo : $bundle->harga_normal;
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success'    => true,
+                'message'    => $message,
+                'name'       => $bundle->nama,
+                'cart_count' => collect($this->cart())->sum('qty'),
+            ]);
+        }
 
-        $cart[$key] = [
-            'type'       => 'bundle',
-            'id'         => $bundle->bundle_id,
-            'product_id' => null, 
-            'bundle_id'  => $bundle->bundle_id,
-            'nama'       => $bundle->nama,
-            'harga'      => (int) $harga,
-            'berat_gram' => $totalBerat, // 🔥 Berat calculated
-            'foto_path'  => $bundle->foto_path,
-            'qty'        => $qty,
-        ];
-
-        $this->putCart($cart);
-        return back()->with('success', 'Paket hemat berhasil ditambahkan ke keranjang.');
+        return back()->with('success', $message);
     }
 
     // ==========================================

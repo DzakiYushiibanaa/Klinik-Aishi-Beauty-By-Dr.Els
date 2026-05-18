@@ -158,7 +158,12 @@
                             </div>
                         @else
                             {{-- Add to Cart Form jika ada produk --}}
-                            <form action="{{ route('cart.add_bundle', $bundle) }}" method="POST" class="flex flex-col sm:flex-row items-center gap-4 justify-center" x-data="{ qty: 1 }">
+                            <form action="{{ route('cart.add_bundle', $bundle) }}"
+                                  method="POST"
+                                  data-cart-form
+                                  data-cart-name="{{ $bundle->nama }}"
+                                  class="flex flex-col sm:flex-row items-center gap-4 justify-center"
+                                  x-data="{ qty: 1 }">
                                 @csrf
                                 
                                 {{-- Input Qty Custom --}}

@@ -164,7 +164,10 @@
                                 {{-- Hover CTA (sibling, bukan nested di link) — tablet+ saja --}}
                                 @if($inStock)
                                     <div class="hidden sm:block absolute inset-x-3 bottom-3 z-20 opacity-0 translate-y-3 group-hover/card:opacity-100 group-hover/card:translate-y-0 transition-all duration-300">
-                                        <form method="POST" action="{{ route('cart.add', $p) }}">
+                                        <form method="POST"
+                                              action="{{ route('cart.add', $p) }}"
+                                              data-cart-form
+                                              data-cart-name="{{ $p->nama }}">
                                             @csrf
                                             <input type="hidden" name="qty" value="1">
                                             <button type="submit"
@@ -181,7 +184,11 @@
 
                             {{-- Mobile-only CTA bar (selalu tampil di sm bawah) --}}
                             @if($inStock)
-                                <form method="POST" action="{{ route('cart.add', $p) }}" class="sm:hidden px-3 pt-2 pb-3">
+                                <form method="POST"
+                                      action="{{ route('cart.add', $p) }}"
+                                      data-cart-form
+                                      data-cart-name="{{ $p->nama }}"
+                                      class="sm:hidden px-3 pt-2 pb-3">
                                     @csrf
                                     <input type="hidden" name="qty" value="1">
                                     <button type="submit"

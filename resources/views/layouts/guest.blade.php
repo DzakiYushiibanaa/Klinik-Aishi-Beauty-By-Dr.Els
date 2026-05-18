@@ -91,11 +91,11 @@
                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                         </svg>
-                        @if($cartCount > 0)
-                            <span class="absolute -right-2 -top-2 flex h-4 w-4 items-center justify-center rounded-full bg-[#8C7A63] text-[10px] font-bold text-white shadow-sm">
-                                {{ $cartCount > 99 ? '99+' : $cartCount }}
-                            </span>
-                        @endif
+                        <span data-cart-count
+                              class="absolute -right-2 -top-2 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-[#8C7A63] text-[10px] font-bold text-white shadow-sm"
+                              @if($cartCount === 0) style="display:none" @endif>
+                            {{ $cartCount > 99 ? '99+' : $cartCount }}
+                        </span>
                     </a>
                 @endif
 
@@ -159,9 +159,9 @@
                 @if (\Illuminate\Support\Facades\Route::has('cart.index'))
                     <a href="{{ route('cart.index') }}" class="relative text-[#1A1A1A]">
                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
-                        @if($cartCount > 0)
-                            <span class="absolute -right-2 -top-2 flex h-4 w-4 items-center justify-center rounded-full bg-[#8C7A63] text-[10px] font-bold text-white shadow-sm">{{ $cartCount > 99 ? '99+' : $cartCount }}</span>
-                        @endif
+                        <span data-cart-count
+                              class="absolute -right-2 -top-2 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-[#8C7A63] text-[10px] font-bold text-white shadow-sm"
+                              @if($cartCount === 0) style="display:none" @endif>{{ $cartCount > 99 ? '99+' : $cartCount }}</span>
                     </a>
                 @endif
 
@@ -347,6 +347,7 @@
     
     <x-toast />
     <x-confirm-dialog />
+    <x-cart-success-modal />
 
 </body>
 </html>
