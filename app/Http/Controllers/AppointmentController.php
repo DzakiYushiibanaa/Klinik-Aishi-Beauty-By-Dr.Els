@@ -330,52 +330,116 @@ class AppointmentController extends Controller
         $request->validate([
             'jenis' => 'required|string',
             'dokter_id' => 'required|exists:users,id',
-            'tanggal' => 'required|date',
+            'tanggal' => 'required|date|after_or_equal:today',
             'jam' => 'required|string',
         ]);
 
         $user = Auth::user();
 
-        // Buat record Appointment & Item dalam Transaction
-        $appointment = \Illuminate\Support\Facades\DB::transaction(function () use ($user, $request) {
-            $appointment = Appointment::create([
-                'user_id' => $user->id,
-                'dokter_id' => $request->dokter_id,
-                'dibuat_oleh_id' => $user->id,
-                'jenis' => 'konsultasi',
-                'sumber' => 'online',
-                'tanggal_jam' => $request->tanggal . ' ' . str_replace('.', ':', substr($request->jam, 0, 5)) . ':00',
-                'status' => 'diajukan',
-                'catatan_pasien' => 'Konsultasi Dokter (' . ucfirst($request->jenis) . ')',
-            ]);
+        $tanggalJam = $request->tanggal . ' ' . str_replace('.', ':', substr($request->jam, 0, 5)) . ':00';
 
-            // Cari ID konsultasi berdasarkan jenis
-            $konsultasiNama = strtolower($request->jenis) === 'awal' ? 'Konsultasi Awal' : 'Konsultasi Lanjutan';
-            $consultation = \App\Models\Consultation::where('nama', $konsultasiNama)->first();
+        // ─────────────────────────────────────────
+        // 1. Cek apakah slot ini sudah diambil dokter+jam yg sama
+        //    (1 dokter pada tanggal_jam yang sama hanya untuk 1 pasien)
+        // ─────────────────────────────────────────
+        $alreadyTaken = Appointment::where('dokter_id', $request->dokter_id)
+            ->where('tanggal_jam', $tanggalJam)
+            ->where('jenis', 'konsultasi')
+            ->whereNotIn('status', ['batal', 'tidak_hadir'])
+            ->exists();
 
-            if ($consultation) {
-                \App\Models\AppointmentItem::create([
-                    'appointment_id' => $appointment->appointment_id,
-                    'item_type' => 'consultation',
-                    'consultation_id' => $consultation->consultation_id,
-                    'qty' => 1,
+        if ($alreadyTaken) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Slot ini baru saja diambil pasien lain. Silakan pilih jam lain.',
+            ], 422);
+        }
+
+        try {
+            $appointment = \Illuminate\Support\Facades\DB::transaction(function () use ($user, $request, $tanggalJam) {
+
+                // Lock baris untuk mencegah race condition
+                $taken = Appointment::where('dokter_id', $request->dokter_id)
+                    ->where('tanggal_jam', $tanggalJam)
+                    ->where('jenis', 'konsultasi')
+                    ->whereNotIn('status', ['batal', 'tidak_hadir'])
+                    ->lockForUpdate()
+                    ->exists();
+
+                if ($taken) {
+                    throw new \Exception('SLOT_TAKEN');
+                }
+
+                $appointment = Appointment::create([
+                    'user_id'        => $user->id,
+                    'dokter_id'      => $request->dokter_id,
+                    'dibuat_oleh_id' => $user->id,
+                    'jenis'          => 'konsultasi',
+                    'sumber'         => 'online',
+                    'tanggal_jam'    => $tanggalJam,
+                    'status'         => 'diajukan',
+                    'catatan_pasien' => 'Konsultasi Dokter (' . ucfirst($request->jenis) . ')',
                 ]);
+
+                $konsultasiNama = strtolower($request->jenis) === 'awal' ? 'Konsultasi Awal' : 'Konsultasi Lanjutan';
+                $consultation   = \App\Models\Consultation::where('nama', $konsultasiNama)->first();
+
+                if ($consultation) {
+                    \App\Models\AppointmentItem::create([
+                        'appointment_id'  => $appointment->appointment_id,
+                        'item_type'       => 'consultation',
+                        'consultation_id' => $consultation->consultation_id,
+                        'qty'             => 1,
+                    ]);
+                }
+
+                return $appointment;
+            });
+        } catch (\Exception $e) {
+            if ($e->getMessage() === 'SLOT_TAKEN') {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'Slot ini baru saja diambil pasien lain. Silakan pilih jam lain.',
+                ], 422);
             }
 
-            return $appointment;
-        });
+            \Illuminate\Support\Facades\Log::error('submitKonsultasi: ' . $e->getMessage());
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Gagal membuat janji temu. Silakan coba lagi.',
+            ], 500);
+        }
 
-        // Simpan data, kirim notifikasi, dll.
-        // Bisa diintegrasikan ke WA/Email di sini (contoh: SendWAJob::dispatch($appointment))
-
-        // Set session untuk Toast di halaman Dashboard nanti
         session()->flash('success', 'Janji Temu Berhasil Dibuat! Silakan cek WhatsApp/Email Anda.');
 
-        // Kembalikan response JSON untuk ditangkap oleh AlpineJS
         return response()->json([
-            'status' => 'success',
+            'status'  => 'success',
             'message' => 'Janji temu berhasil dibuat.',
-            'data' => $appointment
+            'data'    => $appointment,
+        ]);
+    }
+
+    /**
+     * Cek slot konsultasi yang sudah ter-booking untuk dokter & tanggal tertentu.
+     * Dipakai oleh wizard konsultasi blade untuk men-disable slot yang sudah penuh.
+     */
+    public function checkKonsultasiSlots(Request $request)
+    {
+        $request->validate([
+            'dokter_id' => 'required|exists:users,id',
+            'tanggal'   => 'required|date',
+        ]);
+
+        $bookedTimes = Appointment::where('dokter_id', $request->dokter_id)
+            ->where('jenis', 'konsultasi')
+            ->whereDate('tanggal_jam', $request->tanggal)
+            ->whereNotIn('status', ['batal', 'tidak_hadir'])
+            ->pluck('tanggal_jam')
+            ->map(fn ($dt) => \Carbon\Carbon::parse($dt)->format('H:i'))
+            ->values();
+
+        return response()->json([
+            'booked' => $bookedTimes,
         ]);
     }
 

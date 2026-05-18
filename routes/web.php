@@ -110,6 +110,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/appointment/booking-treatment', [AppointmentController::class, 'bookingTreatment'])->name('appointment.booking-treatment');
     Route::post('/appointment/booking-treatment', [AppointmentController::class, 'submitBookingTreatment'])->name('appointment.booking-treatment.store');
     Route::get('/appointment/booking-treatment/check-slots', [AppointmentController::class, 'checkSlotAvailability'])->name('appointment.booking-treatment.check-slots');
+    Route::get('/appointment/konsultasi/check-slots', [AppointmentController::class, 'checkKonsultasiSlots'])->name('appointment.konsultasi.check-slots');
     // Halaman Form Booking (lama/treatment)
     Route::get('/appointment/buat', [AppointmentController::class, 'create'])->name('appointment.create');
     // Proses Simpan Booking

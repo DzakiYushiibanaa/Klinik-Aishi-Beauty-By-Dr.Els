@@ -161,11 +161,22 @@
 
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                             <template x-for="timeSlot in availableTimes" :key="timeSlot.value">
-                                <label :class="timeSlot.isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'">
+                                <label :class="timeSlot.isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'">
                                     <input type="radio" name="jam" :value="timeSlot.value" x-model="jam" class="peer sr-only" :disabled="timeSlot.isDisabled">
-                                    <div class="py-3.5 px-4 rounded-xl text-sm font-medium border transition-all text-center"
-                                        :class="timeSlot.isDisabled ? 'bg-gray-100 border-gray-200 text-gray-400' : (jam === timeSlot.value ? 'border-[#3B3529] bg-[#FAF8F5] text-[#1A1A1A] font-bold shadow-sm' : 'border-gray-200 bg-white text-gray-500 hover:border-[#8C7A63]')">
-                                        <span x-text="timeSlot.value"></span>
+                                    <div class="py-3 px-4 rounded-xl text-sm font-medium border transition-all text-center"
+                                         :class="
+                                            timeSlot.isBooked
+                                                ? 'bg-rose-50 border-rose-200 text-rose-400'
+                                                : (timeSlot.isPast
+                                                    ? 'bg-gray-50 border-gray-100 text-gray-300'
+                                                    : (jam === timeSlot.value
+                                                        ? 'border-[#3B3529] bg-[#FAF8F5] text-[#1A1A1A] font-bold shadow-sm'
+                                                        : 'border-gray-200 bg-white text-gray-500 hover:border-[#8C7A63]'))">
+                                        <span class="block" x-text="timeSlot.value"></span>
+                                        <span x-show="timeSlot.isDisabled"
+                                              class="block text-[10px] font-bold uppercase tracking-widest mt-0.5"
+                                              :class="timeSlot.isBooked ? 'text-rose-500' : 'text-gray-400'"
+                                              x-text="timeSlot.statusLabel"></span>
                                     </div>
                                 </label>
                             </template>
@@ -424,6 +435,34 @@ function konsultasiWizard() {
         // Data jadwal dari backend
         jadwalData: @json($jadwals),
 
+        // Slot yang sudah ter-booking untuk dokter+tanggal yang dipilih.
+        // Format: array of "HH:MM" (24-jam).
+        bookedSlots: [],
+        loadingBooked: false,
+
+        async fetchBookedSlots() {
+            if (!this.dokterId || !this.tanggal) {
+                this.bookedSlots = [];
+                return;
+            }
+            this.loadingBooked = true;
+            try {
+                const url = `{{ route('appointment.konsultasi.check-slots') }}?dokter_id=${this.dokterId}&tanggal=${this.tanggal}`;
+                const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+                const data = await res.json();
+                this.bookedSlots = Array.isArray(data.booked) ? data.booked : [];
+            } catch (e) {
+                this.bookedSlots = [];
+            }
+            this.loadingBooked = false;
+        },
+
+        init() {
+            // Auto re-fetch slot terbooking saat ganti dokter atau tanggal
+            this.$watch('dokterId', () => { this.jam = ''; this.fetchBookedSlots(); });
+            this.$watch('tanggal',  () => { this.jam = ''; this.fetchBookedSlots(); });
+        },
+
         get currentMonthYear() {
             const today = new Date();
             const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -483,20 +522,24 @@ function konsultasiWizard() {
             while (current < end) {
                 const nextTime = new Date(current);
                 nextTime.setMinutes(current.getMinutes() + duration);
-                
+
                 const startH = current.getHours().toString().padStart(2, '0');
                 const startM = current.getMinutes().toString().padStart(2, '0');
                 const endH = nextTime.getHours().toString().padStart(2, '0');
                 const endM = nextTime.getMinutes().toString().padStart(2, '0');
-                
-                // Compare times based on full Date objects to see if it has passed
+
                 const isPast = current < now;
-                
+                const slotKey = `${startH}:${startM}`;
+                const isBooked = this.bookedSlots.includes(slotKey);
+
                 times.push({
                     value: `${startH}.${startM} - ${endH}.${endM}`,
-                    isDisabled: isPast
+                    isPast: isPast,
+                    isBooked: isBooked,
+                    isDisabled: isPast || isBooked,
+                    statusLabel: isBooked ? 'Penuh' : (isPast ? 'Lewat' : 'Tersedia'),
                 });
-                
+
                 current = nextTime;
             }
             return times;
@@ -546,6 +589,7 @@ function konsultasiWizard() {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Accept': 'application/json',
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'
                     },
                     body: JSON.stringify({
@@ -556,11 +600,21 @@ function konsultasiWizard() {
                     })
                 });
 
-                if (response.ok || response.redirected) {
+                let data = null;
+                try { data = await response.json(); } catch (_) {}
+
+                if (response.ok && data && data.status === 'success') {
                     this.redirectUrl = response.url || '/dashboard?tab=appointment';
                     this.showModal = true;
+                } else if (response.status === 422 && data && data.message) {
+                    // Slot bentrok / sudah diambil pasien lain. Refresh booked slots
+                    // dan kembali ke step jadwal.
+                    window.showToast && window.showToast('warning', data.message, 'Slot Tidak Tersedia');
+                    await this.fetchBookedSlots();
+                    this.jam = '';
+                    this.step = 3;
                 } else {
-                    window.showToast && window.showToast('error', 'Terjadi kesalahan saat memproses janji temu. Silakan coba lagi.', 'Gagal');
+                    window.showToast && window.showToast('error', (data && data.message) || 'Terjadi kesalahan saat memproses janji temu. Silakan coba lagi.', 'Gagal');
                 }
             } catch (error) {
                 window.showToast && window.showToast('error', 'Terjadi kesalahan koneksi. Silakan periksa jaringan Anda.', 'Gagal Terhubung');
