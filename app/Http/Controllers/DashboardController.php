@@ -327,6 +327,17 @@ class DashboardController extends Controller
             });
 
             Log::info('Profile updated successfully', ['user_id' => $user->id]);
+
+            // Setelah profil disimpan, kalau user tadi di-redirect ke sini karena
+            // profil belum lengkap saat mau booking, antar dia balik ke flow itu.
+            $user->refresh();
+            $intended = session('profile_required_redirect');
+
+            if ($intended && $user->phone && $user->tanggal_lahir) {
+                session()->forget('profile_required_redirect');
+                return redirect($intended)->with('success', 'Profil berhasil diperbarui. Silakan lanjutkan janji temu Anda.');
+            }
+
             return back()->with('success', 'Profil berhasil diperbarui.');
             
         } catch (\Exception $e) {

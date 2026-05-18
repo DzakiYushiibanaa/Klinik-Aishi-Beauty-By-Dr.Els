@@ -22,7 +22,11 @@ class TreatmentCategoryResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'nama';
 
-    protected static bool $shouldRegisterNavigation = false;
+    protected static ?string $navigationLabel = 'Kategori Treatment';
+
+    protected static ?string $modelLabel = 'Kategori Treatment';
+
+    protected static ?string $pluralLabel = 'Kategori Treatment';
 
     public static function form(Schema $schema): Schema
     {

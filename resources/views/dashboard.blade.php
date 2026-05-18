@@ -341,6 +341,9 @@
 {{-- Scripts --}}
 @include('dashboard.scripts')
 
+{{-- Modal: profil belum lengkap (auto-show kalau session flag aktif) --}}
+<x-profile-required-modal />
+
 {{-- Midtrans Snap Script for Modal Payment --}}
 <script src="https://app.{{ config('midtrans.is_production') ? '' : 'sandbox.' }}midtrans.com/snap/snap.js" data-client-key="{{ config('midtrans.client_key') }}"></script>
 

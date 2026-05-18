@@ -28,12 +28,19 @@ class AppointmentController extends Controller
         return view('appointment.select-type');
     }
 
-    public function bookingTreatment()
+    public function bookingTreatment(Request $request)
     {
         $user = Auth::user();
 
         if (!$user->phone || !$user->tanggal_lahir) {
-            return redirect('/dashboard')->with('error', 'Mohon lengkapi Nomor WhatsApp dan Tanggal Lahir di tab Profil sebelum membuat janji temu.')->with('active_tab', 'profile');
+            // Simpan URL tujuan ke session (persisten lintas request) supaya
+            // setelah profil dilengkapi user bisa langsung kembali ke flow ini.
+            session(['profile_required_redirect' => $request->fullUrl()]);
+
+            return redirect('/dashboard')
+                ->with('error', 'Mohon lengkapi Nomor WhatsApp dan Tanggal Lahir di tab Profil sebelum membuat janji temu.')
+                ->with('active_tab', 'profile')
+                ->with('show_profile_required_modal', true);
         }
 
         $treatments = Treatment::with('category')
@@ -284,13 +291,18 @@ class AppointmentController extends Controller
         }
     }
 
-    public function konsultasi()
+    public function konsultasi(Request $request)
     {
         $user = Auth::user();
         
         // Pengecekan Kelengkapan Profil
         if (!$user->phone || !$user->tanggal_lahir) {
-            return redirect('/dashboard')->with('error', 'Mohon lengkapi Nomor WhatsApp dan Tanggal Lahir di tab Profil sebelum membuat janji temu.')->with('active_tab', 'profile');
+            session(['profile_required_redirect' => $request->fullUrl()]);
+
+            return redirect('/dashboard')
+                ->with('error', 'Mohon lengkapi Nomor WhatsApp dan Tanggal Lahir di tab Profil sebelum membuat janji temu.')
+                ->with('active_tab', 'profile')
+                ->with('show_profile_required_modal', true);
         }
 
         // Dummy data for Doctors (since we need them for Step 2)
