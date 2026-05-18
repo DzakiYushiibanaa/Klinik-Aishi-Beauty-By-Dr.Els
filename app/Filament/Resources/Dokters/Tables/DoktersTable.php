@@ -10,6 +10,7 @@ use Filament\Actions\EditAction;
 use Filament\Support\Enums\Alignment;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -74,22 +75,14 @@ class DoktersTable
                     ->formatStateUsing(fn ($state) => ($state ?? 0) . ' Tahun')
                     ->sortable(),
 
-                TextColumn::make('status_praktik')
-                    ->label('STATUS PRAKTIK')
-                    ->html()
-                    ->state(function (Dokter $record) {
-                        $isActive = strtolower($record->status_praktik ?? '') === 'aktif';
-                        if ($isActive) {
-                            return '<span style="display:inline-flex; align-items:center; gap:6px; padding:4px 12px; border-radius:9999px; background:#F5E6D3; color:#7A5A3A; font-size:0.8125rem; font-weight:500;">
-                                <span style="width:6px; height:6px; border-radius:9999px; background:#B8956F;"></span>
-                                Aktif
-                            </span>';
-                        }
-                        return '<span style="display:inline-flex; align-items:center; gap:6px; padding:4px 12px; border-radius:9999px; background:#FEE2E2; color:#991B1B; font-size:0.8125rem; font-weight:500;">
-                            <span style="width:6px; height:6px; border-radius:9999px; background:#DC2626;"></span>
-                            Nonaktif
-                        </span>';
-                    }),
+                ToggleColumn::make('status_praktik')
+                    ->label('Status Praktik')
+                    ->getStateUsing(fn (Dokter $record) => strtolower($record->status_praktik ?? '') === 'aktif')
+                    ->updateStateUsing(function (Dokter $record, bool $state) {
+                        $record->update(['status_praktik' => $state ? 'aktif' : 'nonaktif']);
+                        return $state;
+                    })
+                    ->sortable(),
             ])
             ->filters([
                 //
