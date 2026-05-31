@@ -23,6 +23,12 @@
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
+        {{-- HEADER --}}
+        <div class="mb-8">
+            <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-[#1A1A1A]">Keranjang</h1>
+            <p class="text-sm text-slate-500 mt-1">Tinjau pesanan Anda sebelum lanjut ke pembayaran.</p>
+        </div>
+
         @if (empty($cart))
             {{-- Empty State --}}
             <div class="rounded-3xl border border-[#E8E0D8] bg-white p-12 sm:p-16 text-center shadow-sm flex flex-col items-center justify-center">
@@ -199,7 +205,7 @@
                                         <div class="flex-1 min-w-0">
                                             <p class="text-sm font-semibold text-[#1A1A1A] line-clamp-2 leading-snug">{{ $item['nama'] }}</p>
                                             <span class="inline-flex items-center justify-center mt-1 rounded-md bg-[#CFAF53]/10 text-[#CFAF53] text-[11px] font-extrabold px-1.5 h-5">
-                                                {{ (int) $item['qty'] }}× qty
+                                                {{ (int) $item['qty'] }}×
                                             </span>
                                         </div>
                                         <span class="shrink-0 text-sm font-bold text-[#1A1A1A] tabular-nums">

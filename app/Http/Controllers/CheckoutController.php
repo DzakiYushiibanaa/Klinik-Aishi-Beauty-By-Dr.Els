@@ -27,7 +27,19 @@ class CheckoutController extends Controller
         
         $subtotal = collect($cart)->sum(fn ($i) => (int)$i['harga'] * (int)$i['qty']);
         $pasien = auth()->user()->pasienProfile ?? null;
-        
+
+        // Kalau profil belum lengkap, simpan URL ini supaya setelah profil
+        // disimpan user bisa langsung balik ke checkout dengan cart utuh.
+        $userPhone = auth()->user()->phone ?? null;
+        $missingProfile = !$pasien
+            || empty($userPhone)
+            || empty($pasien->district_id)
+            || empty($pasien->alamat);
+
+        if ($missingProfile) {
+            session(['profile_required_redirect' => url()->current()]);
+        }
+
         return view('checkout.index', compact('cart', 'subtotal', 'pasien'));
     }
 
@@ -215,8 +227,22 @@ class CheckoutController extends Controller
         }
 
         $pasien = auth()->user()->pasienProfile;
-        if (!$pasien || !$pasien->district_id) {
-            return redirect()->route('dashboard')->with('error', 'Mohon lengkapi alamat di profil Anda sebelum melanjutkan pembayaran.')->with('active_tab', 'profile');
+        $userPhone = auth()->user()->phone ?? null;
+
+        $missingProfile = !$pasien
+            || empty($userPhone)
+            || empty($pasien->district_id)
+            || empty($pasien->alamat);
+
+        if ($missingProfile) {
+            // Simpan URL keranjang supaya user balik ke cart setelah lengkapi profil.
+            // Cart session TIDAK disentuh — produk tetap aman.
+            session(['profile_required_redirect' => route('cart.index')]);
+
+            return redirect()
+                ->route('dashboard', ['tab' => 'profile'])
+                ->with('error', 'Lengkapi nomor HP dan alamat pengiriman di profil Anda terlebih dahulu sebelum melanjutkan pembayaran.')
+                ->with('active_tab', 'profile');
         }
 
         DB::beginTransaction();
@@ -288,6 +314,8 @@ class CheckoutController extends Controller
             ]);
 
             // 4. Simpan Item (Safety Check lagi)
+            $stockDeducted = false;
+
             foreach ($cart as $item) {
                 $type = $item['type'] ?? 'product'; // Default product biar aman
                 $qty  = (int)($item['qty'] ?? 1);
@@ -317,7 +345,10 @@ class CheckoutController extends Controller
                 // Kurangi Stok Produk
                 if ($type === 'product' && $productId) {
                     $prod = Product::find($productId);
-                    if ($prod) $prod->decrement('stok', $qty);
+                    if ($prod) {
+                        $prod->decrement('stok', $qty);
+                        $stockDeducted = true;
+                    }
                 }
                 
                 // Kurangi Stok Bundle (Opsional: Jika stok bundle diambil dari produk item)
@@ -327,10 +358,15 @@ class CheckoutController extends Controller
                         foreach ($bundle->productItems as $bItem) {
                             if($bItem->product) {
                                 $bItem->product->decrement('stok', $bItem->qty * $qty);
+                                $stockDeducted = true;
                             }
                         }
                     }
                 }
+            }
+
+            if ($stockDeducted) {
+                $order->update(['is_stock_deducted' => true]);
             }
 
             DB::commit();

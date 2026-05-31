@@ -28,3 +28,7 @@ Thumbs.db
 .agent/
 rr
 .rr.yaml
+cloudflared.yml
+
+# Local development scripts
+start-dev.bat

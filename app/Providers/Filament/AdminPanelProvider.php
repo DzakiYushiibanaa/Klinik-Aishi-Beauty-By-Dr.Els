@@ -113,6 +113,14 @@ class AdminPanelProvider extends PanelProvider
                 ')
             )
             ->renderHook(
+                \Filament\View\PanelsRenderHook::GLOBAL_SEARCH_BEFORE,
+                fn (): \Illuminate\View\View => view('filament.partials.global-search-trigger'),
+            )
+            ->renderHook(
+                \Filament\View\PanelsRenderHook::BODY_END,
+                fn (): \Illuminate\View\View => view('filament.partials.global-search'),
+            )
+            ->renderHook(
                 \Filament\View\PanelsRenderHook::HEAD_END,
                 fn (): string => \Illuminate\Support\Facades\Blade::render('
                     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -268,13 +276,69 @@ class AdminPanelProvider extends PanelProvider
                         
                         /* Modal sticky footer styling */
                         .fi-modal-footer {
+                            /* Stick ke bawah modal/slide-over secara nyata. */
+                            position: sticky !important;
+                            bottom: 0 !important;
+                            z-index: 50 !important;
+                            margin: 0 !important;
+                            width: 100% !important;
+
                             background-color: #FFFFFF !important;
                             border-top: 1px solid #F0EBE1 !important;
                             border-radius: 0 0 1.25rem 1.25rem !important;
+
+                            /* Padding lebih nyaman supaya tombol punya napas dari content. */
+                            padding: 1rem 1.5rem !important;
+
+                            /* Subtle shadow di atas footer untuk pemisah visual,
+                             * terasa lebih premium saat content di-scroll. */
+                            box-shadow: 0 -8px 24px -12px rgba(26, 26, 26, 0.12) !important;
+
+                            /* Action group rata kanan dengan gap konsisten. */
+                            display: flex !important;
+                            align-items: center !important;
+                            justify-content: flex-end !important;
+                            gap: 0.75rem !important;
+                            flex-wrap: wrap !important;
                         }
                         .dark .fi-modal-footer {
                             background-color: #241E1B !important;
                             border-top-color: #332C27 !important;
+                            box-shadow: 0 -8px 24px -12px rgba(0, 0, 0, 0.4) !important;
+                        }
+
+                        /* Modal/slide-over container: hilangkan scroll di window-nya
+                         * supaya yang scroll adalah content; footer auto-sticky di bawah. */
+                        .fi-modal-window {
+                            overflow: hidden !important;
+                        }
+                        .fi-modal .fi-modal-content,
+                        .fi-modal-window .fi-modal-content {
+                            overflow-y: auto !important;
+                            padding-bottom: 2rem !important;
+                        }
+
+                        /* Tombol di footer: tinggi konsisten 42px, padding nyaman, min-width agar
+                         * tombol secondary "Batal" tidak terlalu sempit. */
+                        .fi-modal-footer .fi-btn {
+                            min-height: 2.625rem !important;
+                            padding-left: 1.25rem !important;
+                            padding-right: 1.25rem !important;
+                            min-width: 5.5rem !important;
+                            font-weight: 600 !important;
+                        }
+
+                        /* Mobile: tombol stack vertical full-width supaya gampang ditekan. */
+                        @media (max-width: 480px) {
+                            .fi-modal-footer {
+                                flex-direction: column-reverse !important;
+                                align-items: stretch !important;
+                                gap: 0.5rem !important;
+                            }
+                            .fi-modal-footer .fi-btn {
+                                width: 100% !important;
+                                justify-content: center !important;
+                            }
                         }
 
                         /* ---------- INPUTS & TOGGLE BUTTONS ---------- */
@@ -463,8 +527,35 @@ class AdminPanelProvider extends PanelProvider
 
                         /* ---------- TOPBAR ---------- */
                         .fi-topbar {
-                            background-color: #2C2622 !important;
-                            border-bottom: 1px solid rgba(255,255,255,0.06) !important;
+                            background: linear-gradient(180deg, #2C2622 0%, #251F1B 100%) !important;
+                            border-bottom: 1px solid rgba(255,255,255,0.05) !important;
+                            box-shadow: 0 1px 4px rgba(0,0,0,0.18) !important;
+                        }
+
+                        /* Make topbar taller, with proper alignment */
+                        .fi-topbar > nav,
+                        .fi-topbar nav {
+                            min-height: 4.25rem !important;
+                            padding-left: 1.25rem !important;
+                            padding-right: 1.5rem !important;
+                            display: flex !important;
+                            align-items: center !important;
+                            gap: 1rem !important;
+                        }
+                        @media (min-width: 1024px) {
+                            .fi-topbar > nav,
+                            .fi-topbar nav {
+                                padding-left: 1.75rem !important;
+                                padding-right: 2rem !important;
+                            }
+                        }
+
+                        /* Right side cluster: gentle gap between items */
+                        .fi-topbar-end {
+                            display: flex !important;
+                            align-items: center !important;
+                            gap: 0.75rem !important;
+                            margin-left: auto !important;
                         }
 
                         /* Topbar sidebar toggle buttons */
@@ -473,45 +564,85 @@ class AdminPanelProvider extends PanelProvider
                         .fi-topbar-open-collapse-sidebar-btn,
                         .fi-topbar-close-collapse-sidebar-btn {
                             color: #C8C0B8 !important;
+                            border-radius: 0.625rem !important;
+                            transition: all 180ms ease !important;
                         }
                         .fi-topbar-open-sidebar-btn:hover,
                         .fi-topbar-close-sidebar-btn:hover,
                         .fi-topbar-open-collapse-sidebar-btn:hover,
                         .fi-topbar-close-collapse-sidebar-btn:hover {
                             color: #FAF9F6 !important;
-                            background-color: rgba(255, 255, 255, 0.06) !important;
+                            background-color: rgba(184, 149, 111, 0.12) !important;
                         }
 
                         /* Brand logo in topbar */
                         .fi-topbar .fi-logo,
                         .fi-topbar-start .fi-logo {
                             font-family: \'Playfair Display\', serif !important;
-                            font-size: 1.25rem !important;
+                            font-size: 1.35rem !important;
                             color: #FAF9F6 !important;
                             font-weight: 500 !important;
+                            letter-spacing: 0.005em !important;
+                            line-height: 1.1 !important;
                         }
 
                         /* Topbar right-side icons (notifications, user menu) */
                         .fi-topbar-end .fi-icon-btn {
+                            width: 2.5rem !important;
+                            height: 2.5rem !important;
+                            border-radius: 9999px !important;
                             color: #C8C0B8 !important;
+                            transition: all 180ms ease !important;
                         }
                         .fi-topbar-end .fi-icon-btn:hover {
                             color: #FAF9F6 !important;
-                            background-color: rgba(255, 255, 255, 0.06) !important;
+                            background-color: rgba(184, 149, 111, 0.14) !important;
+                            transform: translateY(-1px) !important;
+                        }
+                        .fi-topbar-end .fi-icon-btn svg {
+                            width: 1.25rem !important;
+                            height: 1.25rem !important;
                         }
 
-                        /* User menu button */
+                        /* Notification badge — smaller & precise */
+                        .fi-topbar-database-notifications-badge,
+                        .fi-icon-btn .fi-badge,
+                        .fi-icon-btn-badge {
+                            min-width: 1.125rem !important;
+                            height: 1.125rem !important;
+                            padding: 0 0.3125rem !important;
+                            font-size: 0.625rem !important;
+                            font-weight: 700 !important;
+                            border: 2px solid #2C2622 !important;
+                            border-radius: 9999px !important;
+                            top: -0.125rem !important;
+                            right: -0.125rem !important;
+                        }
+
+                        /* User menu trigger */
                         .fi-topbar .fi-user-menu-trigger,
                         .fi-topbar .fi-dropdown-trigger {
                             color: #C8C0B8 !important;
+                            transition: all 180ms ease !important;
                         }
                         .fi-topbar .fi-user-menu-trigger:hover {
                             color: #FAF9F6 !important;
                         }
 
-                        /* Avatar ring */
-                        .fi-topbar .fi-avatar {
-                            border: 2px solid rgba(184, 149, 111, 0.3) !important;
+                        /* Avatar in topbar — premium ring */
+                        .fi-topbar .fi-avatar,
+                        .fi-topbar-end .fi-avatar {
+                            width: 2.25rem !important;
+                            height: 2.25rem !important;
+                            border: 2px solid rgba(184, 149, 111, 0.45) !important;
+                            box-shadow: 0 0 0 2px rgba(28, 22, 18, 0.5),
+                                        0 4px 10px -2px rgba(0, 0, 0, 0.35) !important;
+                            transition: all 200ms ease !important;
+                        }
+                        .fi-topbar .fi-avatar:hover,
+                        .fi-topbar-end .fi-avatar:hover {
+                            border-color: #B8956F !important;
+                            transform: scale(1.05) !important;
                         }
 
                         /* ---------- BREADCRUMBS ---------- */
@@ -675,12 +806,11 @@ class AdminPanelProvider extends PanelProvider
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([
-                Dashboard::class,
+                \App\Filament\Pages\OverviewDashboard::class,
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
-                AccountWidget::class,
-                FilamentInfoWidget::class,
+                // Custom dashboard renders content via blade, not widgets.
             ])
             ->middleware([
                 EncryptCookies::class,
@@ -696,6 +826,7 @@ class AdminPanelProvider extends PanelProvider
             ->unsavedChangesAlerts()
             ->authMiddleware([
                 Authenticate::class,
+                \App\Http\Middleware\RedirectNonStaffFromAdmin::class,
             ]);
             
     }

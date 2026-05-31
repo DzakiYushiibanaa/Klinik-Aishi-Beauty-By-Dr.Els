@@ -604,7 +604,12 @@ function konsultasiWizard() {
                 try { data = await response.json(); } catch (_) {}
 
                 if (response.ok && data && data.status === 'success') {
-                    this.redirectUrl = response.url || '/dashboard?tab=appointment';
+                    // Bangun URL ke tab Janji Temu di dashboard. Pakai appointment_id
+                    // dari response supaya card yang baru dibuat langsung di-highlight.
+                    const aptId = data?.appointment_id ?? data?.data?.appointment_id ?? '';
+                    this.redirectUrl = aptId
+                        ? `/dashboard?tab=appointment&highlight=${aptId}`
+                        : '/dashboard?tab=appointment';
                     this.showModal = true;
                 } else if (response.status === 422 && data && data.message) {
                     // Slot bentrok / sudah diambil pasien lain. Refresh booked slots

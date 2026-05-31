@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Appointment;
 use App\Models\Order;
+use App\Services\FonnteService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -214,8 +215,8 @@ class PaymentController extends Controller
                 return response()->json(['message' => 'Order not found'], 404);
             }
 
-            // Idempotency: Jika sudah lunas, skip processing
-            if (in_array($order->status, ['sudah_dibayar', 'lunas'])) {
+            // Idempotency: Jika sudah dibayar, skip processing
+            if ($order->status === 'sudah_dibayar') {
                 Log::info('Midtrans Webhook: Order already paid, skipping', ['kode_order' => $realOrderId]);
                 return response()->json(['status' => 'already_processed']);
             }
@@ -379,7 +380,7 @@ class PaymentController extends Controller
     }
 
     /**
-     * Logic Utama Set Order Lunas (Dipanggil Webhook & Redirect Success)
+     * Logic Utama Set Order Sudah Dibayar (Dipanggil Webhook & Redirect Success)
      *
      * @param Order       $order
      * @param string      $paymentType     payment_type dari Midtrans
@@ -390,7 +391,7 @@ class PaymentController extends Controller
      */
     private function setOrderPaid($order, $paymentType, $paymentChannel, $trxId, $midtransOrderId, $paidAt = null)
     {
-        if ($order->status !== 'sudah_dibayar' && $order->status !== 'lunas') {
+        if ($order->status !== 'sudah_dibayar') {
             DB::transaction(function () use ($order, $paymentType, $paymentChannel, $trxId, $midtransOrderId, $paidAt) {
 
                 // 1. Update Status Order
@@ -416,7 +417,7 @@ class PaymentController extends Controller
                             ->whereIn('status', ['menunggu_pembayaran', 'diajukan'])
                             ->update([
                                 'status'             => 'disetujui',
-                                'payment_expired_at' => null, // hapus deadline karena sudah lunas
+                                'payment_expired_at' => null, // hapus deadline karena sudah dibayar
                             ]);
 
                         Log::info('Appointment(s) disetujui setelah payment sukses', [
@@ -457,6 +458,17 @@ class PaymentController extends Controller
                     }
                 }
             });
+
+            // 🔔 WhatsApp ke pasien — kirim setelah transaksi commit (best-effort).
+            try {
+                $orderForWa = Order::with(['user.pasienProfile', 'items'])
+                    ->find($order->order_id);
+                if ($orderForWa) {
+                    app(FonnteService::class)->sendPaymentConfirmed($orderForWa);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Fonnte WA send gagal (payment confirmed): '.$e->getMessage());
+            }
         }
     }
 

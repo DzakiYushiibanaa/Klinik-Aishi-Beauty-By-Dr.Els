@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            return;
+        }
+
         DB::statement("ALTER TABLE appointment_items MODIFY COLUMN item_type ENUM('treatment', 'bundle', 'consultation') NOT NULL");
     }
 
@@ -19,6 +23,10 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            return;
+        }
+
         DB::statement("ALTER TABLE appointment_items MODIFY COLUMN item_type ENUM('treatment', 'bundle') NOT NULL");
     }
 };

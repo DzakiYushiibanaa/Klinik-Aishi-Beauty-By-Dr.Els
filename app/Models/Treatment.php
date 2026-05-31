@@ -9,12 +9,11 @@ class Treatment extends Model
     protected $primaryKey = 'treatment_id';
     protected $fillable = [
         'treatment_category_id','nama','deskripsi','harga',
-        'durasi_menit','foto_path','is_active','min_level',
+        'durasi_menit','foto_path','is_active',
     ];
 
     protected $casts = [
-    'is_active' => 'boolean',
-    'min_level' => 'integer', 
+        'is_active' => 'boolean',
     ];
 
     public function category()

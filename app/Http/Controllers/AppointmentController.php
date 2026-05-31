@@ -10,12 +10,13 @@ use App\Models\PatientForm;
 use App\Models\PraKonsultasiRekomendasiItem;
 use App\Models\Treatment;
 use App\Models\User;
-use App\Models\Terapis;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
 use App\Filament\Resources\Appointments\AppointmentResource;
+use App\Services\FonnteService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Midtrans\Config as MidtransConfig;
@@ -411,11 +412,24 @@ class AppointmentController extends Controller
         }
 
         session()->flash('success', 'Janji Temu Berhasil Dibuat! Silakan cek WhatsApp/Email Anda.');
+        session()->flash('active_tab', 'appointment');
+
+        // 🔔 WhatsApp notification (best-effort, tidak menghentikan flow).
+        try {
+            $appointmentForWa = Appointment::with(['items.consultation', 'dokter', 'pasien'])
+                ->find($appointment->appointment_id);
+            if ($appointmentForWa) {
+                app(FonnteService::class)->sendAppointmentCreated($appointmentForWa);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Fonnte WA send gagal (konsultasi created): '.$e->getMessage());
+        }
 
         return response()->json([
-            'status'  => 'success',
-            'message' => 'Janji temu berhasil dibuat.',
-            'data'    => $appointment,
+            'status'         => 'success',
+            'message'        => 'Janji temu berhasil dibuat.',
+            'appointment_id' => $appointment->appointment_id,
+            'data'           => $appointment,
         ]);
     }
 
@@ -475,35 +489,17 @@ class AppointmentController extends Controller
             'treatments' => ['required_if:jenis,treatment', 'array'],
             'treatments.*' => ['exists:treatments,treatment_id'],
 
-            // Validasi Terapis (Cek Level Sesuai Filament Logic)
+            // Validasi Terapis: hanya cek role.
+            // Pembatasan handler kini diatur di level kategori treatment
+            // via TreatmentCategory::allowedHandlerTypes(), bukan jabatan.
             'terapis_id' => [
-                'nullable', 
+                'nullable',
                 'exists:users,id',
-                function ($attribute, $value, $fail) use ($request) {
-                    if (!$value) return; // Skip if null (siapa saja)
-
-                    // 1. Cek Role
+                function ($attribute, $value, $fail) {
+                    if (!$value) return;
                     $user = User::find($value);
-                    if (!$user->hasRole('terapis')) {
+                    if (!$user || !$user->hasRole('terapis')) {
                         return $fail('User bukan terapis.');
-                    }
-
-                    // 2. Cek Level Requirement
-                    if ($request->jenis === 'treatment' && !empty($request->treatments)) {
-                        
-                        // Ambil MAX min_level dari DB untuk treatment yang dipilih
-                        // Sesuai logic Filament: $max = max($max, $lvl);
-                        $maxLevelRequired = Treatment::whereIn('treatment_id', $request->treatments)
-                            ->max('min_level') ?? 1;
-
-                        if ($maxLevelRequired > 1) {
-                            // Cek Level Terapis User Ini
-                            $levelTerapis = $this->terapisLevelFromUserId($value);
-
-                            if ($levelTerapis < $maxLevelRequired) {
-                                $fail('Salah satu treatment yang dipilih membutuhkan Terapis Senior.');
-                            }
-                        }
                     }
                 },
             ],
@@ -546,6 +542,17 @@ class AppointmentController extends Controller
             return $appointment;
         });
 
+        // 🔔 WhatsApp notification (best-effort).
+        try {
+            $appointmentForWa = Appointment::with(['items.treatment', 'items.bundle', 'items.consultation', 'dokter', 'terapis', 'pasien'])
+                ->find($appointment->appointment_id);
+            if ($appointmentForWa) {
+                app(FonnteService::class)->sendAppointmentCreated($appointmentForWa);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Fonnte WA send gagal (appointment store): '.$e->getMessage());
+        }
+
         return redirect('/dashboard?tab=appointment&highlight=' . $appointment->appointment_id)
             ->with('success', 'Janji temu berhasil diajukan. Menunggu konfirmasi admin.');
     }
@@ -565,10 +572,21 @@ class AppointmentController extends Controller
             return back()->with('error', 'Janji temu ini tidak dapat dibatalkan lagi.');
         }
 
-        // 3. Validasi Alasan
-        $request->validate([
+        // 3. Validasi Alasan (pesan custom + flash ke session untuk toast)
+        $validator = Validator::make($request->all(), [
             'cancel_reason' => 'required|string|min:5|max:255',
+        ], [
+            'cancel_reason.required' => 'Mohon isi alasan pembatalan terlebih dahulu.',
+            'cancel_reason.min'      => 'Alasan pembatalan minimal 5 karakter.',
+            'cancel_reason.max'      => 'Alasan pembatalan maksimal 255 karakter.',
         ]);
+
+        if ($validator->fails()) {
+            return back()
+                ->withErrors($validator)
+                ->withInput()
+                ->with('error', $validator->errors()->first('cancel_reason'));
+        }
         
         try {
             DB::transaction(function () use ($appointment, $request) {
@@ -644,6 +662,17 @@ class AppointmentController extends Controller
                     }
                 }
             });
+
+            // 🔔 WhatsApp notification (best-effort, jangan ganggu UX).
+            try {
+                $appointmentForWa = Appointment::with(['items.treatment', 'items.bundle', 'items.consultation', 'dokter', 'terapis', 'pasien'])
+                    ->find($appointment->appointment_id);
+                if ($appointmentForWa) {
+                    app(FonnteService::class)->sendAppointmentCancelledByPatient($appointmentForWa);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Fonnte WA send gagal (cancel by patient): '.$e->getMessage());
+            }
 
             return back()->with('success', 'Janji temu berhasil dibatalkan.');
 
@@ -722,31 +751,22 @@ class AppointmentController extends Controller
                 }
             });
 
+            // 🔔 WhatsApp notification: konfirmasi pengajuan ubah jadwal.
+            try {
+                $appointmentForWa = Appointment::with(['items.treatment', 'items.bundle', 'items.consultation', 'dokter', 'terapis', 'pasien'])
+                    ->find($appointment->appointment_id);
+                if ($appointmentForWa) {
+                    app(FonnteService::class)->sendAppointmentRescheduled($appointmentForWa);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Fonnte WA send gagal (reschedule): '.$e->getMessage());
+            }
+
             return back()->with('success', 'Pengajuan ubah jadwal berhasil. Menunggu konfirmasi admin.');
 
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Gagal merubah janji temu: ' . $e->getMessage());
             return back()->with('error', 'Terjadi kesalahan sistem.');
         }
-    }
-
-    /**
-     * LOGIC FILAMENT: Konversi jabatan terapis (varchar) -> level angka.
-     */
-    private function terapisLevelFromUserId(?int $userId): int
-    {
-        if (!$userId) return 1;
-
-        // Query persis dari Filament Schema lu
-        $jabatan = Terapis::query()
-            ->where('user_id', $userId)
-            ->value('jabatan');
-
-        $j = strtolower(trim((string) $jabatan));
-
-        if (str_contains($j, 'senior')) return 2;
-        if (str_contains($j, 'junior')) return 1;
-
-        return 1;
     }
 }

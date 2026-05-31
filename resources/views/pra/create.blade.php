@@ -1,4 +1,8 @@
 <x-guest-layout :title="'Identifikasi Kebutuhan Kulit'">
+@php
+    $tempPhotoUrls = $tempPhotoUrls ?? ['foto_depan' => null, 'foto_kiri' => null, 'foto_kanan' => null];
+    $tempPhotoNames = $tempPhotoNames ?? ['foto_depan' => '', 'foto_kiri' => '', 'foto_kanan' => ''];
+@endphp
 <div class="w-full min-h-screen bg-[#FAF8F5]" x-data="praForm()" id="form-top">
     <!-- Back Navigation -->
     <div class="mx-auto max-w-2xl px-4 pt-6">
@@ -87,8 +91,8 @@
             <div class="w-14 h-14 rounded-full bg-[#FFF8E7] flex items-center justify-center mx-auto mb-4">
                 <svg class="w-7 h-7 text-[#8C7A63]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
             </div>
-            <h3 class="font-serif text-xl font-bold text-[#1A1A1A] mb-2">Konfirmasi Pengiriman</h3>
-            <p class="text-sm text-gray-500 mb-6 leading-relaxed">Pastikan data yang Anda masukkan <strong class="text-[#1A1A1A]">sebenar-benarnya</strong>. Data ini akan digunakan oleh dokter untuk menyusun rencana perawatan Anda.</p>
+            <h3 class="font-serif text-xl font-bold text-[#1A1A1A] mb-2">Konfirmasi Informasi Anda</h3>
+            <p class="text-sm text-gray-500 mb-6 leading-relaxed">Informasi ini akan membantu dokter memahami kondisi dan kebutuhan perawatan Anda dengan lebih akurat.</p>
             <div class="flex gap-3">
                 <button type="button" @click="showModal = false" class="flex-1 rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition">Batal</button>
                 <button type="button" @click="$refs.praForm.submit()" class="flex-1 rounded-xl bg-[#1A1A1A] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#333] transition">Ya, Kirim Sekarang</button>
@@ -119,8 +123,12 @@ function praForm(){
         pernah_laser:{{ old('pernah_laser') ? 'true':'false' }},
         pernah_skin_booster:{{ old('pernah_skin_booster') ? 'true':'false' }},
         pernah_inject_infus:{{ old('pernah_inject_infus') ? 'true':'false' }},
-        foto_depan_name:'',foto_kanan_name:'',foto_kiri_name:'',
-        foto_depan_preview:'',foto_kanan_preview:'',foto_kiri_preview:'',
+        foto_depan_name: @json($tempPhotoNames['foto_depan'] ?? ''),
+        foto_kanan_name: @json($tempPhotoNames['foto_kanan'] ?? ''),
+        foto_kiri_name:  @json($tempPhotoNames['foto_kiri']  ?? ''),
+        foto_depan_preview: @json($tempPhotoUrls['foto_depan'] ?? ''),
+        foto_kanan_preview: @json($tempPhotoUrls['foto_kanan'] ?? ''),
+        foto_kiri_preview:  @json($tempPhotoUrls['foto_kiri']  ?? ''),
         foto_depan_error: @json($errors->first('foto_depan') ?: ''),
         foto_kanan_error: @json($errors->first('foto_kanan') ?: ''),
         foto_kiri_error: @json($errors->first('foto_kiri') ?: ''),

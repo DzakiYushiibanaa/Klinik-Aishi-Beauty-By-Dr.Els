@@ -57,11 +57,9 @@ class TreatmentsTable
                     ->label('OPERASIONAL')
                     ->html()
                     ->state(function (\App\Models\Treatment $record) {
-                        $level = $record->min_level ?? '-';
                         return '
                             <div style="display: flex; flex-direction: column;">
                                 <span style="font-weight: 500; color: #111827;">'.$record->durasi_menit.' Menit</span>
-                                <span style="font-size: 0.875rem; color: #8A8078;">'.$level.'</span>
                             </div>
                         ';
                     })

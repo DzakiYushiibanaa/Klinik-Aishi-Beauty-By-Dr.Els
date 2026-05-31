@@ -18,9 +18,10 @@
         'discount' => $o->diskon_total ?? 0,
         'shipping_cost' => $o->ongkir ?? 0,
         'payment_method' => $o->payment_channel ?? $o->payment_method ?? '-',
-        'date' => $o->created_at->translatedFormat('d M Y'),
+        'date' => $o->created_at->translatedFormat('d M Y') . ' • ' . $o->created_at->translatedFormat('H:i'),
         'method' => $o->shipping_method,
         'waybill' => $o->shipping_waybill,
+        'shipping_address' => $o->shipping_address ?? null,
         'items' => $o->items->map(fn($i) => [
             'name' => $i->product?->nama ?? $i->treatment?->nama ?? $i->bundle?->nama ?? $i->description ?? 'Item',
             'qty' => $i->qty,
@@ -46,6 +47,7 @@
     },
     getComboStatus(o) {
         if (['batal','dibatalkan'].includes(o.status) || o.shipping === 'dibatalkan') return 'dibatalkan';
+        if (o.status === 'cancel_requested') return 'cancel_requested';
         if ((o.status === 'menunggu_pembayaran' || o.status === 'draft') && o.expired_at) {
             const now = new Date();
             const expired = new Date(o.expired_at);
@@ -70,22 +72,50 @@
     },
     getFiltersForTab() {
         if (this.orderTab === 'produk') return ['semua','belum_bayar','dikemas','dikirim','selesai','dibatalkan'];
-        return ['semua','belum_bayar','lunas','selesai','dibatalkan'];
+        return ['semua','belum_bayar','sudah_dibayar','selesai','dibatalkan'];
     },
     filterLabel(f) {
-        return { semua:'Semua', belum_bayar:'Belum Bayar', dikemas:'Dikemas', dikirim:'Dikirim', selesai:'Selesai', dibatalkan:'Dibatalkan', lunas:'Lunas' }[f] || f;
+        return { semua:'Semua', belum_bayar:'Belum Bayar', dikemas:'Dikemas', dikirim:'Dikirim', selesai:'Selesai', dibatalkan:'Dibatalkan', sudah_dibayar:'Sudah Dibayar', cancel_requested:'Menunggu Konfirmasi Pembatalan' }[f] || f;
     },
     formatPaymentChannel(val) {
-        if (!val) return '-';
+        if (!val) return 'Belum Dipilih';
         const labels = {
-            'qris': 'QRIS', 'bca': 'Bank BCA (VA)', 'bni': 'Bank BNI (VA)', 'bri': 'Bank BRI (VA)',
-            'mandiri': 'Mandiri Bill', 'mandiri_bill': 'Mandiri Bill', 'permata': 'Bank Permata (VA)',
-            'cimb': 'Bank CIMB (VA)', 'gopay': 'GoPay', 'shopeepay': 'ShopeePay', 'dana': 'DANA',
-            'alfamart': 'Alfamart', 'indomaret': 'Indomaret', 'bank_transfer': 'Transfer Bank',
-            'credit_card': 'Kartu Kredit', 'akulaku': 'Akulaku', 'kredivo': 'Kredivo',
-            'web_redirect': 'Midtrans', 'midtrans_snap': 'Midtrans'
+            // Bank Transfer / VA
+            'bca': 'BCA Virtual Account',
+            'bni': 'BNI Virtual Account',
+            'bri': 'BRI Virtual Account',
+            'mandiri': 'Mandiri Bill Payment',
+            'mandiri_bill': 'Mandiri Bill Payment',
+            'permata': 'Permata Virtual Account',
+            'cimb': 'CIMB Virtual Account',
+            'bsi': 'BSI Virtual Account',
+            'bank_transfer': 'Transfer Bank',
+            // QRIS
+            'qris': 'QRIS',
+            'midtrans_qris': 'QRIS',
+            // E-wallet
+            'gopay': 'GoPay',
+            'shopeepay': 'ShopeePay',
+            'dana': 'DANA',
+            'ovo': 'OVO',
+            'linkaja': 'LinkAja',
+            // Convenience store
+            'alfamart': 'Alfamart',
+            'indomaret': 'Indomaret',
+            'cstore': 'Minimarket',
+            // Card / cardless
+            'credit_card': 'Kartu Kredit',
+            'akulaku': 'Akulaku',
+            'kredivo': 'Kredivo',
+            // Other
+            'cash': 'Tunai',
+            'web_redirect': 'Midtrans',
+            'midtrans_snap': 'Midtrans'
         };
-        return labels[val.toLowerCase()] || val.toUpperCase();
+        const key = String(val).toLowerCase();
+        if (labels[key]) return labels[key];
+        // Fallback humanizer: snake_case → Title Case
+        return key.replace(/[_-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     }
 }">
 <div class="bg-white rounded-2xl border border-[#E8E0D8]/60 shadow-sm p-6">
@@ -137,9 +167,10 @@
                     <span class="px-3 py-1 rounded-full text-[10px] font-bold border uppercase"
                         :class="{
                             'bg-amber-50 text-amber-700 border-amber-200': getComboStatus(order)==='belum_bayar',
+                            'bg-orange-50 text-orange-700 border-orange-200': getComboStatus(order)==='cancel_requested',
                             'bg-blue-50 text-blue-700 border-blue-200': getComboStatus(order)==='dikemas',
                             'bg-indigo-50 text-indigo-700 border-indigo-200': getComboStatus(order)==='dikirim',
-                            'bg-emerald-50 text-emerald-700 border-emerald-200': ['selesai','lunas'].includes(getComboStatus(order)),
+                            'bg-emerald-50 text-emerald-700 border-emerald-200': ['selesai','sudah_dibayar'].includes(getComboStatus(order)),
                             'bg-rose-50 text-rose-700 border-rose-200': getComboStatus(order)==='dibatalkan'
                         }" x-text="filterLabel(getComboStatus(order))">
                     </span>
@@ -176,13 +207,16 @@
                         <template x-if="getComboStatus(order)==='belum_bayar'">
                             <span class="flex items-center gap-1.5 text-amber-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Menunggu Pembayaran</span>
                         </template>
+                        <template x-if="getComboStatus(order)==='cancel_requested'">
+                            <span class="flex items-center gap-1.5 text-orange-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg> Menunggu Konfirmasi Pembatalan</span>
+                        </template>
                         <template x-if="getComboStatus(order)==='dikemas'">
                             <span class="flex items-center gap-1.5 text-blue-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg> Sedang Dikemas</span>
                         </template>
                         <template x-if="getComboStatus(order)==='dikirim'">
                             <span class="flex items-center gap-1.5 text-indigo-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l2-1 2 1 2-1 2 1m0 0V6a1 1 0 011-1h2a1 1 0 011 1v4l4 2v6h-3m-7 0h7m-7 0a2 2 0 11-4 0m11 0a2 2 0 11-4 0"/></svg> Sedang Dikirim</span>
                         </template>
-                        <template x-if="getComboStatus(order)==='selesai' || getComboStatus(order)==='lunas'">
+                        <template x-if="getComboStatus(order)==='selesai' || getComboStatus(order)==='sudah_dibayar'">
                             <span class="flex items-center gap-1.5 text-emerald-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Selesai</span>
                         </template>
                         <template x-if="getComboStatus(order)==='dibatalkan'">
@@ -207,12 +241,28 @@
                             <span class="text-base sm:text-sm font-extrabold text-[#1A1A1A]" x-text="'Rp ' + Number(order.total).toLocaleString('id-ID')"></span>
                         </div>
 
-                        {{-- Action Button: Bayar Sekarang --}}
+                        {{-- Action Button: Bayar Sekarang + Batalkan Pesanan --}}
                         <template x-if="getComboStatus(order)==='belum_bayar'">
-                            <button @click.stop="processPayment(order.kode, $event)" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-[#D4A017] hover:bg-[#b58812] text-white text-sm font-bold rounded-full transition-colors shadow-lg shadow-[#D4A017]/20 disabled:opacity-75 disabled:cursor-not-allowed">
-                                Bayar Sekarang
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
-                            </button>
+                            <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                                <button @click.stop="window.confirmDialog({
+                                            title: 'Batalkan Pesanan?',
+                                            message: 'Apakah Anda yakin ingin membatalkan pesanan ini?',
+                                            confirmText: 'Ya, Batalkan',
+                                            cancelText: 'Kembali',
+                                            variant: 'warning',
+                                        }).then(ok => { if (ok) document.getElementById('cancel-order-form-' + order.id).submit() })"
+                                        class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 text-sm font-bold rounded-full border border-rose-200 transition-colors cursor-pointer">
+                                    Batalkan Pesanan
+                                </button>
+                                <form :id="'cancel-order-form-' + order.id" :action="'/orders/' + order.id + '/cancel'" method="POST" class="hidden">
+                                    @csrf
+                                    @method('PATCH')
+                                </form>
+                                <button @click.stop="processPayment(order.kode, $event)" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-[#D4A017] hover:bg-[#b58812] text-white text-sm font-bold rounded-full transition-colors shadow-lg shadow-[#D4A017]/20 disabled:opacity-75 disabled:cursor-not-allowed">
+                                    Bayar Sekarang
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                                </button>
+                            </div>
                         </template>
                     </div>
                 </div>
@@ -255,7 +305,7 @@
                     </div>
                 </div>
                 <div class="flex items-center gap-4">
-                    <span x-text="selectedOrder ? (getComboStatus(selectedOrder) === 'belum_bayar' ? 'MENUNGGU PEMBAYARAN' : (getComboStatus(selectedOrder) === 'dibatalkan' ? 'DIBATALKAN' : 'LUNAS')) : ''"
+                    <span x-text="selectedOrder ? (getComboStatus(selectedOrder) === 'belum_bayar' ? 'MENUNGGU PEMBAYARAN' : (getComboStatus(selectedOrder) === 'dibatalkan' ? 'DIBATALKAN' : 'SUDAH DIBAYAR')) : ''"
                           class="px-3 py-1 text-[10px] font-black rounded uppercase tracking-wider"
                           :class="{
                               'bg-amber-100 text-amber-700': selectedOrder && getComboStatus(selectedOrder) === 'belum_bayar',
@@ -271,21 +321,53 @@
 
              {{-- Modal Body (Scrollable) --}}
              <div class="flex-1 overflow-y-auto p-6 sm:p-8 custom-scrollbar">
+                 @php
+                     /* ── Resolve nomor telepon (filter blank / "-") ─────────── */
+                     $authUser = auth()->user();
+                     $authProfile = $authUser?->pasienProfile;
+                     $authPhoneCandidates = [
+                         $authUser?->phone,
+                         $authProfile?->no_telepon,
+                     ];
+                     $authPhone = collect($authPhoneCandidates)
+                         ->map(fn ($v) => trim((string) $v))
+                         ->first(fn ($v) => $v !== '' && $v !== '-');
+
+                     /* ── Resolve alamat lengkap dari profil pasien ──────────── */
+                     $authAddressParts = $authProfile ? array_filter([
+                         $authProfile->alamat ?? null,
+                         $authProfile->district_name ?? null,
+                         $authProfile->kota ?? null,
+                         $authProfile->provinsi ?? null,
+                         $authProfile->kode_pos ?? null,
+                     ], fn ($p) => trim((string) $p) !== '') : [];
+                     $authProfileAddress = trim(implode(', ', $authAddressParts));
+                 @endphp
+
                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-8 mb-8">
-                     {{-- Info Klinik & Pelanggan --}}
+                     {{-- Detail Pelanggan --}}
                      <div>
                          <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Detail Pelanggan</h4>
                          <div class="space-y-1">
-                             <p class="text-sm font-extrabold text-[#1A1A1A]">{{ auth()->user()->name }}</p>
-                             <p class="text-xs text-slate-500">{{ auth()->user()->email }}</p>
-                             <p class="text-xs text-slate-500">{{ auth()->user()->pasienProfile?->telepon ?? '-' }}</p>
+                             <p class="text-sm font-extrabold text-[#1A1A1A]">{{ $authUser->name }}</p>
+                             @if($authUser->email)
+                                 <p class="text-xs text-slate-500">{{ $authUser->email }}</p>
+                             @endif
+                             @if($authPhone)
+                                 <p class="text-xs text-slate-500">{{ $authPhone }}</p>
+                             @else
+                                 <p class="text-xs text-slate-400 italic">Nomor HP belum diisi</p>
+                             @endif
                          </div>
-                         <div class="mt-5 border-l-2 border-[#CFAF53] pl-3">
-                             <p class="text-xs font-bold text-[#1A1A1A]">Aishi Beauty Klinik</p>
-                             <p class="text-[11px] text-slate-500 leading-relaxed mt-1 max-w-[200px]">
-                                Jl. Nusantara Raya No.99b, Beji, Kec. Beji, Kota Depok, Jawa Barat 16421
-                             </p>
-                         </div>
+
+                         {{-- Alamat Pengiriman: prefer order.shipping_address, fallback profil --}}
+                         <template x-if="selectedOrder && (selectedOrder.shipping_address || @js($authProfileAddress))">
+                             <div class="mt-5 border-l-2 border-[#CFAF53] pl-3">
+                                 <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Alamat Pengiriman</p>
+                                 <p class="text-xs text-slate-600 leading-relaxed max-w-[260px]"
+                                    x-text="selectedOrder.shipping_address || @js($authProfileAddress)"></p>
+                             </div>
+                         </template>
                      </div>
                      {{-- Info Transaksi --}}
                      <div class="sm:text-right">

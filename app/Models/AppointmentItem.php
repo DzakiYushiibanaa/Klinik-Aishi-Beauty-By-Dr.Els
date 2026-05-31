@@ -17,6 +17,16 @@ class AppointmentItem extends Model
         'bundle_id',
         'consultation_id',
         'qty',
+        // Handler & komisi (10% default).
+        'handled_by_type',
+        'handled_by_id',
+        'commission_percent',
+        'commission_amount',
+    ];
+
+    protected $casts = [
+        'commission_percent' => 'decimal:2',
+        'commission_amount'  => 'integer',
     ];
 
     public function appointment(): BelongsTo
@@ -37,5 +47,14 @@ class AppointmentItem extends Model
     public function consultation(): BelongsTo
     {
         return $this->belongsTo(Consultation::class, 'consultation_id', 'consultation_id');
+    }
+
+    /**
+     * Relasi ke user yang menangani layanan ini.
+     * Hanya cocok dipanggil saat handled_by_type & handled_by_id sudah terisi.
+     */
+    public function handler(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'handled_by_id', 'id');
     }
 }

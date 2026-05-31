@@ -3,12 +3,14 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 
-class User extends Authenticatable
+class User extends Authenticatable implements FilamentUser
 {
     protected $primaryKey = 'id';
     public $incrementing = true;
@@ -26,6 +28,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password','phone', 'tanggal_lahir', 'jenis_kelamin',
+        'google_id', 'avatar_url',
     ];
 
     /**
@@ -49,6 +52,31 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * Tentukan akses ke panel Filament.
+     *
+     * Aturan:
+     *   - Panel "admin" hanya boleh diakses oleh staf klinik
+     *     (super_admin, admin, dokter, terapis, apoteker, kasir).
+     *   - User dengan role `pasien` (atau tanpa role staf sama sekali)
+     *     ditolak masuk dan diarahkan kembali ke /dashboard pasien
+     *     lewat middleware/redirect Filament.
+     *   - Staf yang dinonaktifkan (`dokter.status_praktik != aktif`
+     *     atau `terapis.status_kerja != aktif`) juga ditolak walau
+     *     sesinya masih hidup.
+     *   - Default deny — kalau ada panel baru di masa depan, akses
+     *     harus didefinisikan ulang di sini secara eksplisit.
+     */
+    public function canAccessPanel(Panel $panel): bool
+    {
+        if ($panel->getId() === 'admin') {
+            return \App\Support\AuthRedirect::isStaff($this)
+                && \App\Support\AuthRedirect::isStaffActive($this);
+        }
+
+        return false;
     }
 
     public function dokterProfile()

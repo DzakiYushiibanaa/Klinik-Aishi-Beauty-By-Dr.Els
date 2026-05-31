@@ -70,8 +70,6 @@ class TherapistPerformanceSheet implements FromQuery, WithHeadings, WithMapping,
             'Rank',
             'Kode Terapis',
             'Nama Terapis',
-            'Jabatan',
-            'Pengalaman (Tahun)',
             'Status',
             'Total Pasien',
             'Total Jasa',
@@ -94,8 +92,6 @@ class TherapistPerformanceSheet implements FromQuery, WithHeadings, WithMapping,
             $this->rowNumber,
             $user->terapisProfile->kode_terapis ?? '-',
             $user->name,
-            $user->terapisProfile->jabatan ?? '-',
-            $user->terapisProfile->pengalaman_tahun ?? 0,
             $user->terapisProfile->status_kerja ?? '-',
             $totalPasien,
             'Rp ' . number_format($totalJasa, 0, ',', '.'),
@@ -107,20 +103,20 @@ class TherapistPerformanceSheet implements FromQuery, WithHeadings, WithMapping,
     public function styles(Worksheet $sheet)
     {
         // Header style
-        $sheet->getStyle('A1:J1')->applyFromArray([
+        $sheet->getStyle('A1:H1')->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FF9800']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
         ]);
 
         // Highlight top 3
-        $sheet->getStyle('A2:J2')->applyFromArray([
+        $sheet->getStyle('A2:H2')->applyFromArray([
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FFD700']], // Gold
         ]);
-        $sheet->getStyle('A3:J3')->applyFromArray([
+        $sheet->getStyle('A3:H3')->applyFromArray([
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'C0C0C0']], // Silver
         ]);
-        $sheet->getStyle('A4:J4')->applyFromArray([
+        $sheet->getStyle('A4:H4')->applyFromArray([
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'CD7F32']], // Bronze
         ]);
 

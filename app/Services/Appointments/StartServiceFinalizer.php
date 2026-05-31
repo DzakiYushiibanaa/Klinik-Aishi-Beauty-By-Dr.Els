@@ -11,6 +11,7 @@ use App\Models\Product;
 use App\Models\RekamMedis;
 use App\Notifications\AppointmentCompleted;
 use App\Support\CodeGenerator;
+use App\Support\TreatmentCommissionCalculator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -34,6 +35,10 @@ class StartServiceFinalizer
      */
     public function complete(Appointment $appointment, array $data): array
     {
+        // Validasi: setiap item treatment wajib punya handler.
+        // Bundle tetap optional supaya tidak memblokir flow lama.
+        $this->assertHandlerSelected($data);
+
         return DB::transaction(function () use ($appointment, $data) {
             // 1. Pastikan appointment_items konsisten dengan input form.
             $this->syncAppointmentItems($appointment, $data);
@@ -59,6 +64,31 @@ class StartServiceFinalizer
                 'order'       => $order,
             ];
         });
+    }
+
+    /**
+     * Pastikan setiap baris treatment di form sudah memilih staff handler.
+     * Kalau ada yang belum, lempar exception agar Filament action menampilkan
+     * pesan validasi ke admin.
+     */
+    protected function assertHandlerSelected(array $data): void
+    {
+        $rows = (array) ($data['treatment_items'] ?? []);
+
+        foreach ($rows as $row) {
+            $type = $row['item_type'] ?? null;
+            if ($type !== 'treatment') continue; // bundle/lain optional.
+
+            // Treatment id boleh kosong di repeater (row baru belum diisi);
+            // kalau tidak ada treatment_id, anggap row akan di-skip oleh syncAppointmentItems.
+            if (empty($row['treatment_id'])) continue;
+
+            if (empty($row['handled_by_type']) || empty($row['handled_by_id'])) {
+                throw new \RuntimeException(
+                    'Silakan pilih staff yang menangani setiap treatment terlebih dahulu.'
+                );
+            }
+        }
     }
 
     /**
@@ -93,6 +123,11 @@ class StartServiceFinalizer
                 'item_type'       => 'consultation',
                 'consultation_id' => (int) $data['consultation_id'],
                 'qty'             => 1,
+                // Konsultasi tidak masuk skema komisi treatment.
+                'handled_by_type'    => 'dokter',
+                'handled_by_id'      => $appointment->dokter_id,
+                'commission_percent' => 0,
+                'commission_amount'  => 0,
             ]);
         }
 
@@ -109,12 +144,29 @@ class StartServiceFinalizer
 
         foreach ($follow as $row) {
             $type = $row['item_type'];
-            $appointment->items()->create([
+
+            // Buat item dulu lalu hitung komisi via calculator (butuh
+            // relasi treatment/bundle yang ter-load).
+            $item = $appointment->items()->create([
                 'item_type'    => $type,
                 'treatment_id' => $type === 'treatment' ? (int) $row['treatment_id'] : null,
                 'bundle_id'    => $type === 'bundle' ? (int) $row['bundle_id'] : null,
                 'qty'          => max(1, (int) ($row['qty'] ?? 1)),
+                'handled_by_type' => $row['handled_by_type'] ?? null,
+                'handled_by_id'   => isset($row['handled_by_id']) && $row['handled_by_id'] !== ''
+                    ? (int) $row['handled_by_id']
+                    : null,
+                'commission_percent' => TreatmentCommissionCalculator::DEFAULT_PERCENT,
+                'commission_amount'  => 0, // diisi setelah relasi ter-load.
             ]);
+
+            // Hitung & persist nominal komisi.
+            $item->loadMissing(['treatment', 'bundle']);
+            $amount = TreatmentCommissionCalculator::forItem($item);
+            if ($item->commission_amount !== $amount) {
+                $item->commission_amount = $amount;
+                $item->save();
+            }
         }
     }
 
@@ -141,7 +193,6 @@ class StartServiceFinalizer
             'tindakan'            => $tindakanText,
             'produk_rekomendasi' => $regimenText,
             'catatan_lanjutan'    => $data['catatan_lanjutan'] ?? null,
-            'status_tindakan'     => $asDraft ? 'direncanakan' : 'dilakukan',
         ];
 
         // Upload foto sebelum/sesudah — Filament FileUpload sudah memindahkan ke disk.
@@ -249,14 +300,15 @@ class StartServiceFinalizer
             $consultationId = (int) ($data['consultation_id'] ?? 0);
             if ($consultationId && $c = Consultation::find($consultationId)) {
                 $items[] = [
-                    'item_type'    => 'consultation',
-                    'treatment_id' => null,
-                    'bundle_id'    => null,
-                    'product_id'   => null,
-                    'description'  => $c->nama,
-                    'qty'          => 1,
-                    'harga_satuan' => (int) $c->harga,
-                    'subtotal'     => (int) $c->harga,
+                    'item_type'       => 'consultation',
+                    'treatment_id'    => null,
+                    'bundle_id'       => null,
+                    'product_id'      => null,
+                    'consultation_id' => $consultationId,
+                    'description'     => $c->nama,
+                    'qty'             => 1,
+                    'harga_satuan'    => (int) $c->harga,
+                    'subtotal'        => (int) $c->harga,
                 ];
             }
         }
@@ -315,37 +367,38 @@ class StartServiceFinalizer
 
         $kodeOrder = $this->generateKodeOrder();
 
+        $isPaid = ($data['payment_status'] ?? 'menunggu_pembayaran') === 'sudah_dibayar';
+
         $order = Order::create([
             'user_id'         => $appointment->user_id,
             'kode_order'      => $kodeOrder,
             'order_type'      => $appointment->jenis === 'konsultasi' ? 'konsultasi' : 'treatment',
             'sumber'          => 'offline',
             'dibuat_oleh_id'  => auth()->id() ?? $appointment->dibuat_oleh_id ?? $appointment->user_id,
-            'status'          => ($data['payment_status'] ?? 'menunggu_pembayaran') === 'lunas'
-                ? 'lunas'
-                : 'menunggu_pembayaran',
+            'status'          => $isPaid ? 'sudah_dibayar' : 'menunggu_pembayaran',
             'payment_method'  => $data['payment_method'] ?? null,
             'subtotal'        => $subtotal,
             'diskon_total'    => 0,
             'ongkir'          => 0,
             'grand_total'     => $grand_total,
             'shipping_status' => 'belum_dikirim',
-            'paid_at'         => ($data['payment_status'] ?? 'menunggu_pembayaran') === 'lunas' ? now() : null,
+            'paid_at'         => $isPaid ? now() : null,
         ]);
 
         foreach ($items as $row) {
             OrderItem::create([
-                'order_id'       => $order->order_id,
-                'appointment_id' => $appointment->appointment_id,
-                'product_id'     => $row['product_id'],
-                'treatment_id'   => $row['treatment_id'],
-                'bundle_id'      => $row['bundle_id'],
-                'item_type'      => $row['item_type'],
-                'description'    => $row['description'],
-                'qty'            => $row['qty'],
-                'harga_satuan'   => $row['harga_satuan'],
-                'diskon'         => 0,
-                'subtotal'       => $row['subtotal'],
+                'order_id'        => $order->order_id,
+                'appointment_id'  => $appointment->appointment_id,
+                'product_id'      => $row['product_id'],
+                'treatment_id'    => $row['treatment_id'],
+                'bundle_id'       => $row['bundle_id'],
+                'consultation_id' => $row['consultation_id'] ?? null,
+                'item_type'       => $row['item_type'],
+                'description'     => $row['description'],
+                'qty'             => $row['qty'],
+                'harga_satuan'    => $row['harga_satuan'],
+                'diskon'          => 0,
+                'subtotal'        => $row['subtotal'],
             ]);
         }
 

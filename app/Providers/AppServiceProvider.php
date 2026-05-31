@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Filament\Widgets\DoctorLeaderboard;
+use App\Models\PatientForm;
+use App\Observers\PatientFormObserver;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
@@ -40,5 +42,8 @@ class AppServiceProvider extends ServiceProvider
 
         Livewire::component('doctor-leaderboard', DoctorLeaderboard::class);
         Livewire::component('therapist-leaderboard', TherapistLeaderboard::class);
+
+        // Observer: kirim WA ke pasien saat dokter selesai me-review pra-konsul.
+        PatientForm::observe(PatientFormObserver::class);
     }
 }

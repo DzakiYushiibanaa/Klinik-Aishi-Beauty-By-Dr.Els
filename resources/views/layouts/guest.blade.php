@@ -141,11 +141,11 @@
                     </div>
                 @else
                     <a href="{{ route('login') }}" class="text-xs font-bold tracking-widest uppercase text-[#1A1A1A] hover:text-[#8C7A63] transition-colors">
-                        Sign In
+                        Masuk
                     </a>
                     @if (\Illuminate\Support\Facades\Route::has('register'))
                         <a href="{{ route('register') }}" class="rounded-full bg-[#1A1A1A] px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-white transition hover:bg-[#333]">
-                            Sign Up
+                            Daftar
                         </a>
                     @endif
                 @endauth
@@ -209,9 +209,9 @@
                         <button type="submit" class="w-full text-left text-sm font-bold text-red-600 px-2 py-2 hover:bg-red-50 rounded-lg">Log Out</button>
                     </form>
                 @else
-                    <a href="{{ route('login') }}" class="inline-block text-center rounded-xl border border-[#1A1A1A] px-6 py-3 text-sm font-bold uppercase tracking-wider text-[#1A1A1A]">Sign In</a>
+                    <a href="{{ route('login') }}" class="inline-block text-center rounded-xl border border-[#1A1A1A] px-6 py-3 text-sm font-bold uppercase tracking-wider text-[#1A1A1A]">Masuk</a>
                     @if (\Illuminate\Support\Facades\Route::has('register'))
-                        <a href="{{ route('register') }}" class="inline-block text-center rounded-full bg-[#1A1A1A] px-6 py-3 text-sm font-bold uppercase tracking-wider text-white">Sign Up</a>
+                        <a href="{{ route('register') }}" class="inline-block text-center rounded-full bg-[#1A1A1A] px-6 py-3 text-sm font-bold uppercase tracking-wider text-white">Daftar</a>
                     @endif
                 @endauth
             </div>

@@ -49,7 +49,7 @@
         .summary-value { text-align: right; font-weight: 600; color:#111827; }
         .summary-total td { border-top: 1px dashed #E8E0D8; padding-top: 10px; font-size: 15px; color: #CFAF53; font-weight: bold; }
         .status-badge { display: inline-block; padding: 4px 10px; border-radius: 9999px; font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing:0.04em; }
-        .status-lunas { background-color: #d1fae5; color: #047857; }
+        .status-paid { background-color: #d1fae5; color: #047857; }
         .status-menunggu { background-color: #fef3c7; color: #b45309; }
         .cta { display:inline-block; background:#CFAF53; color:#fff !important; padding:10px 22px; border-radius:8px; text-decoration:none; font-weight:600; font-size:13px; }
         .cta-wrap { text-align:center; margin: 20px 0 6px; }
@@ -101,7 +101,7 @@
                         @endif
                         @php
                             $statusText = match (true) {
-                                in_array($order->status, ['lunas', 'sudah_dibayar', 'paid'])                   => ['LUNAS', 'status-lunas'],
+                                $order->status === 'sudah_dibayar'                                             => ['SUDAH DIBAYAR', 'status-paid'],
                                 in_array($order->status, ['menunggu_pembayaran', 'pending', 'draft'])          => ['MENUNGGU PEMBAYARAN', 'status-menunggu'],
                                 default                                                                        => [strtoupper((string) $order->status), 'status-menunggu'],
                             };

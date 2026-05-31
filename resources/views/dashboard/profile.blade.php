@@ -19,6 +19,12 @@
         <input type="hidden" name="province_id" x-model="selectedProvinceId">
         <input type="hidden" name="city_id" x-model="selectedCityId">
 
+        {{-- Phone disubmit lewat hidden input tunggal supaya tidak bentrok
+             dengan input phone visible di tab "Alamat Saya" (lihat catatan
+             di addressSelector()). Dua input visible cukup pakai x-model
+             tanpa atribut "name". --}}
+        <input type="hidden" name="phone" x-model="phoneNumber">
+
         {{-- Section: Data Diri --}}
         <h3 id="sec-profil" class="text-xs font-bold uppercase tracking-[0.2em] text-[#8C7A63] mb-4 scroll-mt-32">Data Diri</h3>
 
@@ -97,12 +103,14 @@
 
             <div>
                 <label class="block text-xs font-bold text-slate-500 mb-1">Nomor WhatsApp</label>
-                <input type="text" name="phone" value="{{ old('phone', $user->phone) }}" maxlength="13" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 13)" class="w-full rounded-xl border-[#E8E0D8]/60 text-sm focus:border-[#CFAF53] focus:ring-[#CFAF53]/20" placeholder="081xxx">
+                <input type="text" x-model="phoneNumber" maxlength="13" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 13)" class="w-full rounded-xl border-[#E8E0D8]/60 text-sm focus:border-[#CFAF53] focus:ring-[#CFAF53]/20" placeholder="081xxx">
             </div>
 
             <div>
                 <label class="block text-xs font-bold text-slate-500 mb-1">Tanggal Lahir</label>
-                <input type="date" name="tanggal_lahir" value="{{ old('tanggal_lahir', $user->tanggal_lahir) }}" class="w-full rounded-xl border-[#E8E0D8]/60 text-sm focus:border-[#CFAF53] focus:ring-[#CFAF53]/20">
+                <x-date-picker name="tanggal_lahir"
+                               :value="old('tanggal_lahir', $user->tanggal_lahir)"
+                               placeholder="dd/mm/yyyy" />
             </div>
 
             <div class="lg:col-span-2">
@@ -184,81 +192,437 @@
     </form>
 
     {{-- Section: Alamat --}}
+    @php
+        $pasienProfile = $user->pasienProfile;
+
+        // Ringkasan alamat hanya boleh tampil kalau SEMUA field wajib sudah
+        // tersimpan ke database. Kalau salah satu kosong, form edit yang
+        // dimunculkan supaya pasien menyelesaikan pengisian.
+        $hasCompleteShippingAddress = $pasienProfile
+            && filled($user->phone)
+            && filled($pasienProfile->province_id)
+            && filled($pasienProfile->provinsi)
+            && filled($pasienProfile->city_id)
+            && filled($pasienProfile->kota)
+            && filled($pasienProfile->district_id)
+            && filled($pasienProfile->district_name)
+            && filled($pasienProfile->kode_pos)
+            && filled($pasienProfile->alamat);
+    @endphp
     <div class="bg-white rounded-2xl border border-[#E8E0D8]/60 p-6 sm:p-8"
          x-show="activeTab === 'profile_alamat'" style="display: none;">
-        <h3 id="sec-alamat" class="text-xs font-bold uppercase tracking-[0.2em] text-[#8C7A63] mb-4 scroll-mt-32">Alamat Pengiriman</h3>
 
-        <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
-            <p class="text-xs text-blue-800">💡 <strong>Penting:</strong> Pilih kecamatan dengan benar agar ongkir bisa dihitung otomatis saat checkout!</p>
+        {{-- Header --}}
+        <div class="mb-6 flex items-start justify-between gap-3 flex-wrap" id="sec-alamat" style="scroll-margin-top: 8rem;">
+            <div class="min-w-0">
+                <h3 class="text-xl font-extrabold tracking-tight text-[#1A1A1A]">Alamat Pengiriman</h3>
+                <p class="text-sm text-slate-500 mt-1 leading-relaxed">Lengkapi data alamat untuk mempermudah proses pengiriman pesanan.</p>
+            </div>
+            {{-- Toggle Ubah Alamat (only visible when address is already saved & not editing) --}}
+            <button type="button"
+                    @click="enterEditMode()"
+                    x-show="hasSavedAddress && !editingAddress"
+                    x-cloak
+                    class="alamat-edit-btn">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                </svg>
+                <span>Ubah Alamat</span>
+            </button>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <div>
-                <label class="block text-xs font-bold text-slate-500 mb-1">Provinsi</label>
-                <div class="relative">
-                    <select x-model="selectedProvinceId" @change="fetchCities()" class="w-full rounded-xl border-[#E8E0D8]/60 text-sm focus:border-[#CFAF53]" :class="loadingProvinces && 'opacity-50'">
-                        <option value="">-- Pilih Provinsi --</option>
-                        <template x-for="item in provinces" :key="item.id"><option :value="item.id" x-text="item.name"></option></template>
-                    </select>
-                    <div x-show="loadingProvinces" class="absolute right-10 top-1/2 -translate-y-1/2">
-                        <svg class="w-4 h-4 animate-spin text-[#CFAF53]" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-4">
+
+            {{-- Nomor HP / WhatsApp (always editable) --}}
+            <div class="sm:col-span-2">
+                <label for="phone-alamat" class="block text-xs font-bold text-slate-600 mb-1.5">Nomor HP / WhatsApp</label>
+                <input type="text"
+                       id="phone-alamat"
+                       x-model="phoneNumber"
+                       maxlength="15"
+                       inputmode="numeric"
+                       oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 15)"
+                       placeholder="08xxxxxxxxxx"
+                       class="alamat-input">
+                <p class="text-xs text-slate-400 mt-1.5">Kami akan menghubungi nomor ini untuk konfirmasi pengiriman.</p>
+            </div>
+
+            {{-- ════════ VIEW MODE (no API hit) ════════ --}}
+            <template x-if="!editingAddress && hasSavedAddress">
+                <div class="sm:col-span-2 alamat-view">
+                    <div class="alamat-view__grid">
+                        <div class="alamat-view__cell">
+                            <p class="alamat-view__label">Provinsi</p>
+                            <p class="alamat-view__value" x-text="selectedProvinceName || savedProvinceName || '—'"></p>
+                        </div>
+                        <div class="alamat-view__cell">
+                            <p class="alamat-view__label">Kota / Kabupaten</p>
+                            <p class="alamat-view__value" x-text="selectedCityName || savedCityName || '—'"></p>
+                        </div>
+                        <div class="alamat-view__cell">
+                            <p class="alamat-view__label">Kecamatan</p>
+                            <p class="alamat-view__value" x-text="selectedDistrictName || savedDistrictName || '—'"></p>
+                        </div>
+                        <div class="alamat-view__cell">
+                            <p class="alamat-view__label">Kode Pos</p>
+                            <p class="alamat-view__value">{{ $user->pasienProfile?->kode_pos ?: '—' }}</p>
+                        </div>
                     </div>
                 </div>
-                <p x-show="!resolved && savedProvinceName && !selectedProvinceId" x-cloak class="text-xs text-[#8C7A63] mt-1 flex items-center gap-1">
-                    <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                    Memuat: <span x-text="savedProvinceName" class="font-semibold"></span>
-                </p>
-            </div>
+            </template>
 
-            <div>
-                <label class="block text-xs font-bold text-slate-500 mb-1">Kota / Kabupaten</label>
-                <div class="relative">
-                    <select x-model="selectedCityId" @change="fetchDistricts()" :disabled="!selectedProvinceId" class="w-full rounded-xl border-[#E8E0D8]/60 text-sm focus:border-[#CFAF53] disabled:bg-slate-100" :class="loadingCities && 'opacity-50'">
-                        <option value="">-- Pilih Kota --</option>
-                        <template x-for="item in cities" :key="item.id"><option :value="item.id" x-text="item.name"></option></template>
-                    </select>
-                    <div x-show="loadingCities" class="absolute right-10 top-1/2 -translate-y-1/2">
-                        <svg class="w-4 h-4 animate-spin text-[#CFAF53]" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+            {{-- ════════ EDIT MODE (API loads on demand) ════════ --}}
+            <template x-if="editingAddress || !hasSavedAddress">
+                <div class="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1.5">Provinsi</label>
+                        <div class="alamat-select-wrap">
+                            <select x-model="selectedProvinceId" @change="fetchCities()" class="alamat-select" :class="loadingProvinces && 'alamat-select--loading'">
+                                <option value="">Pilih provinsi</option>
+                                <template x-for="item in provinces" :key="item.id"><option :value="item.id" x-text="item.name"></option></template>
+                            </select>
+                            <span class="alamat-select__caret" x-show="!loadingProvinces" aria-hidden="true">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                            </span>
+                            <span class="alamat-select__caret" x-show="loadingProvinces" aria-hidden="true">
+                                <svg class="animate-spin" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" class="opacity-25"/><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" class="opacity-75"/></svg>
+                            </span>
+                        </div>
+                        <p x-show="resolvingEdit && savedProvinceName && !selectedProvinceId" x-cloak class="text-xs text-[#8C7A63] mt-1 flex items-center gap-1">
+                            <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                            Memuat: <span x-text="savedProvinceName" class="font-semibold"></span>
+                        </p>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1.5">Kota / Kabupaten</label>
+                        <div class="alamat-select-wrap">
+                            <select x-model="selectedCityId" @change="fetchDistricts()" :disabled="!selectedProvinceId" class="alamat-select" :class="loadingCities && 'alamat-select--loading'">
+                                <option value="">Pilih kota / kabupaten</option>
+                                <template x-for="item in cities" :key="item.id"><option :value="item.id" x-text="item.name"></option></template>
+                            </select>
+                            <span class="alamat-select__caret" x-show="!loadingCities" aria-hidden="true">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                            </span>
+                            <span class="alamat-select__caret" x-show="loadingCities" aria-hidden="true">
+                                <svg class="animate-spin" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" class="opacity-25"/><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" class="opacity-75"/></svg>
+                            </span>
+                        </div>
+                        <p x-show="resolvingEdit && savedCityName && !selectedCityId" x-cloak class="text-xs text-[#8C7A63] mt-1 flex items-center gap-1">
+                            <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                            Memuat: <span x-text="savedCityName" class="font-semibold"></span>
+                        </p>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1.5">Kecamatan</label>
+                        <div class="alamat-select-wrap">
+                            <select x-model="selectedDistrictId"
+                                    @change="updateLocationNames()"
+                                    :disabled="!selectedCityId"
+                                    class="alamat-select"
+                                    :class="loadingDistricts && 'alamat-select--loading'">
+                                <option value="" x-text="selectedCityId ? 'Pilih kecamatan' : 'Pilih kota terlebih dahulu'"></option>
+                                <template x-for="item in districts" :key="item.id"><option :value="item.id" x-text="item.name"></option></template>
+                            </select>
+                            <span class="alamat-select__caret" x-show="!loadingDistricts" aria-hidden="true">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                            </span>
+                            <span class="alamat-select__caret" x-show="loadingDistricts" aria-hidden="true">
+                                <svg class="animate-spin" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" class="opacity-25"/><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" class="opacity-75"/></svg>
+                            </span>
+                        </div>
+                        <p x-show="resolvingEdit && savedDistrictName && !selectedDistrictId" x-cloak class="text-xs text-[#8C7A63] mt-1 flex items-center gap-1">
+                            <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                            Memuat: <span x-text="savedDistrictName" class="font-semibold"></span>
+                        </p>
+                    </div>
+
+                    <div>
+                        <label for="kode-pos" class="block text-xs font-bold text-slate-600 mb-1.5">Kode Pos</label>
+                        <input type="text"
+                               id="kode-pos"
+                               name="kode_pos"
+                               form="profile-form"
+                               value="{{ old('kode_pos', $user->pasienProfile?->kode_pos) }}"
+                               maxlength="6"
+                               inputmode="numeric"
+                               oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 6)"
+                               placeholder="Masukkan kode pos"
+                               class="alamat-input">
+                        <p class="text-xs text-slate-400 mt-1.5">Kode pos membantu estimasi pengiriman lebih akurat.</p>
+                    </div>
+
+                    {{-- Cancel button when editing existing address --}}
+                    <div class="sm:col-span-2 flex justify-end" x-show="editingAddress && hasSavedAddress" x-cloak>
+                        <button type="button" @click="cancelEditMode()" class="alamat-cancel-btn">
+                            Batal Ubah
+                        </button>
                     </div>
                 </div>
-                <p x-show="!resolved && savedCityName && !selectedCityId" x-cloak class="text-xs text-[#8C7A63] mt-1 flex items-center gap-1">
-                    <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                    Memuat: <span x-text="savedCityName" class="font-semibold"></span>
-                </p>
-            </div>
+            </template>
 
-            <div>
-                <label class="block text-xs font-bold text-slate-500 mb-1">Kecamatan</label>
-                <div class="relative">
-                    <select x-model="selectedDistrictId" @change="updateLocationNames()" :disabled="!selectedCityId" class="w-full rounded-xl border-[#E8E0D8]/60 text-sm focus:border-[#CFAF53] disabled:bg-slate-100" :class="loadingDistricts && 'opacity-50'">
-                        <option value="">-- Pilih Kecamatan --</option>
-                        <template x-for="item in districts" :key="item.id"><option :value="item.id" x-text="item.name"></option></template>
-                    </select>
-                    <div x-show="loadingDistricts" class="absolute right-10 top-1/2 -translate-y-1/2">
-                        <svg class="w-4 h-4 animate-spin text-[#CFAF53]" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                    </div>
-                </div>
-                <p x-show="!resolved && savedDistrictName && !selectedDistrictId" x-cloak class="text-xs text-[#8C7A63] mt-1 flex items-center gap-1">
-                    <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                    Memuat: <span x-text="savedDistrictName" class="font-semibold"></span>
-                </p>
-            </div>
-
-            <div>
-                <label class="block text-xs font-bold text-slate-500 mb-1">Kode Pos</label>
-                <input type="text" name="kode_pos" form="profile-form" value="{{ old('kode_pos', $user->pasienProfile?->kode_pos) }}" class="w-full rounded-xl border-[#E8E0D8]/60 text-sm focus:border-[#CFAF53]">
-            </div>
-
-            <div class="lg:col-span-2">
-                <label class="block text-xs font-bold text-slate-500 mb-1">Alamat Lengkap (Jalan, RT/RW)</label>
-                <textarea name="alamat" form="profile-form" rows="2" class="w-full rounded-xl border-[#E8E0D8]/60 text-sm focus:border-[#CFAF53]">{{ old('alamat', $user->pasienProfile?->alamat) }}</textarea>
+            <div class="sm:col-span-2">
+                <label for="alamat-lengkap" class="block text-xs font-bold text-slate-600 mb-1.5">Alamat Lengkap</label>
+                <textarea id="alamat-lengkap"
+                          name="alamat"
+                          form="profile-form"
+                          rows="3"
+                          placeholder="Contoh: Jl. Melati No.10, RT 02/RW 05"
+                          class="alamat-input alamat-input--textarea">{{ old('alamat', $user->pasienProfile?->alamat) }}</textarea>
             </div>
         </div>
 
         <div class="mt-8 flex justify-end">
-            <button type="submit" form="profile-form" class="bg-[#CFAF53] text-[#1A1A1A] font-bold px-8 py-3 rounded-full hover:bg-[#b59b48] shadow-lg shadow-[#CFAF53]/20 transition">
-                Simpan Alamat & Profil
+            <button type="submit" form="profile-form" class="alamat-submit">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+                <span>Simpan Alamat</span>
             </button>
         </div>
     </div>
 </div>
+
+@once
+    <style>
+        /* ─────────  ALAMAT PENGIRIMAN  ───────── */
+        .alamat-notice {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.625rem;
+            padding: 0.75rem 0.875rem;
+            background: linear-gradient(135deg, #FFF8EB 0%, #FFFCF5 100%);
+            border: 1px solid rgba(245, 158, 11, 0.22);
+            border-radius: 12px;
+        }
+        .alamat-notice__icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px; height: 28px;
+            border-radius: 9px;
+            background: rgba(207, 175, 83, 0.18);
+            color: #B8956F;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+        .alamat-notice__icon svg { width: 16px; height: 16px; }
+        .alamat-notice__text {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 0.8125rem;
+            line-height: 1.55;
+            color: #6F5A3F;
+            margin: 0;
+        }
+
+        /* Inputs & Textareas (premium minimal) */
+        .alamat-input {
+            width: 100%;
+            min-height: 44px;
+            padding: 0.625rem 0.875rem;
+            border: 1px solid rgba(232, 224, 216, 0.85);
+            border-radius: 12px;
+            background: #ffffff;
+            color: #1A1A1A;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 0.9375rem;
+            line-height: 1.5;
+            box-shadow: 0 1px 2px rgba(26, 26, 26, 0.02);
+            transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+        }
+        .alamat-input::placeholder { color: #94A3B8; }
+        .alamat-input:hover { border-color: rgba(184, 149, 111, 0.5); }
+        .alamat-input:focus {
+            outline: none;
+            border-color: #CFAF53;
+            box-shadow: 0 0 0 3px rgba(207, 175, 83, 0.18);
+        }
+        .alamat-input--textarea {
+            min-height: 110px;
+            resize: vertical;
+            line-height: 1.6;
+        }
+
+        /* Select wrapper */
+        .alamat-select-wrap {
+            position: relative;
+        }
+        .alamat-select {
+            width: 100%;
+            min-height: 44px;
+            padding: 0.625rem 2.5rem 0.625rem 0.875rem;
+            border: 1px solid rgba(232, 224, 216, 0.85);
+            border-radius: 12px;
+            background: #ffffff;
+            color: #1A1A1A;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 0.9375rem;
+            line-height: 1.5;
+            cursor: pointer;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            box-shadow: 0 1px 2px rgba(26, 26, 26, 0.02);
+            transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+        }
+        .alamat-select:hover { border-color: rgba(184, 149, 111, 0.5); }
+        .alamat-select:focus {
+            outline: none;
+            border-color: #CFAF53;
+            box-shadow: 0 0 0 3px rgba(207, 175, 83, 0.18);
+        }
+        .alamat-select:disabled {
+            background: #F8FAFC;
+            border-color: rgba(232, 224, 216, 0.7);
+            color: #94A3B8;
+            cursor: not-allowed;
+            opacity: 0.85;
+        }
+        .alamat-select--loading { opacity: 0.6; }
+        .alamat-select__caret {
+            position: absolute;
+            top: 50%;
+            right: 0.875rem;
+            transform: translateY(-50%);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 16px; height: 16px;
+            color: #94A3B8;
+            pointer-events: none;
+        }
+        .alamat-select__caret svg { width: 14px; height: 14px; }
+        .alamat-select:focus + .alamat-select__caret,
+        .alamat-select-wrap:hover .alamat-select__caret { color: #B8956F; }
+
+        /* Submit button */
+        .alamat-submit {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4375rem;
+            padding: 0.625rem 1.5rem;
+            min-height: 44px;
+            border-radius: 9999px;
+            background: linear-gradient(135deg, #CFAF53 0%, #B8956F 100%);
+            color: #ffffff;
+            border: 1px solid transparent;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 0.875rem;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow:
+                0 1px 2px rgba(184, 149, 111, 0.25),
+                0 8px 18px -8px rgba(184, 149, 111, 0.55);
+            transition: transform 200ms ease, box-shadow 200ms ease, filter 200ms ease;
+        }
+        .alamat-submit svg { width: 14px; height: 14px; }
+        .alamat-submit:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.05);
+            box-shadow:
+                0 1px 2px rgba(184, 149, 111, 0.3),
+                0 14px 24px -8px rgba(184, 149, 111, 0.6);
+        }
+        .alamat-submit:active { transform: translateY(0); }
+
+        @media (max-width: 639px) {
+            .alamat-submit { width: 100%; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .alamat-input,
+            .alamat-select,
+            .alamat-submit { transition: none; }
+            .alamat-submit:hover { transform: none; filter: none; }
+        }
+
+        /* ── View Mode Display (when address is already saved) ── */
+        .alamat-view {
+            padding: 1rem 1.125rem;
+            background: linear-gradient(180deg, #FAF8F5 0%, #FFFFFF 100%);
+            border: 1px solid rgba(232, 224, 216, 0.7);
+            border-radius: 14px;
+        }
+        .alamat-view__grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.875rem 1.25rem;
+        }
+        @media (min-width: 640px) {
+            .alamat-view__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        .alamat-view__cell { min-width: 0; }
+        .alamat-view__label {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 0.6875rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+            color: #94A3B8;
+            margin: 0 0 0.25rem 0;
+        }
+        .alamat-view__value {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 0.9375rem;
+            font-weight: 700;
+            color: #1A1A1A;
+            line-height: 1.4;
+            margin: 0;
+            word-break: break-word;
+        }
+
+        /* ── Edit toggle button (header) ── */
+        .alamat-edit-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.4375rem 0.875rem;
+            border-radius: 9999px;
+            background: rgba(207, 175, 83, 0.08);
+            color: #B8956F;
+            border: 1px solid rgba(184, 149, 111, 0.3);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 0.75rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 200ms ease, color 200ms ease, border-color 200ms ease, transform 200ms ease;
+            white-space: nowrap;
+        }
+        .alamat-edit-btn svg { width: 12px; height: 12px; }
+        .alamat-edit-btn:hover {
+            background: linear-gradient(135deg, #CFAF53 0%, #B8956F 100%);
+            border-color: transparent;
+            color: #ffffff;
+            transform: translateY(-1px);
+        }
+
+        /* ── Cancel edit (when in edit mode with saved data) ── */
+        .alamat-cancel-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.4375rem 0.875rem;
+            border-radius: 9999px;
+            background: transparent;
+            color: #64748B;
+            border: 1px solid #E2E8F0;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 180ms ease, color 180ms ease, border-color 180ms ease;
+        }
+        .alamat-cancel-btn:hover {
+            background: #F8FAFC;
+            color: #1A1A1A;
+            border-color: #CBD5E1;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .alamat-edit-btn,
+            .alamat-cancel-btn { transition: none; }
+            .alamat-edit-btn:hover { transform: none; }
+        }
+    </style>
+@endonce

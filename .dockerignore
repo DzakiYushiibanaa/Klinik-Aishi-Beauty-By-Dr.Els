@@ -44,3 +44,4 @@ nixpacks.toml
 *.log
 migrate_error.txt
 README.md
+tests-e2e

@@ -11,8 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 use Illuminate\View\View;
-use App\Models\Pasien;
-use App\Support\CodeGenerator;
+use App\Support\EnsurePasienProfile;
 use Illuminate\Support\Facades\DB;
 
 class RegisteredUserController extends Controller
@@ -38,34 +37,21 @@ class RegisteredUserController extends Controller
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
+        $user = null;
+
         DB::transaction(function () use ($request, &$user) {
             $user = User::create([
-                'name' => $request->name,
-                'email' => $request->email,
+                'name'     => $request->name,
+                'email'    => $request->email,
                 'password' => Hash::make($request->password),
             ]);
 
             $user->assignRole('pasien');
 
-            // Generate no rekam medis (default: non-member)
-            $isMember = false;
-            $prefix = $isMember ? 'RM' : 'NM';
-            
-            $noRekamMedis = CodeGenerator::prefixNumber(
-                new Pasien(),
-                'no_rekam_medis',
-                $prefix,
-                6,
-                '-'
-            );
-
-            // Create pasien profile
-            Pasien::create([
-                'user_id' => $user->id,
-                'no_rekam_medis' => $noRekamMedis,
-                'is_member' => $isMember,
-                'member_since' => null,
-            ]);
+            // Setiap user dengan role pasien wajib punya record di tabel `pasien`.
+            // Kode default: NM-XXXXXX (non-member). Upgrade ke RM dilakukan
+            // setelah pasien menyelesaikan registrasi member / konsultasi awal.
+            EnsurePasienProfile::for($user);
 
             event(new Registered($user));
         });

@@ -26,7 +26,7 @@
                     </div>
                     <div class="flex justify-between">
                         <span class="text-sm text-slate-600">Status:</span>
-                        <span class="px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">Lunas</span>
+                        <span class="px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">Sudah Dibayar</span>
                     </div>
                 </div>
             </div>

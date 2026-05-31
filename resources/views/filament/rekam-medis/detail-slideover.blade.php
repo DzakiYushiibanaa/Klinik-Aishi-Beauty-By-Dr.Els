@@ -5,39 +5,47 @@
         ? Carbon::parse($rm->appointment->tanggal_jam)
         : Carbon::parse($rm->created_at);
 
-    $jenisMap = [
-        'konsultasi' => 'Consultation',
-        'treatment'  => 'Treatment',
-        'follow_up'  => 'Follow-up',
-        'follow-up'  => 'Follow-up',
-        'injection'  => 'Injection',
-        'procedure'  => 'Procedure',
-    ];
-    $jenisLabel = $jenisMap[strtolower((string) ($rm->appointment?->jenis))] ?? ucfirst((string) $rm->appointment?->jenis);
+    /* ── Resolve jenis layanan dengan detail spesifik ───────────────── */
+    $jenisRaw = strtolower((string) ($rm->appointment?->jenis ?? ''));
 
-    $statusMap = [
-        'direncanakan' => ['Direncanakan', '#FEF3C7', '#92400E'],
-        'dilakukan'    => ['Dilakukan',    '#D1FAE5', '#065F46'],
-        'ditunda'      => ['Ditunda',      '#E5E7EB', '#4B5563'],
-        'dibatalkan'   => ['Dibatalkan',   '#FEE2E2', '#991B1B'],
-    ];
-    $statusCfg = $statusMap[strtolower((string) $rm->status_tindakan)] ?? ['-', '#E5E7EB', '#4B5563'];
+    if ($jenisRaw === 'konsultasi') {
+        // Konsultasi: ambil nama spesifik dari Consultation
+        // (mis. "Konsultasi Awal" / "Konsultasi Lanjutan").
+        $consultItem = $rm->appointment?->items
+            ?->first(fn ($i) => strtolower((string) $i->item_type) === 'consultation');
+        $jenisLabel = $consultItem?->consultation?->nama ?: 'Konsultasi';
+    } else {
+        $jenisMap = [
+            'treatment'  => 'Treatment',
+            'follow_up'  => 'Follow-up',
+            'follow-up'  => 'Follow-up',
+            'injection'  => 'Injection',
+            'procedure'  => 'Procedure',
+        ];
+        $jenisLabel = $jenisMap[$jenisRaw] ?? ($jenisRaw !== '' ? ucfirst($jenisRaw) : null);
+    }
 
     $treatmentName = null;
     if (!empty($rm->tindakan)) {
         $treatmentName = strip_tags($rm->tindakan);
     } elseif ($rm->appointment?->items?->isNotEmpty()) {
-        $items = $rm->appointment->items;
-        $first = $items->first();
-        $treatmentName = match (true) {
-            $first->item_type === 'treatment' && $first->treatment       => $first->treatment->nama,
-            $first->item_type === 'bundle' && $first->bundle             => 'Bundle: '.$first->bundle->nama,
-            $first->item_type === 'consultation' && $first->consultation => $first->consultation->nama,
-            default                                                       => null,
-        };
-        $rest = $items->count() - 1;
-        if ($treatmentName && $rest > 0) {
-            $treatmentName .= ' + '.$rest.' item';
+        // Skip item type "consultation" — konsultasi bukan treatment medis.
+        $items = $rm->appointment->items->filter(
+            fn ($i) => in_array(strtolower((string) $i->item_type), ['treatment', 'bundle'], true)
+        )->values();
+
+        if ($items->isNotEmpty()) {
+            $first = $items->first();
+            $treatmentName = match (true) {
+                strtolower((string) $first->item_type) === 'treatment' && $first->treatment => $first->treatment->nama,
+                strtolower((string) $first->item_type) === 'bundle'    && $first->bundle    => 'Bundle: '.$first->bundle->nama,
+                default => null,
+            };
+
+            $rest = $items->count() - 1;
+            if ($treatmentName && $rest > 0) {
+                $treatmentName .= ' + '.$rest.' item';
+            }
         }
     }
 
@@ -88,14 +96,6 @@
                 </div>
             @endif
         </div>
-    </div>
-
-    {{-- STATUS BADGE --}}
-    <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px;">
-        <span style="font-size:11px; font-weight:600; color:#8A8078; text-transform:uppercase; letter-spacing:0.08em;">Status:</span>
-        <span style="display:inline-block; padding:4px 14px; border-radius:9999px; background:{{ $statusCfg[1] }}; color:{{ $statusCfg[2] }}; font-size:0.75rem; font-weight:600;">
-            {{ $statusCfg[0] }}
-        </span>
     </div>
 
     {{-- DETAIL SECTIONS --}}

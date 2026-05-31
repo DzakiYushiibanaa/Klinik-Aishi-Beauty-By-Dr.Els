@@ -27,7 +27,7 @@ return new class extends Migration
             $table->unsignedBigInteger('dibuat_oleh_id'); // users.id
             $table->foreign('dibuat_oleh_id')->references('id')->on('users')->cascadeOnDelete();
 
-            $table->string('status')->default('draft'); // draft/menunggu_pembayaran/lunas/batal
+            $table->string('status')->default('draft'); // draft/menunggu_pembayaran/sudah_dibayar/batal
             $table->string('payment_method')->nullable(); // midtrans/cash
             $table->string('payment_channel')->nullable(); // qris/bca_va/dll
             $table->string('payment_ref')->nullable();

@@ -94,7 +94,7 @@
             <template x-for="pay in [
                 { id: 'semua', label: 'Semua Pembayaran' },
                 { id: 'belum_bayar', label: 'Belum Bayar' },
-                { id: 'lunas', label: 'Sudah Bayar' }
+                { id: 'sudah_dibayar', label: 'Sudah Bayar' }
             ]" :key="pay.id">
                 <button @click="filterPayment = pay.id"
                         class="shrink-0 px-4 py-1.5 rounded-full text-sm font-bold transition border"
@@ -181,13 +181,13 @@
                                 $payBadge = 'bg-amber-50 text-amber-600 border-amber-200';
                                 $payFilterKey = 'belum_bayar';
                             } else {
-                                $payLabel = match($relatedOrder->status) { 'menunggu_pembayaran' => 'Belum Bayar', 'sudah_dibayar', 'lunas' => 'Lunas', 'batal', 'dibatalkan' => 'Batal', default => ucfirst($relatedOrder->status) };
-                                $payBadge = match($relatedOrder->status) { 'menunggu_pembayaran' => 'bg-amber-50 text-amber-600 border-amber-200', 'sudah_dibayar', 'lunas' => 'bg-emerald-50 text-emerald-600 border-emerald-200', default => 'bg-slate-50 text-slate-500 border-slate-200' };
+                                $payLabel = match($relatedOrder->status) { 'menunggu_pembayaran' => 'Belum Bayar', 'sudah_dibayar' => 'Sudah Dibayar', 'batal', 'dibatalkan' => 'Batal', default => ucfirst($relatedOrder->status) };
+                                $payBadge = match($relatedOrder->status) { 'menunggu_pembayaran' => 'bg-amber-50 text-amber-600 border-amber-200', 'sudah_dibayar' => 'bg-emerald-50 text-emerald-600 border-emerald-200', default => 'bg-slate-50 text-slate-500 border-slate-200' };
                                 
                                 if ($payLabel === 'Belum Bayar') {
                                     $payFilterKey = 'belum_bayar';
-                                } elseif ($payLabel === 'Lunas') {
-                                    $payFilterKey = 'lunas';
+                                } elseif ($payLabel === 'Sudah Dibayar') {
+                                    $payFilterKey = 'sudah_dibayar';
                                 }
                             }
                         } else {
@@ -354,7 +354,7 @@
                             }
                             return times;
                         }
-                    }" @click="if(!$event.target.closest('button') && !$event.target.closest('form')) { @if($relatedOrder && in_array($relatedOrder->status, ['sudah_dibayar', 'lunas'])) showNotaTreatment = true; @endif }" x-init="$nextTick(() => { if ($root.highlightId == '{{ $apt->appointment_id }}') { $el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } })" :class="$root.highlightId == '{{ $apt->appointment_id }}' ? 'ring-2 ring-[#CFAF53] shadow-lg shadow-[#CFAF53]/20 bg-[#CFAF53]/5' : 'bg-slate-50'" class="rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col md:flex-row gap-5 transition-all duration-1000 {{ $relatedOrder && in_array($relatedOrder->status, ['sudah_dibayar', 'lunas']) ? 'cursor-pointer hover:border-[#CFAF53]/50' : '' }}" data-apt-id="{{ $apt->appointment_id }}">
+                    }" @click="if(!$event.target.closest('button') && !$event.target.closest('form')) { @if($relatedOrder && $relatedOrder->status === 'sudah_dibayar') showNotaTreatment = true; @endif }" x-init="$nextTick(() => { if ($root.highlightId == '{{ $apt->appointment_id }}') { $el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } @if($errors->has('cancel_reason') && old('_cancel_apt_id') == $apt->appointment_id) openCancelModal = true; $el.scrollIntoView({ behavior: 'smooth', block: 'center' }); @endif })" :class="$root.highlightId == '{{ $apt->appointment_id }}' ? 'ring-2 ring-[#CFAF53] shadow-lg shadow-[#CFAF53]/20 bg-[#CFAF53]/5' : 'bg-slate-50'" class="rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col md:flex-row gap-5 transition-all duration-1000 {{ $relatedOrder && $relatedOrder->status === 'sudah_dibayar' ? 'cursor-pointer hover:border-[#CFAF53]/50' : '' }}" data-apt-id="{{ $apt->appointment_id }}">
 
                         {{-- Kotak Tanggal --}}
                         <div class="shrink-0">
@@ -513,7 +513,7 @@
                             @endif
 
                             {{-- Modal Nota Treatment --}}
-                            @if($relatedOrder && in_array($relatedOrder->status, ['sudah_dibayar', 'lunas']))
+                            @if($relatedOrder && $relatedOrder->status === 'sudah_dibayar')
                                 <div x-show="showNotaTreatment" @click.stop style="display:none" class="fixed inset-0 z-[999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" x-transition>
                                     <div class="bg-white w-full max-w-3xl max-h-[90vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden relative" @click.away="showNotaTreatment = false"
                                          x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-8 scale-95" x-transition:enter-end="opacity-100 translate-y-0 scale-100"
@@ -531,7 +531,7 @@
                                                 </div>
                                             </div>
                                             <div class="flex items-center gap-4">
-                                                <span class="px-3 py-1 text-[10px] font-black rounded uppercase tracking-wider bg-emerald-100 text-emerald-700">LUNAS</span>
+                                                <span class="px-3 py-1 text-[10px] font-black rounded uppercase tracking-wider bg-emerald-100 text-emerald-700">SUDAH DIBAYAR</span>
                                                 <button @click="showNotaTreatment = false" class="text-slate-400 hover:text-rose-500 bg-white hover:bg-rose-50 p-2 rounded-full transition-colors shadow-sm border border-[#E8E0D8]">
                                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                                                 </button>
@@ -645,21 +645,53 @@
 
                                             {{-- Payment Summary --}}
                                             <div class="flex justify-end">
-                                                <div class="w-full sm:w-72 space-y-3">
+                                                <div class="w-full sm:w-72 space-y-2.5">
+                                                    @php
+                                                        $notaSubtotal    = (int) ($relatedOrder->subtotal ?? $relatedOrder->grand_total);
+                                                        $notaDiskon      = (int) ($relatedOrder->diskon_total ?? 0);
+                                                        $notaOngkir      = (int) ($relatedOrder->ongkir ?? 0);
+                                                        $notaGrand       = (int) ($relatedOrder->grand_total ?? 0);
+                                                        $notaCashRcvd    = (int) ($relatedOrder->cash_received ?? 0);
+                                                        $notaIsCash      = strtolower((string) ($relatedOrder->payment_method ?? '')) === 'cash';
+                                                        $notaKembalian   = $notaIsCash && $notaCashRcvd > 0 ? max(0, $notaCashRcvd - $notaGrand) : 0;
+                                                    @endphp
+
                                                     <div class="flex justify-between items-center text-sm">
                                                         <span class="text-slate-500">Subtotal</span>
-                                                        <span class="font-medium text-[#1A1A1A]">Rp {{ number_format($relatedOrder->subtotal ?? $relatedOrder->grand_total, 0, ',', '.') }}</span>
+                                                        <span class="font-medium text-[#1A1A1A] tabular-nums">Rp {{ number_format($notaSubtotal, 0, ',', '.') }}</span>
                                                     </div>
-                                                    @if(($relatedOrder->diskon_total ?? 0) > 0)
+
+                                                    @if($notaDiskon > 0)
                                                         <div class="flex justify-between items-center text-sm">
-                                                            <span class="text-slate-500">Diskon</span>
-                                                            <span class="font-medium text-rose-500">-Rp {{ number_format($relatedOrder->diskon_total, 0, ',', '.') }}</span>
+                                                            <span class="text-slate-500">Diskon Transaksi</span>
+                                                            <span class="font-medium text-rose-600 tabular-nums">-Rp {{ number_format($notaDiskon, 0, ',', '.') }}</span>
                                                         </div>
                                                     @endif
-                                                    <div class="pt-3 border-t border-dashed border-[#E8E0D8] flex justify-between items-center">
+
+                                                    @if($notaOngkir > 0)
+                                                        <div class="flex justify-between items-center text-sm">
+                                                            <span class="text-slate-500">Ongkos Kirim</span>
+                                                            <span class="font-medium text-[#1A1A1A] tabular-nums">Rp {{ number_format($notaOngkir, 0, ',', '.') }}</span>
+                                                        </div>
+                                                    @endif
+
+                                                    <div class="pt-3 mt-1 border-t border-dashed border-[#E8E0D8] flex justify-between items-center">
                                                         <span class="font-bold text-[#1A1A1A]">Total Pembayaran</span>
-                                                        <span class="text-lg font-black text-[#CFAF53]">Rp {{ number_format($relatedOrder->grand_total, 0, ',', '.') }}</span>
+                                                        <span class="text-lg font-black text-[#CFAF53] tabular-nums">Rp {{ number_format($notaGrand, 0, ',', '.') }}</span>
                                                     </div>
+
+                                                    @if($notaIsCash && $notaCashRcvd > 0)
+                                                        <div class="pt-2 mt-1 border-t border-[#E8E0D8]/60 space-y-1.5">
+                                                            <div class="flex justify-between items-center text-xs">
+                                                                <span class="text-slate-400">Tunai Diterima</span>
+                                                                <span class="font-medium text-slate-600 tabular-nums">Rp {{ number_format($notaCashRcvd, 0, ',', '.') }}</span>
+                                                            </div>
+                                                            <div class="flex justify-between items-center text-xs">
+                                                                <span class="text-slate-400">Kembalian</span>
+                                                                <span class="font-bold text-emerald-600 tabular-nums">Rp {{ number_format($notaKembalian, 0, ',', '.') }}</span>
+                                                            </div>
+                                                        </div>
+                                                    @endif
                                                 </div>
                                             </div>
                                         </div>
@@ -678,15 +710,50 @@
 
                         {{-- Modal Batal --}}
                         <div x-show="openCancelModal" @click.stop style="display:none" class="fixed inset-0 z-[999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" x-transition>
-                            <div class="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl" @click.away="openCancelModal = false">
-                                <h3 class="text-lg font-bold text-[#1A1A1A]">Batalkan Janji?</h3>
-                                <p class="text-sm text-slate-500 mt-2">Tindakan ini tidak dapat dibatalkan.</p>
-                                <form action="{{ route('appointments.cancel', $apt->appointment_id) }}" method="POST" class="mt-4">
+                            <div class="bg-white w-full max-w-md rounded-2xl p-7 shadow-2xl" @click.away="openCancelModal = false">
+                                <div class="flex items-start gap-4">
+                                    <div class="shrink-0 w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center">
+                                        <svg class="w-6 h-6 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.74-3l-6.93-12a2 2 0 00-3.48 0l-6.93 12a2 2 0 001.74 3z"/></svg>
+                                    </div>
+                                    <div class="flex-1">
+                                        <h3 class="text-[1.35rem] font-extrabold text-[#1A1A1A] tracking-tight leading-tight">Batalkan Janji?</h3>
+                                        <p class="text-[0.95rem] text-slate-500 mt-1.5 leading-relaxed">Tindakan ini tidak dapat dibatalkan setelah dikonfirmasi.</p>
+                                    </div>
+                                </div>
+
+                                <form action="{{ route('appointments.cancel', $apt->appointment_id) }}" method="POST" class="mt-6">
                                     @csrf @method('PATCH')
-                                    <textarea name="cancel_reason" rows="2" required class="w-full rounded-xl border-slate-200 text-sm mb-4" placeholder="Alasan pembatalan..."></textarea>
-                                    <div class="flex gap-3">
-                                        <button type="button" @click="openCancelModal = false" class="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-700">Batal</button>
-                                        <button type="submit" class="flex-1 py-2.5 rounded-xl bg-rose-600 text-white text-sm font-bold">Ya, Batalkan</button>
+                                    <input type="hidden" name="_cancel_apt_id" value="{{ $apt->appointment_id }}">
+
+                                    <label class="block text-[0.9rem] font-bold text-[#1A1A1A] mb-2">
+                                        Alasan pembatalan
+                                        <span class="text-rose-500">*</span>
+                                    </label>
+                                    <textarea
+                                        name="cancel_reason"
+                                        rows="3"
+                                        required
+                                        minlength="5"
+                                        maxlength="255"
+                                        placeholder="Contoh: Ada keperluan mendadak yang tidak bisa ditunda."
+                                        class="w-full rounded-xl border-slate-300 focus:border-[#CFAF53] focus:ring-[#CFAF53]/40 text-[0.95rem] placeholder:text-slate-400 resize-none @error('cancel_reason') @if(old('_cancel_apt_id') == $apt->appointment_id) border-rose-400 focus:border-rose-400 focus:ring-rose-200 @endif @enderror">@if(old('_cancel_apt_id') == $apt->appointment_id){{ old('cancel_reason') }}@endif</textarea>
+
+                                    @error('cancel_reason')
+                                        @if(old('_cancel_apt_id') == $apt->appointment_id)
+                                            <p class="mt-2 text-[0.85rem] text-rose-600 font-medium flex items-start gap-1.5">
+                                                <svg class="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                                <span>{{ $message }}</span>
+                                            </p>
+                                        @else
+                                            <p class="mt-2 text-[0.8rem] text-slate-400">Minimal 5 karakter, maksimal 255 karakter.</p>
+                                        @endif
+                                    @else
+                                        <p class="mt-2 text-[0.8rem] text-slate-400">Minimal 5 karakter, maksimal 255 karakter.</p>
+                                    @enderror
+
+                                    <div class="flex gap-3 mt-6">
+                                        <button type="button" @click="openCancelModal = false" class="flex-1 py-3 rounded-xl border border-slate-200 text-[0.95rem] font-bold text-slate-700 hover:bg-slate-50 cursor-pointer transition-colors">Batal</button>
+                                        <button type="submit" class="flex-1 py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[0.95rem] font-bold cursor-pointer transition-colors">Ya, Batalkan</button>
                                     </div>
                                 </form>
                             </div>
@@ -816,27 +883,27 @@
 
                         {{-- Modal Reschedule 2 (Konfirmasi) --}}
                         <div x-show="openRescheduleConfirmModal" @click.stop style="display:none" class="fixed inset-0 z-[999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" x-transition>
-                            <div class="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl" @click.away="openRescheduleConfirmModal = false">
-                                <h3 class="text-lg font-bold text-[#1A1A1A]">Konfirmasi Perubahan</h3>
-                                <p class="text-sm text-slate-500 mt-2">Anda akan mengubah jadwal janji temu ini.</p>
-                                
-                                <div class="mt-4 bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                            <div class="bg-white w-full max-w-md rounded-2xl p-7 shadow-2xl" @click.away="openRescheduleConfirmModal = false">
+                                <h3 class="text-[1.35rem] font-extrabold text-[#1A1A1A] tracking-tight leading-tight">Konfirmasi Perubahan</h3>
+                                <p class="text-[0.95rem] text-slate-500 mt-2.5 leading-relaxed">Anda akan mengubah jadwal janji temu ini.</p>
+
+                                <div class="mt-6 bg-[#FAF8F5] border border-[#E8E0D8] rounded-xl p-5 space-y-4">
                                     <div>
-                                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Jadwal Lama</p>
-                                        <p class="text-sm font-bold text-[#1A1A1A]">{{ $apt->tanggal_jam->format('d M Y, H:i') }}</p>
+                                        <p class="text-[0.8rem] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Jadwal Lama</p>
+                                        <p class="text-[1rem] font-bold text-[#1A1A1A] leading-snug">{{ $apt->tanggal_jam->locale('id')->translatedFormat('l, d M Y') }} • Jam {{ $apt->tanggal_jam->format('H:i') }} WIB</p>
                                     </div>
-                                    <div class="flex justify-center text-slate-300">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                                    <div class="flex justify-center text-[#CFAF53]/50">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
                                     </div>
                                     <div>
-                                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Jadwal Baru</p>
-                                        <p class="text-sm font-bold text-[#CFAF53]"><span x-text="displayDate"></span> • Jam <span x-text="newJam"></span> WIB</p>
+                                        <p class="text-[0.8rem] font-bold text-[#CFAF53] uppercase tracking-widest mb-1.5">Jadwal Baru</p>
+                                        <p class="text-[1.05rem] font-extrabold text-[#CFAF53] leading-snug"><span x-text="displayDate"></span> • Jam <span x-text="newJam"></span> WIB</p>
                                     </div>
                                 </div>
 
-                                <div class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex gap-3 items-start">
+                                <div class="mt-5 p-4 bg-amber-50 border border-amber-200 rounded-xl flex gap-3 items-start">
                                     <svg class="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                    <p class="text-[10px] text-amber-700 font-medium">Perubahan jadwal akan mengubah status menjadi <span class="font-bold">Diajukan</span> dan memerlukan konfirmasi ulang dari admin.</p>
+                                    <p class="text-[0.9rem] text-amber-800 leading-relaxed">Perubahan jadwal akan mengubah status menjadi <span class="font-bold">Diajukan</span> dan perlu dikonfirmasi ulang oleh admin.</p>
                                 </div>
 
                                 <form action="{{ route('appointments.reschedule', $apt->appointment_id) }}" method="POST" class="mt-6">
@@ -844,8 +911,8 @@
                                     <input type="hidden" name="new_tanggal" :value="newTanggal">
                                     <input type="hidden" name="new_jam" :value="newJam">
                                     <div class="flex gap-3">
-                                        <button type="button" @click="openRescheduleConfirmModal = false; openRescheduleModal = true;" class="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50">Kembali</button>
-                                        <button type="submit" class="flex-1 py-2.5 rounded-xl bg-[#CFAF53] hover:bg-[#b09444] text-white text-sm font-bold transition-colors">Ya, Ubah Jadwal</button>
+                                        <button type="button" @click="openRescheduleConfirmModal = false; openRescheduleModal = true;" class="flex-1 py-3 rounded-xl border border-slate-200 text-[0.95rem] font-bold text-slate-700 hover:bg-slate-50 cursor-pointer transition-colors">Kembali</button>
+                                        <button type="submit" class="flex-1 py-3 rounded-xl bg-[#CFAF53] hover:bg-[#b09444] text-white text-[0.95rem] font-bold cursor-pointer transition-colors">Ya, Ubah Jadwal</button>
                                     </div>
                                 </form>
                             </div>

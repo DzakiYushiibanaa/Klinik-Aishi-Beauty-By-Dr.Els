@@ -9,3 +9,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('appointments:cancel-expired')->everyFiveMinutes();
+Schedule::command('appointments:send-reminders')->dailyAt('09:00')->timezone('Asia/Jakarta');

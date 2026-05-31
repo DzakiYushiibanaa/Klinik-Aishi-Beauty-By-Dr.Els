@@ -164,3 +164,13 @@ Route::middleware(['auth'])->prefix('admin/orders')->name('admin.orders.')->grou
     Route::get('/{order}/invoice/print', [\App\Http\Controllers\Admin\OrderInvoiceController::class, 'print'])
         ->name('invoice');
 });
+
+
+// ============================
+// ADMIN — GLOBAL SEARCH
+// ============================
+Route::middleware(['auth'])
+    ->get('/admin/api/global-search', \App\Http\Controllers\Admin\GlobalSearchController::class)
+    ->name('admin.global-search');
+
+    

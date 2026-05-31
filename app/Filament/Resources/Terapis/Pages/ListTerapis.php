@@ -45,8 +45,6 @@ class ListTerapis extends ListRecords
                     return Terapis::create([
                         'user_id'          => $user->id,
                         'kode_terapis'     => $kode,
-                        'jabatan'          => $data['jabatan'],
-                        'pengalaman_tahun' => $data['pengalaman_tahun'] ?? null,
                         'status_kerja'     => $data['status_kerja'] ?? 'aktif',
                         'foto_profil_path' => $data['foto_profil_path'] ?? null,
                     ]);

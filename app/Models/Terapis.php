@@ -13,8 +13,6 @@ class Terapis extends Model
     protected $fillable = [
         'user_id',
         'kode_terapis',
-        'jabatan',
-        'pengalaman_tahun',
         'status_kerja',
         'foto_profil_path',
     ];

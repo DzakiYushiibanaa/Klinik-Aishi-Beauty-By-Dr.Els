@@ -11,6 +11,7 @@ use Filament\Actions\ViewAction;
 use Filament\Support\Enums\Alignment;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -70,30 +71,14 @@ class TerapisTable
                         ';
                     }),
 
-                TextColumn::make('jabatan_pengalaman')
-                    ->label('JABATAN & PENGALAMAN')
-                    ->html()
-                    ->state(function (Terapis $record) {
-                        $jabatan = e($record->jabatan ?? '-');
-                        $exp = ($record->pengalaman_tahun ?? 0) . ' Tahun';
-                        return '
-                            <div style="display:flex; flex-direction:column;">
-                                <span style="font-weight:600; color:#111827;">'.$jabatan.'</span>
-                                <span style="font-size:0.8125rem; color:#8A8078; margin-top:2px;">'.$exp.'</span>
-                            </div>
-                        ';
-                    }),
-
-                TextColumn::make('status_kerja')
+                ToggleColumn::make('status_kerja')
                     ->label('STATUS KERJA')
-                    ->html()
-                    ->state(function (Terapis $record) {
-                        $isActive = strtolower($record->status_kerja ?? '') === 'aktif';
-                        if ($isActive) {
-                            return '<span style="display:inline-block; padding:4px 14px; border-radius:9999px; background:#F5E6D3; color:#7A5A3A; font-size:0.75rem; font-weight:600; letter-spacing:0.05em;">AKTIF</span>';
-                        }
-                        return '<span style="display:inline-block; padding:4px 14px; border-radius:9999px; background:#E5E7EB; color:#4B5563; font-size:0.75rem; font-weight:600; letter-spacing:0.05em;">NONAKTIF</span>';
-                    }),
+                    ->getStateUsing(fn (Terapis $record) => strtolower($record->status_kerja ?? '') === 'aktif')
+                    ->updateStateUsing(function (Terapis $record, bool $state) {
+                        $record->update(['status_kerja' => $state ? 'aktif' : 'nonaktif']);
+                        return $state;
+                    })
+                    ->sortable(),
             ])
             ->filters([
                 //
@@ -111,8 +96,6 @@ class TerapisTable
                         return [
                             'kode_terapis'     => $record?->kode_terapis,
                             'status_kerja'     => $record?->status_kerja,
-                            'jabatan'          => $record?->jabatan,
-                            'pengalaman_tahun' => $record?->pengalaman_tahun,
                             'foto_profil_path' => $record?->foto_profil_path,
                             'user_name'        => $record?->user?->name,
                             'user_email'       => $record?->user?->email,
@@ -136,8 +119,6 @@ class TerapisTable
                         return [
                             'kode_terapis'     => $record?->kode_terapis,
                             'status_kerja'     => $record?->status_kerja,
-                            'jabatan'          => $record?->jabatan,
-                            'pengalaman_tahun' => $record?->pengalaman_tahun,
                             'foto_profil_path' => $record?->foto_profil_path,
                             'user_name'        => $record?->user?->name,
                             'user_email'       => $record?->user?->email,
@@ -162,8 +143,6 @@ class TerapisTable
 
                         $record->update([
                             'kode_terapis'     => $data['kode_terapis'] ?? $record->kode_terapis,
-                            'jabatan'          => $data['jabatan'] ?? $record->jabatan,
-                            'pengalaman_tahun' => $data['pengalaman_tahun'] ?? null,
                             'status_kerja'     => $data['status_kerja'] ?? 'aktif',
                             'foto_profil_path' => $data['foto_profil_path'] ?? null,
                         ]);

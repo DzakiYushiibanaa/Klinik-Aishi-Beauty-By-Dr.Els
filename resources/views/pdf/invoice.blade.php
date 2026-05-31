@@ -26,7 +26,7 @@
         .summary-value { text-align: right; font-weight: bold; }
         .summary-total td { border-top: 1px dashed #E8E0D8; padding-top: 10px; font-size: 14px; color: #CFAF53; font-weight: bold; }
         .status-badge { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 9px; font-weight: bold; text-transform: uppercase; }
-        .status-lunas { background-color: #d1fae5; color: #047857; }
+        .status-paid { background-color: #d1fae5; color: #047857; }
         .status-menunggu { background-color: #fef3c7; color: #b45309; }
         .status-batal { background-color: #ffe4e6; color: #be123c; }
         .footer { margin-top: 40px; text-align: center; font-size: 9px; color: #94a3b8; border-top: 1px solid #E8E0D8; padding-top: 15px; }
@@ -40,8 +40,8 @@
     </div>
 
     @php
-        $statusClass = 'status-lunas';
-        $statusText = 'LUNAS';
+        $statusClass = 'status-paid';
+        $statusText = 'SUDAH DIBAYAR';
         if(in_array($order->status ?? '', ['batal','dibatalkan']) || ($order->shipping_status ?? '') === 'dibatalkan'){
             $statusClass = 'status-batal';
             $statusText = 'DIBATALKAN';
@@ -76,20 +76,52 @@
         $paymentLabel = $rawChannel ? ($channelLabels[strtolower($rawChannel)] ?? strtoupper($rawChannel)) : 'Transfer/Qris';
     @endphp
 
+    @php
+        /* ── Resolve nomor telepon (filter blank / "-") ─────────────── */
+        $phoneCandidates = [
+            $order->user?->phone,
+            $order->user?->pasienProfile?->no_telepon,
+        ];
+        $phone = collect($phoneCandidates)
+            ->map(fn ($v) => trim((string) $v))
+            ->first(fn ($v) => $v !== '' && $v !== '-');
+
+        /* ── Resolve alamat lengkap (prefer shipping_address, fallback profil) ── */
+        $profile = $order->user?->pasienProfile;
+        $fullAddress = trim((string) ($order->shipping_address ?? ''));
+        if ($fullAddress === '' && $profile) {
+            $parts = array_filter([
+                $profile->alamat ?? null,
+                $profile->district_name ?? null,
+                $profile->kota ?? null,
+                $profile->provinsi ?? null,
+                $profile->kode_pos ?? null,
+            ], fn ($p) => trim((string) $p) !== '');
+            $fullAddress = trim(implode(', ', $parts));
+        }
+    @endphp
+
     <table class="grid">
         <tr>
             <td>
                 <div class="section-title">Detail Pelanggan</div>
                 <div class="info-text info-bold">{{ $order->user->name ?? '-' }}</div>
-                <div class="info-text">{{ $order->user->email ?? '-' }}</div>
-                @if($order->user && $order->user->pasienProfile)
-                    <div class="info-text">{{ $order->user->pasienProfile->telepon ?? '-' }}</div>
+                @if($order->user?->email)
+                    <div class="info-text">{{ $order->user->email }}</div>
+                @endif
+                <div class="info-text">
+                    {{ $phone ?: 'Nomor HP belum diisi' }}
+                </div>
+                @if($fullAddress !== '')
+                    <div class="info-text" style="margin-top:6px; line-height:1.5;">
+                        {{ $fullAddress }}
+                    </div>
                 @endif
             </td>
             <td class="text-right">
                 <div class="section-title">Detail Transaksi</div>
                 <div class="info-text">Kode: <span class="info-bold">{{ $order->kode_order }}</span></div>
-                <div class="info-text">Tanggal: <span class="info-bold">{{ $order->created_at ? $order->created_at->format('d/m/Y') : '-' }}</span></div>
+                <div class="info-text">Tanggal: <span class="info-bold">{{ $order->created_at ? $order->created_at->format('d/m/Y H:i') : '-' }}</span></div>
                 <div class="info-text">Metode: <span class="info-bold">{{ $paymentLabel }}</span></div>
                 <div><span class="status-badge {{ $statusClass }}">{{ $statusText }}</span></div>
                 @if($order->shipping_method)
