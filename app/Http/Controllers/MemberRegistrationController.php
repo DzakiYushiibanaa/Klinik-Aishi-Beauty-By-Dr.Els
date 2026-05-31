@@ -20,7 +20,7 @@ class MemberRegistrationController extends Controller
         
         // Cek apakah user sudah member
         if ($user->pasienProfile && $user->pasienProfile->is_member) {
-            return redirect()->route('dashboard')->with('info', 'Anda sudah menjadi member.');
+            return redirect()->route('dashboard')->with('info', 'Anda sudah terdaftar sebagai member.');
         }
 
         $pasienId = \App\Models\Pasien::where('user_id', $user->id)->value('pasien_id');
@@ -139,12 +139,12 @@ class MemberRegistrationController extends Controller
 
             // 6. Redirect ke Halaman Pembayaran
             return redirect()->route('payment.show', $order->order_id)
-                ->with('success', 'Formulir terkirim! Silakan selesaikan pembayaran member.');
+                ->with('success', 'Pendaftaran member berhasil dikirim. Silakan selesaikan pembayaran.');
 
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Member Registration Error: ' . $e->getMessage());
-            return redirect()->back()->withInput()->with('error', 'Gagal memproses pendaftaran: ' . $e->getMessage());
+            return redirect()->back()->withInput()->with('error', 'Gagal memproses pendaftaran member. Silakan coba lagi.');
         }
     }
 
@@ -152,17 +152,21 @@ class MemberRegistrationController extends Controller
      * Helper Generate Kode Order (Sama seperti CheckoutController)
      * Sebaiknya ini di-refactor ke Service/Trait jika dipakai banyak tempat
      */
+    /**
+     * Helper Generate Kode Order Membership.
+     * Format khusus member tetap dipertahankan: MEM-YYYYMMDD-XXXX (4 digit).
+     */
     private function generateKodeOrder(): string
     {
         $date = now()->format('Ymd');
-        $prefix = "MEM-{$date}-"; // Prefix beda dikit biar tau ini Membership
-        
+        $prefix = "MEM-{$date}-";
+
         $lastOrder = Order::where('kode_order', 'like', "{$prefix}%")
             ->orderBy('order_id', 'desc')
             ->first();
-        
+
         $newNumber = $lastOrder ? (int) substr($lastOrder->kode_order, -4) + 1 : 1;
-        
+
         return $prefix . str_pad($newNumber, 4, '0', STR_PAD_LEFT);
     }
 }

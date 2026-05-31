@@ -53,7 +53,7 @@
                         </div>
                         <div>
                             <h3 class="text-sm font-bold text-[#1A1A1A] mb-1">Pesan Penting untuk Kesehatan Kulit Anda</h3>
-                            <p class="text-xs text-gray-500 leading-relaxed">
+                            <p class="text-xs text-gray-500 leading-relaxed text-justify">
                                 Agar hasil perawatan optimal dan aman, kami menyarankan Anda untuk tidak memilih treatment secara sembarangan jika belum mengetahui kondisi kulit dengan pasti.
                             </p>
                             <p class="text-xs text-gray-500 leading-relaxed mt-2">
@@ -368,7 +368,7 @@
                             <div class="text-lg font-bold text-[#1A1A1A] mt-0.5" x-text="'Rp ' + totalHarga.toLocaleString('id-ID')"></div>
                         </div>
                         <button @click="nextStep()" class="shrink-0 ml-4 inline-flex items-center gap-2 rounded-2xl bg-[#3B3529] px-6 py-3.5 text-sm font-semibold text-white hover:bg-[#2A261D] transition-all shadow-sm">
-                            Lanjut Jadwal
+                            Lanjut Atur Jadwal
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                         </button>
                     </div>
@@ -682,14 +682,20 @@ function bookingTreatment() {
                     window.snap.pay(data.snap_token, {
                         onSuccess: () => { window.location.href = '/dashboard?tab=appointment&highlight=' + aptId; },
                         onPending: () => { window.location.href = '/dashboard?tab=appointment&highlight=' + aptId; },
-                        onError: () => { alert('Terjadi kesalahan pembayaran.'); this.isSubmitting = false; },
+                        onError: () => { window.showToast && window.showToast('error', 'Terjadi kesalahan saat memproses pembayaran. Silakan coba lagi.', 'Pembayaran Gagal'); this.isSubmitting = false; },
                         onClose: () => { this.isSubmitting = false; }
                     });
                 } else if (data.status === 'success_no_payment') {
-                    alert(data.message);
-                    window.location.href = '/dashboard?tab=appointment&highlight=' + (data.appointment_id || '');
-                } else { alert(data.message || 'Terjadi kesalahan.'); this.isSubmitting = false; }
-            } catch (e) { alert('Gagal menghubungi server.'); this.isSubmitting = false; }
+                    window.showToast && window.showToast('success', data.message || 'Janji temu berhasil dibuat.', 'Berhasil');
+                    setTimeout(() => { window.location.href = '/dashboard?tab=appointment&highlight=' + (data.appointment_id || ''); }, 800);
+                } else {
+                    window.showToast && window.showToast('error', data.message || 'Terjadi kesalahan saat memproses janji temu.', 'Gagal');
+                    this.isSubmitting = false;
+                }
+            } catch (e) {
+                window.showToast && window.showToast('error', 'Tidak dapat terhubung ke server. Silakan periksa jaringan Anda.', 'Gagal Terhubung');
+                this.isSubmitting = false;
+            }
         }
     }
 }

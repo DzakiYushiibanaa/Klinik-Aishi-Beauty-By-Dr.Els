@@ -94,7 +94,7 @@
             <template x-for="pay in [
                 { id: 'semua', label: 'Semua Pembayaran' },
                 { id: 'belum_bayar', label: 'Belum Bayar' },
-                { id: 'lunas', label: 'Sudah Bayar' }
+                { id: 'sudah_dibayar', label: 'Sudah Bayar' }
             ]" :key="pay.id">
                 <button @click="filterPayment = pay.id"
                         class="shrink-0 px-4 py-1.5 rounded-full text-sm font-bold transition border"
@@ -181,13 +181,13 @@
                                 $payBadge = 'bg-amber-50 text-amber-600 border-amber-200';
                                 $payFilterKey = 'belum_bayar';
                             } else {
-                                $payLabel = match($relatedOrder->status) { 'menunggu_pembayaran' => 'Belum Bayar', 'sudah_dibayar', 'lunas' => 'Lunas', 'batal', 'dibatalkan' => 'Batal', default => ucfirst($relatedOrder->status) };
-                                $payBadge = match($relatedOrder->status) { 'menunggu_pembayaran' => 'bg-amber-50 text-amber-600 border-amber-200', 'sudah_dibayar', 'lunas' => 'bg-emerald-50 text-emerald-600 border-emerald-200', default => 'bg-slate-50 text-slate-500 border-slate-200' };
+                                $payLabel = match($relatedOrder->status) { 'menunggu_pembayaran' => 'Belum Bayar', 'sudah_dibayar' => 'Sudah Dibayar', 'batal', 'dibatalkan' => 'Batal', default => ucfirst($relatedOrder->status) };
+                                $payBadge = match($relatedOrder->status) { 'menunggu_pembayaran' => 'bg-amber-50 text-amber-600 border-amber-200', 'sudah_dibayar' => 'bg-emerald-50 text-emerald-600 border-emerald-200', default => 'bg-slate-50 text-slate-500 border-slate-200' };
                                 
                                 if ($payLabel === 'Belum Bayar') {
                                     $payFilterKey = 'belum_bayar';
-                                } elseif ($payLabel === 'Lunas') {
-                                    $payFilterKey = 'lunas';
+                                } elseif ($payLabel === 'Sudah Dibayar') {
+                                    $payFilterKey = 'sudah_dibayar';
                                 }
                             }
                         } else {
@@ -232,24 +232,70 @@
                         newTanggal: '', 
                         newJam: '',
                         displayDate: '',
+                        jenis: @js(strtolower($apt->jenis)),
                         jadwalData: @js($aptJadwalData),
-                        
+                        treatmentSlots: [],
+                        loadingTreatmentSlots: false,
+
+                        async fetchTreatmentSlots() {
+                            if (this.jenis !== 'treatment' || !this.newTanggal) { this.treatmentSlots = []; return; }
+                            this.loadingTreatmentSlots = true;
+                            try {
+                                const res = await fetch(`{{ route('appointment.booking-treatment.check-slots') }}?tanggal=${this.newTanggal}`);
+                                const data = await res.json();
+                                const today = new Date(); today.setSeconds(0,0);
+                                this.treatmentSlots = data.map(s => {
+                                    const startStr = s.value.split(' - ')[0];
+                                    const slotStart = new Date(`${this.newTanggal}T${startStr}:00`);
+                                    const isPast = slotStart < today;
+                                    const isFull = !!s.penuh;
+                                    return {
+                                        value: s.value.replace(/:/g, '.'),
+                                        rawValue: s.value,
+                                        sisa: s.sisa,
+                                        penuh: isFull,
+                                        isPast: isPast,
+                                        isDisabled: isFull || isPast,
+                                        label: isPast ? 'Lewat' : (isFull ? 'Penuh' : `Sisa ${s.sisa} slot`),
+                                    };
+                                });
+                            } catch (e) {
+                                this.treatmentSlots = [];
+                            }
+                            this.loadingTreatmentSlots = false;
+                        },
+
                         get availableDays() {
-                            const docJadwals = this.jadwalData;
-                            const activeDays = docJadwals.map(j => j.hari.toLowerCase());
-                            
                             const days = [];
                             const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
                             const today = new Date();
-                            
+
+                            // Treatment: 14 hari ke depan, semua hari (slot dikelola admin via endpoint)
+                            if (this.jenis === 'treatment') {
+                                for (let i = 1; i <= 14; i++) {
+                                    const d = new Date(today);
+                                    d.setDate(today.getDate() + i);
+                                    days.push({
+                                        date: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`,
+                                        dayName: dayNames[d.getDay()].substring(0, 3),
+                                        dayNum: d.getDate(),
+                                        monthShort: d.toLocaleString('id-ID', {month:'short'}),
+                                        displayFull: `${dayNames[d.getDay()]}, ${d.getDate()} ${d.toLocaleString('id-ID', {month:'short'})} ${d.getFullYear()}`
+                                    });
+                                }
+                                return days;
+                            }
+
+                            // Konsultasi: ikuti hari praktik dokter
+                            const activeDays = this.jadwalData.map(j => j.hari.toLowerCase());
                             for (let i = 0; i < 30; i++) {
                                 const d = new Date(today);
                                 d.setDate(today.getDate() + i);
                                 const dayName = dayNames[d.getDay()];
-                                
+
                                 if (activeDays.includes(dayName.toLowerCase())) {
                                     days.push({
-                                        date: d.toISOString().split('T')[0],
+                                        date: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`,
                                         dayName: dayName.substring(0, 3),
                                         dayNum: d.getDate(),
                                         monthShort: d.toLocaleString('id-ID', {month:'short'}),
@@ -262,45 +308,53 @@
 
                         get availableTimes() {
                             if (!this.newTanggal) return [];
-                            
-                            const selectedDate = new Date(this.newTanggal);
+
+                            // Treatment: pakai slot dari API (sudah di-fetch)
+                            if (this.jenis === 'treatment') return this.treatmentSlots;
+
+                            // Konsultasi: generate slot 30 menit dari jadwal dokter
+                            const [yy, mm, dd] = this.newTanggal.split('-').map(Number);
+                            const selectedDate = new Date(yy, mm - 1, dd);
                             const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
                             const dayName = dayNames[selectedDate.getDay()].toLowerCase();
-                            
+
                             const docJadwals = this.jadwalData.filter(j => j.hari.toLowerCase() === dayName);
                             if (docJadwals.length === 0) return [];
-                            
+
                             const jadwal = docJadwals[0];
                             const startTime = jadwal.jam_mulai;
                             const endTime = jadwal.jam_selesai;
                             const duration = jadwal.durasi_slot_menit || 30;
-                            
+
                             const times = [];
                             let current = new Date(`${this.newTanggal}T${startTime}`);
                             const end = new Date(`${this.newTanggal}T${endTime}`);
                             const now = new Date();
-                            
+
                             while (current < end) {
                                 const nextSlot = new Date(current);
                                 nextSlot.setMinutes(current.getMinutes() + duration);
-                                
+
                                 const startH = current.getHours().toString().padStart(2, '0');
                                 const startM = current.getMinutes().toString().padStart(2, '0');
                                 const endH = nextSlot.getHours().toString().padStart(2, '0');
                                 const endM = nextSlot.getMinutes().toString().padStart(2, '0');
-                                
+
                                 const isPast = current < now;
-                                
+
                                 times.push({
                                     value: `${startH}.${startM} - ${endH}.${endM}`,
-                                    isDisabled: isPast
+                                    isDisabled: isPast,
+                                    label: isPast ? 'Lewat' : 'Tersedia',
+                                    penuh: false,
+                                    isPast: isPast,
                                 });
-                                
+
                                 current = nextSlot;
                             }
                             return times;
                         }
-                    }" @click="if(!$event.target.closest('button') && !$event.target.closest('form')) { @if($relatedOrder && in_array($relatedOrder->status, ['sudah_dibayar', 'lunas'])) showNotaTreatment = true; @endif }" x-init="$nextTick(() => { if ($root.highlightId == '{{ $apt->appointment_id }}') { $el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } })" :class="$root.highlightId == '{{ $apt->appointment_id }}' ? 'ring-2 ring-[#CFAF53] shadow-lg shadow-[#CFAF53]/20 bg-[#CFAF53]/5' : 'bg-slate-50'" class="rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col md:flex-row gap-5 transition-all duration-1000 {{ $relatedOrder && in_array($relatedOrder->status, ['sudah_dibayar', 'lunas']) ? 'cursor-pointer hover:border-[#CFAF53]/50' : '' }}" data-apt-id="{{ $apt->appointment_id }}">
+                    }" @click="if(!$event.target.closest('button') && !$event.target.closest('form')) { @if($relatedOrder && $relatedOrder->status === 'sudah_dibayar') showNotaTreatment = true; @endif }" x-init="$nextTick(() => { if ($root.highlightId == '{{ $apt->appointment_id }}') { $el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } @if($errors->has('cancel_reason') && old('_cancel_apt_id') == $apt->appointment_id) openCancelModal = true; $el.scrollIntoView({ behavior: 'smooth', block: 'center' }); @endif })" :class="$root.highlightId == '{{ $apt->appointment_id }}' ? 'ring-2 ring-[#CFAF53] shadow-lg shadow-[#CFAF53]/20 bg-[#CFAF53]/5' : 'bg-slate-50'" class="rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col md:flex-row gap-5 transition-all duration-1000 {{ $relatedOrder && $relatedOrder->status === 'sudah_dibayar' ? 'cursor-pointer hover:border-[#CFAF53]/50' : '' }}" data-apt-id="{{ $apt->appointment_id }}">
 
                         {{-- Kotak Tanggal --}}
                         <div class="shrink-0">
@@ -459,8 +513,8 @@
                             @endif
 
                             {{-- Modal Nota Treatment --}}
-                            @if($relatedOrder && in_array($relatedOrder->status, ['sudah_dibayar', 'lunas']))
-                                <div x-show="showNotaTreatment" style="display:none" class="fixed inset-0 z-[999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" x-transition>
+                            @if($relatedOrder && $relatedOrder->status === 'sudah_dibayar')
+                                <div x-show="showNotaTreatment" @click.stop style="display:none" class="fixed inset-0 z-[999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" x-transition>
                                     <div class="bg-white w-full max-w-3xl max-h-[90vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden relative" @click.away="showNotaTreatment = false"
                                          x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-8 scale-95" x-transition:enter-end="opacity-100 translate-y-0 scale-100"
                                          x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 scale-100" x-transition:leave-end="opacity-0 translate-y-8 scale-95">
@@ -477,7 +531,7 @@
                                                 </div>
                                             </div>
                                             <div class="flex items-center gap-4">
-                                                <span class="px-3 py-1 text-[10px] font-black rounded uppercase tracking-wider bg-emerald-100 text-emerald-700">LUNAS</span>
+                                                <span class="px-3 py-1 text-[10px] font-black rounded uppercase tracking-wider bg-emerald-100 text-emerald-700">SUDAH DIBAYAR</span>
                                                 <button @click="showNotaTreatment = false" class="text-slate-400 hover:text-rose-500 bg-white hover:bg-rose-50 p-2 rounded-full transition-colors shadow-sm border border-[#E8E0D8]">
                                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                                                 </button>
@@ -591,21 +645,53 @@
 
                                             {{-- Payment Summary --}}
                                             <div class="flex justify-end">
-                                                <div class="w-full sm:w-72 space-y-3">
+                                                <div class="w-full sm:w-72 space-y-2.5">
+                                                    @php
+                                                        $notaSubtotal    = (int) ($relatedOrder->subtotal ?? $relatedOrder->grand_total);
+                                                        $notaDiskon      = (int) ($relatedOrder->diskon_total ?? 0);
+                                                        $notaOngkir      = (int) ($relatedOrder->ongkir ?? 0);
+                                                        $notaGrand       = (int) ($relatedOrder->grand_total ?? 0);
+                                                        $notaCashRcvd    = (int) ($relatedOrder->cash_received ?? 0);
+                                                        $notaIsCash      = strtolower((string) ($relatedOrder->payment_method ?? '')) === 'cash';
+                                                        $notaKembalian   = $notaIsCash && $notaCashRcvd > 0 ? max(0, $notaCashRcvd - $notaGrand) : 0;
+                                                    @endphp
+
                                                     <div class="flex justify-between items-center text-sm">
                                                         <span class="text-slate-500">Subtotal</span>
-                                                        <span class="font-medium text-[#1A1A1A]">Rp {{ number_format($relatedOrder->subtotal ?? $relatedOrder->grand_total, 0, ',', '.') }}</span>
+                                                        <span class="font-medium text-[#1A1A1A] tabular-nums">Rp {{ number_format($notaSubtotal, 0, ',', '.') }}</span>
                                                     </div>
-                                                    @if(($relatedOrder->diskon_total ?? 0) > 0)
+
+                                                    @if($notaDiskon > 0)
                                                         <div class="flex justify-between items-center text-sm">
-                                                            <span class="text-slate-500">Diskon</span>
-                                                            <span class="font-medium text-rose-500">-Rp {{ number_format($relatedOrder->diskon_total, 0, ',', '.') }}</span>
+                                                            <span class="text-slate-500">Diskon Transaksi</span>
+                                                            <span class="font-medium text-rose-600 tabular-nums">-Rp {{ number_format($notaDiskon, 0, ',', '.') }}</span>
                                                         </div>
                                                     @endif
-                                                    <div class="pt-3 border-t border-dashed border-[#E8E0D8] flex justify-between items-center">
+
+                                                    @if($notaOngkir > 0)
+                                                        <div class="flex justify-between items-center text-sm">
+                                                            <span class="text-slate-500">Ongkos Kirim</span>
+                                                            <span class="font-medium text-[#1A1A1A] tabular-nums">Rp {{ number_format($notaOngkir, 0, ',', '.') }}</span>
+                                                        </div>
+                                                    @endif
+
+                                                    <div class="pt-3 mt-1 border-t border-dashed border-[#E8E0D8] flex justify-between items-center">
                                                         <span class="font-bold text-[#1A1A1A]">Total Pembayaran</span>
-                                                        <span class="text-lg font-black text-[#CFAF53]">Rp {{ number_format($relatedOrder->grand_total, 0, ',', '.') }}</span>
+                                                        <span class="text-lg font-black text-[#CFAF53] tabular-nums">Rp {{ number_format($notaGrand, 0, ',', '.') }}</span>
                                                     </div>
+
+                                                    @if($notaIsCash && $notaCashRcvd > 0)
+                                                        <div class="pt-2 mt-1 border-t border-[#E8E0D8]/60 space-y-1.5">
+                                                            <div class="flex justify-between items-center text-xs">
+                                                                <span class="text-slate-400">Tunai Diterima</span>
+                                                                <span class="font-medium text-slate-600 tabular-nums">Rp {{ number_format($notaCashRcvd, 0, ',', '.') }}</span>
+                                                            </div>
+                                                            <div class="flex justify-between items-center text-xs">
+                                                                <span class="text-slate-400">Kembalian</span>
+                                                                <span class="font-bold text-emerald-600 tabular-nums">Rp {{ number_format($notaKembalian, 0, ',', '.') }}</span>
+                                                            </div>
+                                                        </div>
+                                                    @endif
                                                 </div>
                                             </div>
                                         </div>
@@ -623,39 +709,88 @@
                         </div>
 
                         {{-- Modal Batal --}}
-                        <div x-show="openCancelModal" style="display:none" class="fixed inset-0 z-[999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" x-transition>
-                            <div class="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl" @click.away="openCancelModal = false">
-                                <h3 class="text-lg font-bold text-[#1A1A1A]">Batalkan Janji?</h3>
-                                <p class="text-sm text-slate-500 mt-2">Tindakan ini tidak dapat dibatalkan.</p>
-                                <form action="{{ route('appointments.cancel', $apt->appointment_id) }}" method="POST" class="mt-4">
+                        <div x-show="openCancelModal" @click.stop style="display:none" class="fixed inset-0 z-[999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" x-transition>
+                            <div class="bg-white w-full max-w-md rounded-2xl p-7 shadow-2xl" @click.away="openCancelModal = false">
+                                <div class="flex items-start gap-4">
+                                    <div class="shrink-0 w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center">
+                                        <svg class="w-6 h-6 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.74-3l-6.93-12a2 2 0 00-3.48 0l-6.93 12a2 2 0 001.74 3z"/></svg>
+                                    </div>
+                                    <div class="flex-1">
+                                        <h3 class="text-[1.35rem] font-extrabold text-[#1A1A1A] tracking-tight leading-tight">Batalkan Janji?</h3>
+                                        <p class="text-[0.95rem] text-slate-500 mt-1.5 leading-relaxed">Tindakan ini tidak dapat dibatalkan setelah dikonfirmasi.</p>
+                                    </div>
+                                </div>
+
+                                <form action="{{ route('appointments.cancel', $apt->appointment_id) }}" method="POST" class="mt-6">
                                     @csrf @method('PATCH')
-                                    <textarea name="cancel_reason" rows="2" required class="w-full rounded-xl border-slate-200 text-sm mb-4" placeholder="Alasan pembatalan..."></textarea>
-                                    <div class="flex gap-3">
-                                        <button type="button" @click="openCancelModal = false" class="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-700">Batal</button>
-                                        <button type="submit" class="flex-1 py-2.5 rounded-xl bg-rose-600 text-white text-sm font-bold">Ya, Batalkan</button>
+                                    <input type="hidden" name="_cancel_apt_id" value="{{ $apt->appointment_id }}">
+
+                                    <label class="block text-[0.9rem] font-bold text-[#1A1A1A] mb-2">
+                                        Alasan pembatalan
+                                        <span class="text-rose-500">*</span>
+                                    </label>
+                                    <textarea
+                                        name="cancel_reason"
+                                        rows="3"
+                                        required
+                                        minlength="5"
+                                        maxlength="255"
+                                        placeholder="Contoh: Ada keperluan mendadak yang tidak bisa ditunda."
+                                        class="w-full rounded-xl border-slate-300 focus:border-[#CFAF53] focus:ring-[#CFAF53]/40 text-[0.95rem] placeholder:text-slate-400 resize-none @error('cancel_reason') @if(old('_cancel_apt_id') == $apt->appointment_id) border-rose-400 focus:border-rose-400 focus:ring-rose-200 @endif @enderror">@if(old('_cancel_apt_id') == $apt->appointment_id){{ old('cancel_reason') }}@endif</textarea>
+
+                                    @error('cancel_reason')
+                                        @if(old('_cancel_apt_id') == $apt->appointment_id)
+                                            <p class="mt-2 text-[0.85rem] text-rose-600 font-medium flex items-start gap-1.5">
+                                                <svg class="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                                <span>{{ $message }}</span>
+                                            </p>
+                                        @else
+                                            <p class="mt-2 text-[0.8rem] text-slate-400">Minimal 5 karakter, maksimal 255 karakter.</p>
+                                        @endif
+                                    @else
+                                        <p class="mt-2 text-[0.8rem] text-slate-400">Minimal 5 karakter, maksimal 255 karakter.</p>
+                                    @enderror
+
+                                    <div class="flex gap-3 mt-6">
+                                        <button type="button" @click="openCancelModal = false" class="flex-1 py-3 rounded-xl border border-slate-200 text-[0.95rem] font-bold text-slate-700 hover:bg-slate-50 cursor-pointer transition-colors">Batal</button>
+                                        <button type="submit" class="flex-1 py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[0.95rem] font-bold cursor-pointer transition-colors">Ya, Batalkan</button>
                                     </div>
                                 </form>
                             </div>
                         </div>
 
                         {{-- Modal Reschedule 1 (Pilih Tanggal & Jam) --}}
-                        <div x-show="openRescheduleModal" style="display:none" class="fixed inset-0 z-[999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" x-transition>
+                        <div x-show="openRescheduleModal" @click.stop style="display:none" class="fixed inset-0 z-[999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" x-transition>
                             <div class="bg-white w-full max-w-lg rounded-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto" @click.away="openRescheduleModal = false">
                                 <h3 class="text-xl font-bold text-[#1A1A1A]">Ubah Jadwal</h3>
-                                <p class="text-sm text-slate-500 mt-1 mb-6">Pilih jadwal baru sesuai hari praktik dokter Anda.</p>
+                                <p class="text-sm text-slate-500 mt-1 mb-6">
+                                    <template x-if="jenis === 'treatment'">
+                                        <span>Pilih tanggal dan slot treatment baru. Setiap slot menampung maksimal 2 pasien.</span>
+                                    </template>
+                                    <template x-if="jenis !== 'treatment'">
+                                        <span>Pilih jadwal baru sesuai hari praktik dokter Anda.</span>
+                                    </template>
+                                </p>
                                 
                                 {{-- Pilih Tanggal --}}
                                 <div class="mb-6">
                                     <div class="text-sm font-bold text-[#1A1A1A] mb-3">Pilih Tanggal Baru</div>
                                     
                                     <div x-show="availableDays.length === 0" class="p-4 bg-gray-50 border border-gray-200 rounded-xl text-center">
-                                        <p class="text-sm text-gray-500">Dokter ini belum memiliki jadwal praktik aktif.</p>
+                                        <p class="text-sm text-gray-500">
+                                            <template x-if="jenis === 'treatment'">
+                                                <span>Belum ada tanggal tersedia.</span>
+                                            </template>
+                                            <template x-if="jenis !== 'treatment'">
+                                                <span>Dokter ini belum memiliki jadwal praktik aktif.</span>
+                                            </template>
+                                        </p>
                                     </div>
 
                                     <div class="flex gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x">
                                         <template x-for="day in availableDays" :key="day.date">
                                             <label class="snap-start shrink-0 cursor-pointer">
-                                                <input type="radio" name="reschedule_tanggal_{{ $apt->appointment_id }}" :value="day.date" x-model="newTanggal" @change="displayDate = day.displayFull; newJam = ''" class="peer sr-only">
+                                                <input type="radio" name="reschedule_tanggal_{{ $apt->appointment_id }}" :value="day.date" x-model="newTanggal" @change="displayDate = day.displayFull; newJam = ''; fetchTreatmentSlots();" class="peer sr-only">
                                                 <div class="flex flex-col items-center justify-center w-[70px] h-[105px] rounded-2xl border transition-all duration-200"
                                                     :class="newTanggal === day.date ? 'border-[#3B3529] bg-[#3B3529] text-white shadow-md' : 'border-gray-200 bg-white hover:border-[#8C7A63] text-gray-600'">
                                                     <span class="text-xs uppercase mb-1 font-medium tracking-wide" :class="newTanggal === day.date ? 'text-white/80' : 'text-gray-400'" x-text="day.dayName"></span>
@@ -669,55 +804,106 @@
 
                                 {{-- Pilih Jam --}}
                                 <div x-show="newTanggal !== ''" x-cloak>
-                                    <div class="text-sm font-bold text-[#1A1A1A] mb-3">Pilih Jam Baru (WIB)</div>
-                                    
-                                    <div x-show="availableTimes.length === 0" class="p-4 bg-gray-50 border border-gray-200 rounded-xl text-center">
+                                    <div class="text-sm font-bold text-[#1A1A1A] mb-3">
+                                        <template x-if="jenis === 'treatment'">
+                                            <span>Pilih Slot Treatment Baru (WIB)</span>
+                                        </template>
+                                        <template x-if="jenis !== 'treatment'">
+                                            <span>Pilih Jam Baru (WIB)</span>
+                                        </template>
+                                    </div>
+
+                                    {{-- Loading state khusus treatment --}}
+                                    <div x-show="jenis === 'treatment' && loadingTreatmentSlots" class="flex items-center justify-center py-8">
+                                        <svg class="w-5 h-5 animate-spin text-[#CFAF53]" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        <span class="ml-2 text-sm text-slate-500">Mengecek ketersediaan slot...</span>
+                                    </div>
+
+                                    <div x-show="!(jenis === 'treatment' && loadingTreatmentSlots) && availableTimes.length === 0" class="p-4 bg-gray-50 border border-gray-200 rounded-xl text-center">
                                         <p class="text-sm text-gray-500">Tidak ada jadwal tersedia pada tanggal ini.</p>
                                     </div>
 
-                                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                        <template x-for="timeSlot in availableTimes" :key="timeSlot.value">
-                                            <label :class="timeSlot.isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'">
-                                                <input type="radio" name="reschedule_jam_{{ $apt->appointment_id }}" :value="timeSlot.value" x-model="newJam" class="peer sr-only" :disabled="timeSlot.isDisabled">
-                                                <div class="py-3.5 px-4 rounded-xl text-sm font-medium border transition-all text-center"
-                                                    :class="timeSlot.isDisabled ? 'bg-gray-100 border-gray-200 text-gray-400' : (newJam === timeSlot.value ? 'border-[#3B3529] bg-[#FAF8F5] text-[#1A1A1A] font-bold shadow-sm' : 'border-gray-200 bg-white text-gray-500 hover:border-[#8C7A63]')">
-                                                    <span x-text="timeSlot.value"></span>
-                                                </div>
-                                            </label>
-                                        </template>
-                                    </div>
+                                    {{-- Grid slot - Treatment (slot 2 jam dengan info kapasitas) --}}
+                                    <template x-if="jenis === 'treatment' && !loadingTreatmentSlots">
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            <template x-for="slot in availableTimes" :key="slot.value">
+                                                <label :class="slot.isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'">
+                                                    <input type="radio" name="reschedule_jam_{{ $apt->appointment_id }}" :value="slot.value" x-model="newJam" class="peer sr-only" :disabled="slot.isDisabled">
+                                                    <div class="py-3.5 px-4 rounded-xl border transition-all duration-200"
+                                                        :class="slot.isDisabled
+                                                            ? (slot.penuh ? 'border-rose-200 bg-rose-50/50' : 'border-gray-200 bg-gray-50') + ' opacity-60'
+                                                            : (newJam === slot.value
+                                                                ? 'border-[#3B3529] bg-[#FAF8F5] shadow-sm'
+                                                                : 'border-gray-200 bg-white hover:border-[#8C7A63]')">
+                                                        <div class="flex items-center gap-2 text-sm font-medium"
+                                                            :class="slot.isDisabled
+                                                                ? 'text-slate-400'
+                                                                : (newJam === slot.value ? 'text-[#1A1A1A] font-bold' : 'text-gray-600')">
+                                                            <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                                            <span x-text="slot.value"></span>
+                                                        </div>
+                                                        <span class="text-[10px] font-semibold mt-1 block uppercase tracking-wide"
+                                                            :class="slot.penuh
+                                                                ? 'text-rose-500'
+                                                                : (slot.isPast
+                                                                    ? 'text-slate-400'
+                                                                    : (newJam === slot.value ? 'text-[#C89B53]' : 'text-emerald-600'))"
+                                                            x-text="slot.label"></span>
+                                                    </div>
+                                                </label>
+                                            </template>
+                                        </div>
+                                    </template>
+
+                                    {{-- Grid slot - Konsultasi (slot 30 menit dari jadwal dokter) --}}
+                                    <template x-if="jenis !== 'treatment'">
+                                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                            <template x-for="timeSlot in availableTimes" :key="timeSlot.value">
+                                                <label :class="timeSlot.isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'">
+                                                    <input type="radio" name="reschedule_jam_{{ $apt->appointment_id }}" :value="timeSlot.value" x-model="newJam" class="peer sr-only" :disabled="timeSlot.isDisabled">
+                                                    <div class="py-3.5 px-4 rounded-xl text-sm font-medium border transition-all text-center"
+                                                        :class="timeSlot.isDisabled ? 'bg-gray-100 border-gray-200 text-gray-400' : (newJam === timeSlot.value ? 'border-[#3B3529] bg-[#FAF8F5] text-[#1A1A1A] font-bold shadow-sm' : 'border-gray-200 bg-white text-gray-500 hover:border-[#8C7A63]')">
+                                                        <span x-text="timeSlot.value"></span>
+                                                    </div>
+                                                </label>
+                                            </template>
+                                        </div>
+                                    </template>
                                 </div>
 
                                 <div class="flex gap-3 mt-6">
-                                    <button type="button" @click="openRescheduleModal = false; newTanggal = ''; newJam = ''" class="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50">Batal</button>
-                                    <button type="button" @click="if(newTanggal && newJam) { openRescheduleModal = false; openRescheduleConfirmModal = true; } else { alert('Mohon pilih tanggal dan jam baru.'); }" class="flex-1 py-2.5 rounded-xl bg-[#CFAF53] hover:bg-[#b09444] text-white text-sm font-bold transition-colors">Lanjutkan</button>
+                                    <button type="button" @click="openRescheduleModal = false; newTanggal = ''; newJam = ''" class="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50 cursor-pointer">Batal</button>
+                                    <button type="button" @click="if(newTanggal && newJam) { openRescheduleModal = false; openRescheduleConfirmModal = true; } else { window.showToast && window.showToast('warning', 'Mohon pilih tanggal dan ' + (jenis === 'treatment' ? 'slot' : 'jam') + ' baru terlebih dahulu.', 'Data Belum Lengkap'); }" class="flex-1 py-2.5 rounded-xl bg-[#CFAF53] hover:bg-[#b09444] text-white text-sm font-bold transition-colors cursor-pointer">Lanjutkan</button>
                                 </div>
                             </div>
                         </div>
 
                         {{-- Modal Reschedule 2 (Konfirmasi) --}}
-                        <div x-show="openRescheduleConfirmModal" style="display:none" class="fixed inset-0 z-[999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" x-transition>
-                            <div class="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl" @click.away="openRescheduleConfirmModal = false">
-                                <h3 class="text-lg font-bold text-[#1A1A1A]">Konfirmasi Perubahan</h3>
-                                <p class="text-sm text-slate-500 mt-2">Anda akan mengubah jadwal janji temu ini.</p>
-                                
-                                <div class="mt-4 bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                        <div x-show="openRescheduleConfirmModal" @click.stop style="display:none" class="fixed inset-0 z-[999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" x-transition>
+                            <div class="bg-white w-full max-w-md rounded-2xl p-7 shadow-2xl" @click.away="openRescheduleConfirmModal = false">
+                                <h3 class="text-[1.35rem] font-extrabold text-[#1A1A1A] tracking-tight leading-tight">Konfirmasi Perubahan</h3>
+                                <p class="text-[0.95rem] text-slate-500 mt-2.5 leading-relaxed">Anda akan mengubah jadwal janji temu ini.</p>
+
+                                <div class="mt-6 bg-[#FAF8F5] border border-[#E8E0D8] rounded-xl p-5 space-y-4">
                                     <div>
-                                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Jadwal Lama</p>
-                                        <p class="text-sm font-bold text-[#1A1A1A]">{{ $apt->tanggal_jam->format('d M Y, H:i') }}</p>
+                                        <p class="text-[0.8rem] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Jadwal Lama</p>
+                                        <p class="text-[1rem] font-bold text-[#1A1A1A] leading-snug">{{ $apt->tanggal_jam->locale('id')->translatedFormat('l, d M Y') }} • Jam {{ $apt->tanggal_jam->format('H:i') }} WIB</p>
                                     </div>
-                                    <div class="flex justify-center text-slate-300">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                                    <div class="flex justify-center text-[#CFAF53]/50">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
                                     </div>
                                     <div>
-                                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Jadwal Baru</p>
-                                        <p class="text-sm font-bold text-[#CFAF53]"><span x-text="displayDate"></span> • Jam <span x-text="newJam"></span> WIB</p>
+                                        <p class="text-[0.8rem] font-bold text-[#CFAF53] uppercase tracking-widest mb-1.5">Jadwal Baru</p>
+                                        <p class="text-[1.05rem] font-extrabold text-[#CFAF53] leading-snug"><span x-text="displayDate"></span> • Jam <span x-text="newJam"></span> WIB</p>
                                     </div>
                                 </div>
 
-                                <div class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex gap-3 items-start">
+                                <div class="mt-5 p-4 bg-amber-50 border border-amber-200 rounded-xl flex gap-3 items-start">
                                     <svg class="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                    <p class="text-[10px] text-amber-700 font-medium">Perubahan jadwal akan mengubah status menjadi <span class="font-bold">Diajukan</span> dan memerlukan konfirmasi ulang dari admin.</p>
+                                    <p class="text-[0.9rem] text-amber-800 leading-relaxed">Perubahan jadwal akan mengubah status menjadi <span class="font-bold">Diajukan</span> dan perlu dikonfirmasi ulang oleh admin.</p>
                                 </div>
 
                                 <form action="{{ route('appointments.reschedule', $apt->appointment_id) }}" method="POST" class="mt-6">
@@ -725,8 +911,8 @@
                                     <input type="hidden" name="new_tanggal" :value="newTanggal">
                                     <input type="hidden" name="new_jam" :value="newJam">
                                     <div class="flex gap-3">
-                                        <button type="button" @click="openRescheduleConfirmModal = false; openRescheduleModal = true;" class="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50">Kembali</button>
-                                        <button type="submit" class="flex-1 py-2.5 rounded-xl bg-[#CFAF53] hover:bg-[#b09444] text-white text-sm font-bold transition-colors">Ya, Ubah Jadwal</button>
+                                        <button type="button" @click="openRescheduleConfirmModal = false; openRescheduleModal = true;" class="flex-1 py-3 rounded-xl border border-slate-200 text-[0.95rem] font-bold text-slate-700 hover:bg-slate-50 cursor-pointer transition-colors">Kembali</button>
+                                        <button type="submit" class="flex-1 py-3 rounded-xl bg-[#CFAF53] hover:bg-[#b09444] text-white text-[0.95rem] font-bold cursor-pointer transition-colors">Ya, Ubah Jadwal</button>
                                     </div>
                                 </form>
                             </div>
@@ -818,13 +1004,13 @@
             }
             
             if (response.ok && data.success) {
-                alert('✅ ' + data.message);
+                window.showToast && window.showToast('success', data.message || 'Email berhasil dikirim.', 'Berhasil');
             } else {
-                alert('❌ ' + (data.error || 'Gagal mengirim email'));
+                window.showToast && window.showToast('error', data.error || 'Gagal mengirim email. Silakan coba lagi.', 'Gagal');
             }
         } catch (err) {
             console.error('Email send error:', err);
-            alert('Gagal mengirim email: ' + err.message);
+            window.showToast && window.showToast('error', 'Gagal mengirim email: ' + err.message, 'Gagal');
         } finally {
             btn.disabled = false;
             btn.innerHTML = originalText;

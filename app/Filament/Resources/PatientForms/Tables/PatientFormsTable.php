@@ -2,20 +2,48 @@
 
 namespace App\Filament\Resources\PatientForms\Tables;
 
+use App\Filament\Resources\PatientForms\Schemas\ReviewPatientFormForm;
+use App\Models\PatientForm;
+use App\Services\PraKonsul\ReviewSubmissionService;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\EditAction;
+use Filament\Facades\Filament;
+use Filament\Notifications\Notification;
+use Filament\Support\Enums\Alignment;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class PatientFormsTable
 {
     public static function configure(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query) => $query->with(['pasien.user', 'dokter', 'reviewer']))
             ->columns([
                 TextColumn::make('patient_form_id')->label('ID')->sortable(),
-                TextColumn::make('pasien.nama')->label('Pasien')->searchable()->weight('medium'),
+
+                TextColumn::make('pasien_name')
+                    ->label('Pasien')
+                    ->weight('medium')
+                    ->getStateUsing(fn (PatientForm $record): string =>
+                        $record->pasien?->user?->name
+                            ?: ($record->pasien?->nama ?: '—')
+                    )
+                    ->description(fn (PatientForm $record): ?string =>
+                        $record->pasien?->no_rekam_medis
+                    )
+                    ->searchable(query: function (Builder $query, string $search) {
+                        $query->whereHas('pasien', function (Builder $q) use ($search) {
+                            $q->where('nama', 'like', "%{$search}%")
+                              ->orWhere('no_rekam_medis', 'like', "%{$search}%")
+                              ->orWhereHas('user', fn (Builder $u) =>
+                                  $u->where('name', 'like', "%{$search}%")
+                                    ->orWhere('email', 'like', "%{$search}%")
+                              );
+                        });
+                    }),
                 TextColumn::make('tipe_form')
                     ->label('Tipe')
                     ->badge()
@@ -35,17 +63,31 @@ class PatientFormsTable
                     ->label('Status')
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
-                        'baru', 'Baru' => 'warning',
-                        'proses', 'Proses' => 'info',
-                        'direkomendasikan', 'Direkomendasikan' => 'warning',
-                        'selesai', 'Selesai' => 'success',
-                        'ditinjau', 'Ditinjau' => 'info',
-                        'ditutup', 'Ditutup' => 'danger',
+                        'baru', 'submitted', 'menunggu' => 'warning',
+                        'ditinjau', 'in_review', 'reviewed' => 'info',
+                        'direkomendasikan' => 'success',
+                        'selesai' => 'gray',
+                        'ditutup' => 'danger',
                         default => 'gray',
                     })
-                    ->formatStateUsing(fn (string $state): string => ucfirst($state))
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                        'baru', 'submitted', 'menunggu' => 'Menunggu Review',
+                        'ditinjau', 'in_review', 'reviewed' => 'Sedang Direview',
+                        'direkomendasikan' => 'Direkomendasikan',
+                        'selesai' => 'Selesai',
+                        'ditutup' => 'Ditutup',
+                        default => ucfirst($state),
+                    })
                     ->sortable(),
-                TextColumn::make('dokter.name')->label('Dokter')->toggleable(),
+                TextColumn::make('reviewer.name')
+                    ->label('Reviewer')
+                    ->placeholder('—')
+                    ->toggleable(),
+                TextColumn::make('reviewed_at')
+                    ->label('Direview')
+                    ->dateTime('d M Y H:i')
+                    ->placeholder('—')
+                    ->toggleable(),
                 TextColumn::make('created_at')->label('Dibuat')
                     ->date('d M Y')
                     ->sortable(),
@@ -54,12 +96,151 @@ class PatientFormsTable
                 //
             ])
             ->recordActions([
-                EditAction::make()->iconButton(),
+                self::actionMulaiReview(),       // Konfirmasi (status: baru)
+                self::actionLanjutkanReview(),   // Slide-over panel (status: ditinjau / direkomendasikan)
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    /**
+     * Action 1 — "Mulai Review".
+     *
+     * Hanya tampil saat form masih `baru`. Memunculkan modal konfirmasi
+     * Filament native (heading + description + dua tombol). Setelah
+     * dokter klik "Ya, Mulai Review":
+     *
+     *   1. Status diubah ke `ditinjau`, reviewed_by = dokter aktif,
+     *      review_started_at = now() (lewat ReviewSubmissionService::start).
+     *   2. WhatsApp dikirim ke pasien (FonnteService::sendPraKonsulReviewStarted).
+     *   3. Tabel di-refresh — tombol pada baris berubah otomatis menjadi
+     *      "Lanjutkan Review" (action #2 di bawah).
+     */
+    private static function actionMulaiReview(): Action
+    {
+        return Action::make('mulai_review')
+            ->label('Mulai Review')
+            ->icon('heroicon-o-clipboard-document-check')
+            ->color('primary')
+            ->visible(fn (PatientForm $record): bool =>
+                $record->tipe_form === 'pra_konsul'
+                && in_array($record->status, ['baru', 'submitted', 'menunggu'], true)
+                && (Filament::auth()->user()?->hasAnyRole(['dokter', 'admin', 'super_admin']) ?? false)
+            )
+            ->requiresConfirmation()
+            ->modalHeading('Mulai Review Pra-Konsultasi?')
+            ->modalDescription('Form pasien akan ditandai sebagai sedang direview oleh Anda.')
+            ->modalSubmitActionLabel('Ya, Mulai Review')
+            ->modalCancelActionLabel('Batal')
+            ->modalIcon('heroicon-o-clipboard-document-check')
+            ->modalIconColor('primary')
+            ->action(function (PatientForm $record): void {
+                $userId = Filament::auth()->id();
+                if (! $userId) return;
+
+                try {
+                    app(ReviewSubmissionService::class)->start($record, (int) $userId);
+
+                    // Kirim WA ke pasien (best-effort).
+                    $fresh = PatientForm::with(['pasien.user', 'reviewer'])
+                        ->find($record->patient_form_id);
+                    if ($fresh) {
+                        app(\App\Services\FonnteService::class)->sendPraKonsulReviewStarted($fresh);
+                    }
+
+                    Notification::make()
+                        ->title('Review dimulai')
+                        ->body('Pasien sudah dinotifikasi via WhatsApp. Klik "Lanjutkan Review" untuk membuka panel.')
+                        ->success()
+                        ->send();
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('Mulai review gagal: '.$e->getMessage());
+                    Notification::make()
+                        ->title('Gagal memulai review')
+                        ->body($e->getMessage())
+                        ->danger()
+                        ->send();
+                }
+            });
+    }
+
+    /**
+     * Action 2 — "Lanjutkan Review" / "Lihat Rekomendasi".
+     *
+     * Tampil saat status sudah `ditinjau` atau `direkomendasikan`.
+     * Membuka slide-over panel besar 2-kolom dengan data pasien
+     * (read-only) di kiri dan input dokter di kanan.
+     *
+     * Submit final pakai konfirmasi terpisah lewat wire:confirm
+     * supaya dokter benar-benar yakin sebelum WA hasil rekomendasi
+     * dikirim ke pasien.
+     */
+    private static function actionLanjutkanReview(): Action
+    {
+        return Action::make('lanjutkan_review')
+            ->label(fn (PatientForm $record) => $record->status === 'direkomendasikan'
+                ? 'Lihat Rekomendasi'
+                : 'Lanjutkan Review'
+            )
+            ->icon('heroicon-o-pencil-square')
+            ->color(fn (PatientForm $record) => $record->status === 'direkomendasikan' ? 'gray' : 'info')
+            ->visible(fn (PatientForm $record): bool =>
+                $record->tipe_form === 'pra_konsul'
+                && in_array($record->status, ['ditinjau', 'in_review', 'reviewed', 'direkomendasikan'], true)
+                && (Filament::auth()->user()?->hasAnyRole(['dokter', 'admin', 'super_admin']) ?? false)
+            )
+            ->slideOver()
+            ->modalWidth('7xl')
+            ->stickyModalHeader()
+            ->stickyModalFooter()
+            ->modalHeading(fn (PatientForm $record): string =>
+                'Review Pra-Konsultasi · '.($record->pasien?->user?->name ?: ($record->pasien?->nama ?: 'Pasien'))
+            )
+            ->modalDescription(fn (PatientForm $record): string =>
+                'No. RM '.($record->pasien?->no_rekam_medis ?: '—')
+                .' · diisi '.optional($record->created_at)->translatedFormat('d M Y, H:i')
+            )
+            ->fillForm(fn (PatientForm $record): array =>
+                ReviewPatientFormForm::defaults($record->fresh())
+            )
+            ->schema(fn (PatientForm $record) => ReviewPatientFormForm::schema($record->fresh()))
+            ->modalSubmitActionLabel('Kirim Rekomendasi')
+            ->modalCancelActionLabel('Periksa Lagi')
+            ->modalIcon('heroicon-o-paper-airplane')
+            ->modalIconColor('primary')
+            ->modalAlignment(Alignment::Start)
+            ->modalSubmitAction(function ($action) {
+                return $action->extraAttributes([
+                    'wire:confirm' => 'Kirim Rekomendasi?
+
+Rekomendasi yang dikirim akan langsung terlihat oleh pasien.
+Pastikan analisa dan rekomendasi treatment / skincare sudah sesuai.',
+                ]);
+            })
+            ->action(function (array $data, PatientForm $record): void {
+                try {
+                    app(ReviewSubmissionService::class)->submit($record, $data);
+
+                    Notification::make()
+                        ->title('Rekomendasi terkirim')
+                        ->body('Pasien akan menerima notifikasi rekomendasi treatment & skincare.')
+                        ->success()
+                        ->send();
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error('Submit pra-konsul review gagal', [
+                        'patient_form_id' => $record->patient_form_id,
+                        'error'           => $e->getMessage(),
+                    ]);
+
+                    Notification::make()
+                        ->title('Gagal menyimpan rekomendasi')
+                        ->body($e->getMessage())
+                        ->danger()
+                        ->send();
+                }
+            });
     }
 }

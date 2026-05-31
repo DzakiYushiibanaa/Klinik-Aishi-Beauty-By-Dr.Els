@@ -57,17 +57,6 @@ class RekamMedisForm
                     ->preload()
                     ->nullable(),
 
-                Select::make('status_tindakan')
-                    ->label('Status Tindakan')
-                    ->options([
-                        'direncanakan' => 'Direncanakan',
-                        'dilakukan'    => 'Dilakukan',
-                        'ditunda'      => 'Ditunda',
-                        'dibatalkan'   => 'Dibatalkan',
-                    ])
-                    ->default('direncanakan')
-                    ->required(),
-
                 Textarea::make('keluhan')
                     ->label('Keluhan')
                     ->rows(3)

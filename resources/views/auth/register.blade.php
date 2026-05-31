@@ -66,12 +66,20 @@
                         <p class="text-slate-500 mt-1 text-sm">Isi data diri di bawah ini untuk mendaftar.</p>
                     </div>
 
-                    <form method="POST" action="{{ route('register') }}" class="space-y-5">
+                    <form method="POST" action="{{ route('register') }}" class="space-y-5"
+                          x-data="{
+                              password: '',
+                              passwordConfirm: '',
+                              touchedPwd: false,
+                              touchedConfirm: false,
+                              get pwdTooShort() { return this.touchedPwd && this.password.length > 0 && this.password.length < 8; },
+                              get confirmMismatch() { return this.touchedConfirm && this.passwordConfirm.length > 0 && this.password !== this.passwordConfirm; }
+                          }">
                         @csrf
 
                         <div>
                             <label for="name" class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Nama Lengkap</label>
-                            <input id="name" type="text" name="name" :value="old('name')" required autofocus autocomplete="name"
+                            <input id="name" type="text" name="name" value="{{ old('name') }}" required autofocus autocomplete="name"
                                 class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 placeholder-slate-400 focus:border-[#CFAF53] focus:bg-white focus:ring-2 focus:ring-[#CFAF53]/20 transition-all"
                                 placeholder="Cth: Siti Aminah">
                             <x-input-error :messages="$errors->get('name')" class="mt-2" />
@@ -79,7 +87,7 @@
 
                         <div>
                             <label for="email" class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Alamat Email</label>
-                            <input id="email" type="email" name="email" :value="old('email')" required autocomplete="username"
+                            <input id="email" type="email" name="email" value="{{ old('email') }}" required autocomplete="username"
                                 class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 placeholder-slate-400 focus:border-[#CFAF53] focus:bg-white focus:ring-2 focus:ring-[#CFAF53]/20 transition-all"
                                 placeholder="nama@email.com">
                             <x-input-error :messages="$errors->get('email')" class="mt-2" />
@@ -87,17 +95,33 @@
 
                         <div>
                             <label for="password" class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Kata Sandi</label>
-                            <input id="password" type="password" name="password" required autocomplete="new-password"
-                                class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 placeholder-slate-400 focus:border-[#CFAF53] focus:bg-white focus:ring-2 focus:ring-[#CFAF53]/20 transition-all"
-                                placeholder="Minimal 8 karakter">
+                            <x-password-input
+                                id="password"
+                                name="password"
+                                autocomplete="new-password"
+                                placeholder="Minimal 8 karakter"
+                                x-model="password"
+                                @input="touchedPwd = true" />
+                            <p x-cloak x-show="pwdTooShort" x-transition.opacity
+                               class="mt-2 text-xs font-medium text-rose-600">
+                                Password minimal 8 karakter.
+                            </p>
                             <x-input-error :messages="$errors->get('password')" class="mt-2" />
                         </div>
 
                         <div>
                             <label for="password_confirmation" class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Konfirmasi Sandi</label>
-                            <input id="password_confirmation" type="password" name="password_confirmation" required autocomplete="new-password"
-                                class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 placeholder-slate-400 focus:border-[#CFAF53] focus:bg-white focus:ring-2 focus:ring-[#CFAF53]/20 transition-all"
-                                placeholder="Ulangi kata sandi">
+                            <x-password-input
+                                id="password_confirmation"
+                                name="password_confirmation"
+                                autocomplete="new-password"
+                                placeholder="Ulangi kata sandi"
+                                x-model="passwordConfirm"
+                                @input="touchedConfirm = true" />
+                            <p x-cloak x-show="confirmMismatch" x-transition.opacity
+                               class="mt-2 text-xs font-medium text-rose-600">
+                                Konfirmasi password tidak cocok.
+                            </p>
                             <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
                         </div>
 
@@ -108,6 +132,18 @@
                             </button>
                         </div>
                     </form>
+
+                    {{-- Divider "atau" --}}
+                    <div class="auth-divider mt-6">
+                        <span class="auth-divider__line"></span>
+                        <span class="auth-divider__text">atau</span>
+                        <span class="auth-divider__line"></span>
+                    </div>
+
+                    {{-- Google OAuth button --}}
+                    <div class="mt-4">
+                        <x-google-auth-button label="Daftar dengan Google" />
+                    </div>
 
                     {{-- Footer: Login Link --}}
                     <div class="mt-8 text-center">

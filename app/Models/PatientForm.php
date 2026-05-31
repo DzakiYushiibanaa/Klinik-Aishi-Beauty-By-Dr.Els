@@ -16,7 +16,15 @@ class PatientForm extends Model
         'pernah_facial','pernah_skin_booster','pernah_laser','pernah_inject_infus',
         'keluhan_utama',
         'foto_depan_path','foto_kiri_path','foto_kanan_path',
-        'status','rekomendasi_dokter',
+        'status','diagnosa',
+        // Workflow review dokter
+        'reviewed_by','review_started_at','reviewed_at',
+        'catatan_tambahan',
+    ];
+
+    protected $casts = [
+        'review_started_at' => 'datetime',
+        'reviewed_at'       => 'datetime',
     ];
 
     public function pasien()
@@ -27,6 +35,16 @@ class PatientForm extends Model
     public function dokter()
     {
         return $this->belongsTo(User::class, 'dokter_id', 'id');
+    }
+
+    /**
+     * Dokter yang melakukan review (boleh sama / berbeda dengan dokter
+     * pemilik appointment). Diisi otomatis saat tombol "Mulai Review"
+     * ditekan di Filament.
+     */
+    public function reviewer()
+    {
+        return $this->belongsTo(User::class, 'reviewed_by', 'id');
     }
 
     public function rekomendasiItems()

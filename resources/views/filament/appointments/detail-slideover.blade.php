@@ -210,9 +210,6 @@
                                 <div style="color:#8A8078; font-size:11px; font-variant-numeric:tabular-nums;">{{ $rekamMedis->no_kunjungan }}</div>
                             </div>
                         </div>
-                        <span style="color:#065F46; background:#D1FAE5; padding:3px 10px; border-radius:9999px; font-size:11px; font-weight:600;">
-                            {{ ucfirst(str_replace('_', ' ', $rekamMedis->status_tindakan ?? '')) }}
-                        </span>
                     </div>
                 @endif
 
@@ -231,7 +228,7 @@
                             <div style="font-weight:700; color:#111827; font-size:13px;">{{ $fmt($order->grand_total) }}</div>
                             @php
                                 $orderStatusCfg = match (strtolower((string) $order->status)) {
-                                    'lunas', 'sudah_dibayar', 'paid'                 => ['Lunas', '#D1FAE5', '#065F46'],
+                                    'sudah_dibayar'                                  => ['Sudah Dibayar', '#D1FAE5', '#065F46'],
                                     'menunggu_pembayaran', 'pending', 'draft'        => ['Menunggu', '#FEF3C7', '#92400E'],
                                     'batal', 'cancelled'                             => ['Batal', '#FEE2E2', '#991B1B'],
                                     default                                           => [ucfirst((string) $order->status), '#E5E7EB', '#4B5563'],

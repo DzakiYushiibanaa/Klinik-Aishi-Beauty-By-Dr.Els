@@ -91,11 +91,11 @@
                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                         </svg>
-                        @if($cartCount > 0)
-                            <span class="absolute -right-2 -top-2 flex h-4 w-4 items-center justify-center rounded-full bg-[#8C7A63] text-[10px] font-bold text-white shadow-sm">
-                                {{ $cartCount > 99 ? '99+' : $cartCount }}
-                            </span>
-                        @endif
+                        <span data-cart-count
+                              class="absolute -right-2 -top-2 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-[#8C7A63] text-[10px] font-bold text-white shadow-sm"
+                              @if($cartCount === 0) style="display:none" @endif>
+                            {{ $cartCount > 99 ? '99+' : $cartCount }}
+                        </span>
                     </a>
                 @endif
 
@@ -141,11 +141,11 @@
                     </div>
                 @else
                     <a href="{{ route('login') }}" class="text-xs font-bold tracking-widest uppercase text-[#1A1A1A] hover:text-[#8C7A63] transition-colors">
-                        Sign In
+                        Masuk
                     </a>
                     @if (\Illuminate\Support\Facades\Route::has('register'))
                         <a href="{{ route('register') }}" class="rounded-full bg-[#1A1A1A] px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-white transition hover:bg-[#333]">
-                            Sign Up
+                            Daftar
                         </a>
                     @endif
                 @endauth
@@ -159,9 +159,9 @@
                 @if (\Illuminate\Support\Facades\Route::has('cart.index'))
                     <a href="{{ route('cart.index') }}" class="relative text-[#1A1A1A]">
                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
-                        @if($cartCount > 0)
-                            <span class="absolute -right-2 -top-2 flex h-4 w-4 items-center justify-center rounded-full bg-[#8C7A63] text-[10px] font-bold text-white shadow-sm">{{ $cartCount > 99 ? '99+' : $cartCount }}</span>
-                        @endif
+                        <span data-cart-count
+                              class="absolute -right-2 -top-2 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-[#8C7A63] text-[10px] font-bold text-white shadow-sm"
+                              @if($cartCount === 0) style="display:none" @endif>{{ $cartCount > 99 ? '99+' : $cartCount }}</span>
                     </a>
                 @endif
 
@@ -209,9 +209,9 @@
                         <button type="submit" class="w-full text-left text-sm font-bold text-red-600 px-2 py-2 hover:bg-red-50 rounded-lg">Log Out</button>
                     </form>
                 @else
-                    <a href="{{ route('login') }}" class="inline-block text-center rounded-xl border border-[#1A1A1A] px-6 py-3 text-sm font-bold uppercase tracking-wider text-[#1A1A1A]">Sign In</a>
+                    <a href="{{ route('login') }}" class="inline-block text-center rounded-xl border border-[#1A1A1A] px-6 py-3 text-sm font-bold uppercase tracking-wider text-[#1A1A1A]">Masuk</a>
                     @if (\Illuminate\Support\Facades\Route::has('register'))
-                        <a href="{{ route('register') }}" class="inline-block text-center rounded-full bg-[#1A1A1A] px-6 py-3 text-sm font-bold uppercase tracking-wider text-white">Sign Up</a>
+                        <a href="{{ route('register') }}" class="inline-block text-center rounded-full bg-[#1A1A1A] px-6 py-3 text-sm font-bold uppercase tracking-wider text-white">Daftar</a>
                     @endif
                 @endauth
             </div>
@@ -346,6 +346,8 @@
     </div>
     
     <x-toast />
+    <x-confirm-dialog />
+    <x-cart-success-modal />
 
 </body>
 </html>

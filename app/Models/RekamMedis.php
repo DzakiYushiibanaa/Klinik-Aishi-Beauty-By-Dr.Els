@@ -19,7 +19,6 @@ class RekamMedis extends Model
         'keluhan',
         'diagnosa',
         'tindakan',
-        'status_tindakan',
         'foto_sebelum_path',
         'foto_sesudah_path',
         'produk_rekomendasi',

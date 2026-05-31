@@ -184,12 +184,6 @@ class JadwalPraktikSeeder extends Seeder
         if (Schema::hasColumn('terapis', 'kode_terapis')) {
             $payload['kode_terapis'] = sprintf('TRP-%03d', $no);
         }
-        if (Schema::hasColumn('terapis', 'jabatan')) {
-            $payload['jabatan'] = 'Senior Beautician';
-        }
-        if (Schema::hasColumn('terapis', 'pengalaman_tahun')) {
-            $payload['pengalaman_tahun'] = random_int(1, 8);
-        }
         if (Schema::hasColumn('terapis', 'status_kerja')) {
             $payload['status_kerja'] = 'aktif';
         }

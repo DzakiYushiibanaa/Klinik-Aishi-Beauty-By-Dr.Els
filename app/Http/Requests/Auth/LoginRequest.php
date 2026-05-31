@@ -49,6 +49,22 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        // Gate tambahan: staf yang sudah dinonaktifkan tidak boleh login.
+        // Dokter (status_praktik != aktif) atau Terapis (status_kerja != aktif)
+        // di-logout lagi dan diberi pesan jelas.
+        $user = Auth::user();
+        if (! \App\Support\AuthRedirect::isStaffActive($user)) {
+            Auth::guard('web')->logout();
+            $this->session()->invalidate();
+            $this->session()->regenerateToken();
+
+            RateLimiter::hit($this->throttleKey());
+
+            throw ValidationException::withMessages([
+                'email' => 'Akun Anda sedang dinonaktifkan. Hubungi admin klinik untuk informasi lebih lanjut.',
+            ]);
+        }
+
         RateLimiter::clear($this->throttleKey());
     }
 

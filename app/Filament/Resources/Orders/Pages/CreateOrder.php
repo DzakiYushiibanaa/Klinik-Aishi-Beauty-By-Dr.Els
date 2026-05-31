@@ -80,7 +80,7 @@ class CreateOrder extends CreateRecord
     {
         $data['dibuat_oleh_id'] = Filament::auth()->id();
         $data['sumber'] = $data['sumber'] ?? 'offline';
-        $data['status'] = ($data['payment_method'] ?? null) === 'cash' ? 'lunas' : ($data['status'] ?? 'menunggu_pembayaran');
+        $data['status'] = ($data['payment_method'] ?? null) === 'cash' ? 'sudah_dibayar' : ($data['status'] ?? 'menunggu_pembayaran');
         $data['order_type'] = $this->inferOrderType($data['items'] ?? []);
 
         // DEBUG
@@ -91,16 +91,10 @@ class CreateOrder extends CreateRecord
         ]);
 
         if (empty($data['kode_order'])) {
-            $today = now()->format('Ymd');
-            $prefix = "ORD-{$today}-";
-            $last = Order::where('kode_order', 'like', "{$prefix}%")
-                ->orderBy('kode_order', 'desc')
-                ->value('kode_order');
-            $seq = $last ? (int) substr($last, -3) + 1 : 1;
-            $data['kode_order'] = $prefix . str_pad((string) $seq, 3, '0', STR_PAD_LEFT);
+            $data['kode_order'] = \App\Support\OrderCodeGenerator::next();
         }
 
-        if ($data['status'] === 'lunas' && empty($data['paid_at'])) {
+        if ($data['status'] === 'sudah_dibayar' && empty($data['paid_at'])) {
             $data['paid_at'] = now();
         }
 

@@ -4,8 +4,8 @@
      * but adapted for Filament's slide-over context.
      */
 
-    $statusClass = 'status-lunas';
-    $statusText = 'LUNAS';
+    $statusClass = 'status-paid';
+    $statusText = 'SUDAH DIBAYAR';
     if (in_array($order->status ?? '', ['batal', 'dibatalkan']) || ($order->shipping_status ?? '') === 'dibatalkan') {
         $statusClass = 'status-batal';
         $statusText = 'DIBATALKAN';
@@ -14,27 +14,36 @@
         $statusText = 'MENUNGGU PEMBAYARAN';
     }
 
-    $rawChannel = $order->payment_channel ?? $order->payment_method ?? '';
-    $channelLabels = [
-        'cash' => 'Cash',
-        'bsi' => 'Bank BSI',
-        'bca' => 'Bank BCA',
-        'bri' => 'Bank BRI',
-        'bni' => 'Bank BNI',
-        'mandiri' => 'Bank Mandiri',
-        'qris' => 'QRIS',
-        'midtrans_qris' => 'QRIS (Midtrans)',
-        'bank_transfer' => 'Transfer Bank',
-        'credit_card' => 'Kartu Kredit',
-        'gopay' => 'GoPay',
-        'shopeepay' => 'ShopeePay',
-        'dana' => 'DANA',
-    ];
-    $paymentLabel = $rawChannel
-        ? ($channelLabels[strtolower($rawChannel)] ?? strtoupper($rawChannel))
-        : '—';
+    /* ── Payment label (lebih spesifik & reusable) ──────────────────── */
+    $paymentLabel = \App\Support\PaymentMethodFormatter::format($order, [
+        'empty_label' => '—',
+    ]);
 
+    /* ── Helper format Rupiah ───────────────────────────────────────── */
     $fmtRp = fn ($n) => 'Rp ' . number_format((int) ($n ?? 0), 0, ',', '.');
+
+    /* ── Resolve nomor telepon (filter blank / "-") ─────────────────── */
+    $phoneCandidates = [
+        $order->pasien?->phone,
+        $order->pasien?->pasienProfile?->no_telepon,
+    ];
+    $phone = collect($phoneCandidates)
+        ->map(fn ($v) => trim((string) $v))
+        ->first(fn ($v) => $v !== '' && $v !== '-');
+
+    /* ── Resolve alamat lengkap (prefer shipping_address, fallback ke profil) ── */
+    $profile = $order->pasien?->pasienProfile;
+    $fullAddress = trim((string) ($order->shipping_address ?? ''));
+    if ($fullAddress === '' && $profile) {
+        $parts = array_filter([
+            $profile->alamat,
+            $profile->district_name ?? null,
+            $profile->kota ?? null,
+            $profile->provinsi ?? null,
+            $profile->kode_pos ?? null,
+        ], fn ($p) => trim((string) $p) !== '');
+        $fullAddress = trim(implode(', ', $parts));
+    }
 @endphp
 
 <div class="fi-invoice-slideover" style="padding: 4px 2px; font-family: 'Plus Jakarta Sans', sans-serif;">
@@ -64,9 +73,13 @@
                     {{ $order->pasien->email }}
                 </div>
             @endif
-            @if ($order->pasien?->phone || $order->pasien?->pasienProfile?->no_telepon)
+            @if ($phone)
                 <div style="font-size:12px; color:#64748b; margin-top:2px;">
-                    {{ $order->pasien->phone ?? $order->pasien->pasienProfile->no_telepon }}
+                    {{ $phone }}
+                </div>
+            @else
+                <div style="font-size:12px; color:#94a3b8; margin-top:2px; font-style:italic;">
+                    Nomor HP belum diisi
                 </div>
             @endif
         </div>
@@ -88,7 +101,7 @@
             </div>
             @php
                 $badgeStyles = [
-                    'status-lunas' => 'background:#d1fae5; color:#047857;',
+                    'status-paid' => 'background:#d1fae5; color:#047857;',
                     'status-menunggu' => 'background:#fef3c7; color:#b45309;',
                     'status-batal' => 'background:#ffe4e6; color:#be123c;',
                 ];
@@ -113,14 +126,20 @@
         </div>
     </div>
 
-    {{-- ALAMAT PENGIRIMAN (jika ada) --}}
-    @if ($order->shipping_address)
+    {{-- ALAMAT PENGIRIMAN (prioritas: shipping_address, fallback ke profil pasien) --}}
+    @if ($fullAddress !== '')
         <div style="margin-bottom:20px; padding:12px 14px; background:#FAF8F5; border:1px solid #EDE8E3; border-radius:10px;">
             <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:6px; letter-spacing:0.08em;">
                 Alamat Pengiriman
             </div>
-            <div style="font-size:12px; color:#111827; line-height:1.5;">
-                {{ $order->shipping_address }}
+            <div style="font-size:13px; font-weight:700; color:#111827; margin-bottom:2px;">
+                {{ $order->pasien->name ?? '-' }}
+            </div>
+            @if ($phone)
+                <div style="font-size:11px; color:#94a3b8; margin-bottom:6px;">{{ $phone }}</div>
+            @endif
+            <div style="font-size:12px; color:#475569; line-height:1.6;">
+                {{ $fullAddress }}
             </div>
         </div>
     @endif

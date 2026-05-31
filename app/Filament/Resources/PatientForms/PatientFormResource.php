@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\PatientForms;
 
-use App\Filament\Resources\PatientForms\Pages\EditPatientForm;
 use App\Filament\Resources\PatientForms\Pages\ListPatientForms;
 use App\Filament\Resources\PatientForms\RelationManagers\RekomendasiItemsRelationManager;
 use App\Filament\Resources\PatientForms\Schemas\PatientFormForm;
@@ -75,7 +74,6 @@ class PatientFormResource extends Resource
     {
         return [
             'index' => ListPatientForms::route('/'),
-            'edit' => EditPatientForm::route('/{record}/edit'),
         ];
     }
 }

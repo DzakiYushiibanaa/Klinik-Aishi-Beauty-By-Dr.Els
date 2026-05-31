@@ -37,6 +37,7 @@ class RekamMedisTable
                 self::columnTanggalKunjungan(),
                 self::columnPasien(),
                 self::columnDokter(),
+                self::columnJenisLayanan(),
                 self::columnKeluhan(),
                 self::columnDiagnosa(),
                 self::columnTreatment(),
@@ -65,17 +66,6 @@ class RekamMedisTable
                             ->description('Identitas pasien, dokter, terapis, dan appointment tidak dapat diubah dari sini.')
                             ->columns(1)
                             ->schema([
-                                Select::make('status_tindakan')
-                                    ->label('Status Tindakan')
-                                    ->options([
-                                        'direncanakan' => 'Direncanakan',
-                                        'dilakukan'    => 'Dilakukan',
-                                        'ditunda'      => 'Ditunda',
-                                        'dibatalkan'   => 'Dibatalkan',
-                                    ])
-                                    ->native(false)
-                                    ->required(),
-
                                 Textarea::make('keluhan')
                                     ->label('Keluhan')
                                     ->rows(3),
@@ -282,30 +272,112 @@ class RekamMedisTable
             ->html()
             ->state(function (RekamMedis $record) {
                 $nama = e($record->dokter?->name ?? '—');
-                $jenis = $record->appointment?->jenis;
+                $sub  = self::resolveLayananDetail($record);
 
-                $jenisMap = [
-                    'konsultasi' => 'Consultation',
-                    'treatment'  => 'Treatment',
-                    'follow_up'  => 'Follow-up',
-                    'follow-up'  => 'Follow-up',
-                    'injection'  => 'Injection',
-                    'procedure'  => 'Procedure',
-                ];
-                $jenisLabel = $jenisMap[strtolower((string) $jenis)] ?? ($jenis ? ucfirst((string) $jenis) : '');
-
-                $sub = $jenisLabel
-                    ? '<span style="font-size:0.8125rem; color:#B8956F; font-weight:500; margin-top:2px;">'.e($jenisLabel).'</span>'
+                $subHtml = $sub
+                    ? '<span style="font-size:0.8125rem; color:#B8956F; font-weight:500; margin-top:2px;">'.e($sub).'</span>'
                     : '';
 
                 return '
                     <div style="display:flex; flex-direction:column;">
                         <span style="font-weight:600; color:#111827;">'.$nama.'</span>
-                        '.$sub.'
+                        '.$subHtml.'
                     </div>
                 ';
             })
             ->searchable(query: fn (Builder $q, string $s) => $q->whereHas('dokter', fn ($qq) => $qq->where('name', 'like', "%{$s}%")));
+    }
+
+    /**
+     * Detail layanan untuk sub-text kartu Dokter di tabel & slideover.
+     *
+     * Aturan:
+     *   - Konsultasi: kembalikan nama konsultasi spesifik (contoh:
+     *     "Konsultasi Awal", "Konsultasi Lanjutan") dari relasi
+     *     AppointmentItem -> Consultation.
+     *     Fallback ke "Konsultasi" generic kalau tidak terhubung ke
+     *     consultation_id yang valid.
+     *   - Treatment: kembalikan "Treatment" (nama treatment-nya sudah
+     *     muncul di kolom Treatment terpisah).
+     *   - Follow-up / Injection / Procedure: kembalikan label-nya.
+     *   - Tidak ada appointment: null.
+     */
+    private static function resolveLayananDetail(RekamMedis $record): ?string
+    {
+        $jenis = strtolower((string) ($record->appointment?->jenis ?? ''));
+        if ($jenis === '') {
+            return null;
+        }
+
+        if ($jenis === 'konsultasi') {
+            $item = $record->appointment?->items
+                ?->first(fn ($i) => strtolower((string) $i->item_type) === 'consultation');
+
+            $namaKonsul = $item?->consultation?->nama;
+            return $namaKonsul ?: 'Konsultasi';
+        }
+
+        return match ($jenis) {
+            'treatment'           => 'Treatment',
+            'follow_up', 'follow-up' => 'Follow-up',
+            'injection'           => 'Injection',
+            'procedure'           => 'Procedure',
+            default               => ucfirst($jenis),
+        };
+    }
+
+    /**
+     * Jenis layanan — diambil dari appointment->jenis (sumber kebenaran)
+     * dengan fallback ke item pertama appointment kalau jenis NULL.
+     *
+     * Output:
+     *   - "Konsultasi" untuk jenis = konsultasi
+     *   - "Treatment" untuk jenis = treatment (dengan nama treatment di sub-text)
+     *   - "Follow-up" / "Injection" / "Procedure" untuk jenis lain
+     *   - "—" untuk RM yang tidak punya appointment
+     */
+    private static function columnJenisLayanan(): TextColumn
+    {
+        return TextColumn::make('appointment.jenis')
+            ->label('Jenis Layanan')
+            ->html()
+            ->state(function (RekamMedis $record) {
+                $jenis = strtolower((string) ($record->appointment?->jenis ?? ''));
+
+                if ($jenis === '' && $record->appointment?->items?->isNotEmpty()) {
+                    $firstType = strtolower((string) $record->appointment->items->first()->item_type);
+                    $jenis = match ($firstType) {
+                        'consultation' => 'konsultasi',
+                        'treatment', 'bundle' => 'treatment',
+                        default => '',
+                    };
+                }
+
+                if ($jenis === '') {
+                    return '<span style="color:#8A8078; font-size:0.8125rem;">—</span>';
+                }
+
+                $jenisMap = [
+                    'konsultasi' => ['Konsultasi', '#DBEAFE', '#1E40AF'],
+                    'treatment'  => ['Treatment',  '#FCE7E9', '#9F1239'],
+                    'follow_up'  => ['Follow-up',  '#E0E7FF', '#3730A3'],
+                    'follow-up'  => ['Follow-up',  '#E0E7FF', '#3730A3'],
+                    'injection'  => ['Injection',  '#FEF3C7', '#92400E'],
+                    'procedure'  => ['Procedure',  '#D1FAE5', '#065F46'],
+                ];
+                [$label, $bg, $color] = $jenisMap[$jenis] ?? [ucfirst($jenis), '#E5E7EB', '#4B5563'];
+
+                return '
+                    <span style="display:inline-block; padding:3px 10px; border-radius:9999px; background:'.$bg.'; color:'.$color.'; font-size:0.75rem; font-weight:600;">
+                        '.e($label).'
+                    </span>
+                ';
+            })
+            ->sortable(query: function (Builder $q, string $d) {
+                return $q->leftJoin('appointments as ap_jenis', 'rekam_medis.appointment_id', '=', 'ap_jenis.appointment_id')
+                    ->orderBy('ap_jenis.jenis', $d)
+                    ->select('rekam_medis.*');
+            });
     }
 
     private static function columnKeluhan(): TextColumn
@@ -401,15 +473,6 @@ class RekamMedisTable
     private static function filters(): array
     {
         return [
-            SelectFilter::make('status_tindakan')
-                ->label('Status Tindakan')
-                ->options([
-                    'direncanakan' => 'Direncanakan',
-                    'dilakukan'    => 'Dilakukan',
-                    'ditunda'      => 'Ditunda',
-                    'dibatalkan'   => 'Dibatalkan',
-                ]),
-
             SelectFilter::make('jenis')
                 ->label('Jenis Kunjungan')
                 ->options([
@@ -447,6 +510,7 @@ class RekamMedisTable
                 $rm = RekamMedis::with([
                     'appointment.items.treatment',
                     'appointment.items.bundle',
+                    'appointment.items.consultation',
                     'pasien.pasienProfile',
                     'dokter',
                     'terapis',
@@ -501,6 +565,20 @@ class RekamMedisTable
     // HELPERS
     // ═══════════════════════════════════════════════════════
 
+    /**
+     * Resolve nama treatment / bundle dari rekam medis.
+     *
+     * Aturan:
+     *   - Prioritas 1: field `tindakan` yang diisi manual oleh dokter
+     *     (boleh berisi catatan / treatment custom).
+     *   - Prioritas 2: appointment items dengan tipe `treatment` atau `bundle`.
+     *   - Item `consultation` SENGAJA DI-SKIP karena konsultasi bukan
+     *     treatment medis. Untuk RM dari appointment konsultasi murni
+     *     yang belum diisi tindakan, method ini mengembalikan null
+     *     supaya UI menampilkan strip ("—").
+     *
+     * Format output saat ada lebih dari satu item: "Nama + N item".
+     */
     private static function resolveTreatmentName(RekamMedis $record): ?string
     {
         // 1) Prefer explicit "tindakan" field if filled.
@@ -508,24 +586,33 @@ class RekamMedisTable
             return strip_tags($record->tindakan);
         }
 
-        // 2) Fallback to first appointment item (treatment / bundle / consultation).
+        // 2) Fallback ke appointment items, hanya tipe treatment & bundle.
         $items = $record->appointment?->items;
-        if ($items && $items->isNotEmpty()) {
-            $first = $items->first();
-            $name = match (true) {
-                $first->item_type === 'treatment' && $first->treatment       => $first->treatment->nama,
-                $first->item_type === 'bundle' && $first->bundle             => 'Bundle: '.$first->bundle->nama,
-                $first->item_type === 'consultation' && $first->consultation => $first->consultation->nama,
-                default                                                       => null,
-            };
-
-            if ($name) {
-                $rest = $items->count() - 1;
-                return $rest > 0 ? $name.' + '.$rest.' item' : $name;
-            }
+        if (!$items || $items->isEmpty()) {
+            return null;
         }
 
-        return null;
+        $treatmentItems = $items->filter(
+            fn ($i) => in_array(strtolower((string) $i->item_type), ['treatment', 'bundle'], true)
+        )->values();
+
+        if ($treatmentItems->isEmpty()) {
+            return null;
+        }
+
+        $first = $treatmentItems->first();
+        $name = match (true) {
+            strtolower((string) $first->item_type) === 'treatment' && $first->treatment => $first->treatment->nama,
+            strtolower((string) $first->item_type) === 'bundle'    && $first->bundle    => 'Bundle: '.$first->bundle->nama,
+            default => null,
+        };
+
+        if (!$name) {
+            return null;
+        }
+
+        $rest = $treatmentItems->count() - 1;
+        return $rest > 0 ? $name.' + '.$rest.' item' : $name;
     }
 
     // ═══════════════════════════════════════════════════════
@@ -588,7 +675,6 @@ class RekamMedisTable
         }
 
         return [
-            'status_tindakan'     => $record->status_tindakan,
             'keluhan'             => $record->keluhan,
             'diagnosa'            => $record->diagnosa,
             'catatan_lanjutan'    => $record->catatan_lanjutan,

@@ -22,15 +22,34 @@ return new class extends Migration
             $table->unsignedBigInteger('user_id')->nullable()->change();
         });
 
-        // Copy demographic data from related users
-        DB::statement("
-            UPDATE pasien p
-            JOIN users u ON p.user_id = u.id
-            SET p.nama = u.name,
-                p.tanggal_lahir = u.tanggal_lahir,
-                p.jenis_kelamin = u.jenis_kelamin,
-                p.no_telepon = u.phone
-        ");
+        // Copy demographic data from related users.
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            DB::table('pasien')
+                ->whereNotNull('user_id')
+                ->orderBy('pasien_id')
+                ->each(function ($pasien) {
+                    $user = DB::table('users')->where('id', $pasien->user_id)->first();
+                    if (!$user) return;
+
+                    DB::table('pasien')
+                        ->where('pasien_id', $pasien->pasien_id)
+                        ->update([
+                            'nama' => $user->name,
+                            'tanggal_lahir' => $user->tanggal_lahir,
+                            'jenis_kelamin' => $user->jenis_kelamin,
+                            'no_telepon' => $user->phone,
+                        ]);
+                });
+        } else {
+            DB::statement("
+                UPDATE pasien p
+                JOIN users u ON p.user_id = u.id
+                SET p.nama = u.name,
+                    p.tanggal_lahir = u.tanggal_lahir,
+                    p.jenis_kelamin = u.jenis_kelamin,
+                    p.no_telepon = u.phone
+            ");
+        }
     }
 
     /**

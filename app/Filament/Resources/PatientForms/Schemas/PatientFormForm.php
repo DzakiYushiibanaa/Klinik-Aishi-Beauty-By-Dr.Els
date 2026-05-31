@@ -175,8 +175,8 @@ class PatientFormForm
                             ->required()
                             ->default('baru'),
 
-                        Textarea::make('rekomendasi_dokter')
-                            ->label('Rekomendasi Dokter')
+                        Textarea::make('diagnosa')
+                            ->label('Diagnosa')
                             ->rows(4)
                             ->columnSpanFull(),
                     ])

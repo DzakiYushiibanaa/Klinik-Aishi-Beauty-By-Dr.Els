@@ -1,9 +1,32 @@
 <x-guest-layout :title="'Keranjang Belanja'">
+
+    @php
+        // Eager-load isi bundle (sekali query, tidak per item) untuk tampil rincian.
+        $bundleIds = collect($cart ?? [])
+            ->filter(fn ($i) => ($i['type'] ?? null) === 'bundle')
+            ->pluck('bundle_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $bundleDetails = [];
+        if ($bundleIds->isNotEmpty()) {
+            $bundleDetails = \App\Models\Bundle::whereIn('bundle_id', $bundleIds)
+                ->with([
+                    'productItems.product:product_id,nama',
+                    'treatmentItems.treatment:treatment_id,nama',
+                ])
+                ->get()
+                ->keyBy('bundle_id');
+        }
+    @endphp
+
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {{-- Header Section --}}
+
+        {{-- HEADER --}}
         <div class="mb-8">
-            <h1 class="text-3xl font-bold text-[#1A1A1A] tracking-tight">Keranjang Belanja</h1>
-            <p class="text-sm text-slate-500 mt-2">Periksa kembali item Anda sebelum melanjutkan ke pembayaran.</p>
+            <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-[#1A1A1A]">Keranjang</h1>
+            <p class="text-sm text-slate-500 mt-1">Tinjau pesanan Anda sebelum lanjut ke pembayaran.</p>
         </div>
 
         @if (empty($cart))
@@ -27,38 +50,85 @@
                 {{-- LIST ITEM --}}
                 <div class="lg:col-span-8 space-y-4">
                     @foreach ($cart as $key => $item)
-                        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-5 rounded-2xl border border-[#E8E0D8] bg-white p-5 shadow-sm hover:shadow-md hover:border-[#CFAF53]/40 transition-all group">
+                        <div class="flex items-start gap-3 sm:gap-5 rounded-2xl border border-[#E8E0D8] bg-white p-3 sm:p-5 shadow-sm hover:shadow-md hover:border-[#CFAF53]/40 transition-all group">
                             
                             {{-- Foto --}}
-                            <div class="h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-[#FAF8F5] border border-[#E8E0D8] flex items-center justify-center relative">
+                            <div class="h-20 w-20 sm:h-24 sm:w-24 shrink-0 overflow-hidden rounded-xl bg-gradient-to-br from-[#FAF8F5] to-[#F2EFE9] border border-[#E8E0D8] flex items-center justify-center relative">
                                 @if(isset($item['type']) && $item['type'] === 'bundle')
                                     <div class="absolute top-0 left-0 w-full h-1.5 bg-[#CFAF53] z-10"></div>
                                 @endif
-                                <img src="{{ $item['foto_path'] ? asset('storage/' . $item['foto_path']) : 'https://via.placeholder.com/150' }}" 
-                                     class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110">
+                                @if(!empty($item['foto_path']))
+                                    <img src="{{ asset('storage/' . $item['foto_path']) }}"
+                                         alt="{{ $item['nama'] ?? 'Item' }}"
+                                         loading="lazy"
+                                         class="h-full w-full object-contain p-2 transition-transform duration-500 group-hover:scale-105">
+                                @else
+                                    <svg class="h-8 w-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                    </svg>
+                                @endif
                             </div>
 
                             {{-- Info --}}
                             <div class="flex-1 min-w-0 w-full">
                                 <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-2">
                                     <div class="flex-1 pr-4">
-                                        <div class="flex items-center gap-2 mb-1.5">
-                                            @if(isset($item['type']) && $item['type'] === 'bundle')
-                                                <span class="shrink-0 rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-bold tracking-wider text-amber-700 uppercase border border-amber-200">
-                                                    Paket Bundle
-                                                </span>
-                                            @else
-                                                <span class="shrink-0 rounded-md bg-slate-50 px-2 py-0.5 text-[10px] font-bold tracking-wider text-slate-500 uppercase border border-slate-200">
-                                                    Produk
-                                                </span>
-                                            @endif
-                                        </div>
                                         <a href="{{ isset($item['type']) && $item['type'] === 'bundle' ? route('bundle.show', $item['id']) : route('shop.show', $item['id']) }}" class="font-bold text-lg text-[#1A1A1A] hover:text-[#CFAF53] transition-colors line-clamp-2">
                                             {{ $item['nama'] }}
                                         </a>
                                         <p class="text-sm font-bold text-[#CFAF53] mt-1">
                                             Rp {{ number_format((int)$item['harga'], 0, ',', '.') }}
                                         </p>
+
+                                        {{-- Rincian isi bundle --}}
+                                        @if(isset($item['type']) && $item['type'] === 'bundle')
+                                            @php
+                                                $bundleDetail = $bundleDetails[$item['bundle_id']] ?? null;
+                                                $rincian = collect();
+                                                if ($bundleDetail) {
+                                                    foreach ($bundleDetail->productItems as $bi) {
+                                                        $rincian->push([
+                                                            'qty' => (int) $bi->qty,
+                                                            'nama' => $bi->product->nama ?? 'Produk',
+                                                            'tipe' => 'produk',
+                                                        ]);
+                                                    }
+                                                    foreach ($bundleDetail->treatmentItems as $bi) {
+                                                        $rincian->push([
+                                                            'qty' => (int) $bi->qty,
+                                                            'nama' => $bi->treatment->nama ?? 'Treatment',
+                                                            'tipe' => 'treatment',
+                                                        ]);
+                                                    }
+                                                }
+                                            @endphp
+
+                                            @if($rincian->isNotEmpty())
+                                                <div class="mt-3 rounded-xl bg-[#FAF8F5] border border-[#E8E0D8]/60 p-3">
+                                                    <div class="flex items-center gap-1.5 mb-2">
+                                                        <svg class="w-3.5 h-3.5 text-[#CFAF53]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                                                        </svg>
+                                                        <span class="text-[10px] font-bold uppercase tracking-widest text-[#8C7A63]">Isi Paket</span>
+                                                    </div>
+                                                    <ul class="space-y-1.5">
+                                                        @foreach($rincian as $r)
+                                                            <li class="flex items-start gap-2 text-xs">
+                                                                <span class="shrink-0 inline-flex items-center justify-center min-w-[24px] h-5 rounded-md bg-white border border-[#E8E0D8] text-[#CFAF53] font-extrabold px-1.5 text-[11px]">
+                                                                    {{ $r['qty'] }}×
+                                                                </span>
+                                                                <span class="text-[#1A1A1A] font-medium leading-tight pt-0.5">
+                                                                    {{ $r['nama'] }}
+                                                                    @if($r['tipe'] === 'treatment')
+                                                                        <span class="text-[10px] text-slate-400 font-normal ml-1">(treatment)</span>
+                                                                    @endif
+                                                                </span>
+                                                            </li>
+                                                        @endforeach
+                                                    </ul>
+                                                </div>
+                                            @endif
+                                        @endif
                                     </div>
                                     
                                     {{-- Subtotal per item (Desktop) --}}
@@ -120,11 +190,33 @@
                 <div class="lg:col-span-4 sticky top-24">
                     <div class="rounded-3xl border border-[#E8E0D8] bg-white p-6 shadow-sm">
                         <h3 class="text-lg font-bold text-[#1A1A1A] mb-5 flex items-center gap-2">
-                            <svg class="w-5 h-5 text-[#CFAF53]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                             Ringkasan Belanja
                         </h3>
-                        
-                        <div class="space-y-3 mb-6">
+
+                        {{-- Detail item --}}
+                        <div class="mb-5">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="text-[10px] font-bold uppercase tracking-widest text-[#8C7A63]">Detail Item</span>
+                                <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">{{ count($cart) }} produk</span>
+                            </div>
+                            <ul class="space-y-2.5 max-h-64 overflow-y-auto custom-scrollbar pr-1">
+                                @foreach($cart as $key => $item)
+                                    <li class="flex items-start justify-between gap-3">
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm font-semibold text-[#1A1A1A] line-clamp-2 leading-snug">{{ $item['nama'] }}</p>
+                                            <span class="inline-flex items-center justify-center mt-1 rounded-md bg-[#CFAF53]/10 text-[#CFAF53] text-[11px] font-extrabold px-1.5 h-5">
+                                                {{ (int) $item['qty'] }}×
+                                            </span>
+                                        </div>
+                                        <span class="shrink-0 text-sm font-bold text-[#1A1A1A] tabular-nums">
+                                            Rp {{ number_format((int) $item['harga'] * (int) $item['qty'], 0, ',', '.') }}
+                                        </span>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </div>
+
+                        <div class="space-y-3 mb-6 border-t border-[#E8E0D8]/60 pt-5">
                             <div class="flex items-center justify-between text-sm">
                                 <span class="text-slate-500 font-medium">Total Item</span>
                                 <span class="font-bold text-[#1A1A1A]">{{ array_reduce($cart, function($carry, $item) { return $carry + $item['qty']; }, 0) }} Item</span>

@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Filament\Widgets\DoctorLeaderboard;
+use App\Models\PatientForm;
+use App\Observers\PatientFormObserver;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
@@ -25,10 +27,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Cek apakah request datang dari 'ngrok' ATAU sedang di production
+        // Force HTTPS untuk ngrok / production
         if (str_contains(request()->getHost(), 'ngrok') || $this->app->environment('production')) {
             URL::forceScheme('https');
         }
+
+        // Locale Bahasa Indonesia untuk Carbon (->translatedFormat, diffForHumans, dll)
+        \Carbon\Carbon::setLocale(config('app.locale', 'id'));
+        setlocale(LC_TIME, 'id_ID.UTF-8', 'id_ID', 'ID');
 
         // DAFTARKAN WIDGET AGAR BISA DIPANGGIL DI BLADE
         Livewire::component('financial-stats', FinancialStats::class);
@@ -36,5 +42,8 @@ class AppServiceProvider extends ServiceProvider
 
         Livewire::component('doctor-leaderboard', DoctorLeaderboard::class);
         Livewire::component('therapist-leaderboard', TherapistLeaderboard::class);
+
+        // Observer: kirim WA ke pasien saat dokter selesai me-review pra-konsul.
+        PatientForm::observe(PatientFormObserver::class);
     }
 }

@@ -16,11 +16,11 @@
                 
                 {{-- KOLOM KIRI: FOTO PRODUK --}}
                 <div class="mb-10 lg:mb-0">
-                    <div class="relative w-full aspect-[4/5] sm:aspect-square md:aspect-[4/3] lg:aspect-square bg-[#F5F5F3] rounded-3xl overflow-hidden group border border-slate-100 shadow-sm">
+                    <div class="relative w-full aspect-[4/5] sm:aspect-square md:aspect-[4/3] lg:aspect-square bg-gradient-to-br from-[#FAF8F5] to-[#F2EFE9] rounded-3xl overflow-hidden group border border-slate-100 shadow-sm">
                         @if ($product->foto_path)
                             <img src="{{ asset('storage/' . $product->foto_path) }}" 
                                  alt="{{ $product->nama }}" 
-                                 class="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-in-out group-hover:scale-105" />
+                                 class="absolute inset-0 h-full w-full object-contain p-10 transition-transform duration-700 ease-in-out group-hover:scale-105" />
                         @else
                             {{-- Placeholder jika tidak ada gambar --}}
                             <div class="absolute inset-0 flex flex-col items-center justify-center bg-[#F5F5F3] text-slate-300">
@@ -95,7 +95,12 @@
                     {{-- Action Area (Add to Cart) --}}
                     <div class="mt-auto border-t border-slate-100 pt-8">
                         @if($product->stok > 0)
-                            <form method="POST" action="{{ route('cart.add', $product) }}" class="flex flex-col sm:flex-row items-center gap-4 justify-center" x-data="{ qty: 1 }">
+                            <form method="POST"
+                                  action="{{ route('cart.add', $product) }}"
+                                  data-cart-form
+                                  data-cart-name="{{ $product->nama }}"
+                                  class="flex flex-col sm:flex-row items-center gap-4 justify-center"
+                                  x-data="{ qty: 1 }">
                                 @csrf
                                 
                                 {{-- Input Qty Custom --}}

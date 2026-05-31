@@ -80,15 +80,6 @@ class TreatmentForm
                                 ->numeric()
                                 ->default(0),
                         ]),
-                        Select::make('min_level')
-                            ->label('Minimal Level Terapis')
-                            ->options([
-                                1 => 'Junior',
-                                2 => 'Senior',
-                            ])
-                            ->default(1)
-                            ->required()
-                            ->columnSpanFull(),
                     ]),
 
                 Section::make('Media & Status')

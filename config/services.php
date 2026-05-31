@@ -39,4 +39,15 @@ return [
     'key' => env('RAJAONGKIR_API_KEY'),
     ],
 
+    'google' => [
+        'client_id'     => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect'      => env('GOOGLE_REDIRECT_URI', '/auth/google/callback'),
+    ],
+
+    'fonnte' => [
+        'token'    => env('FONNTE_TOKEN'),
+        'base_url' => env('FONNTE_BASE_URL', 'https://api.fonnte.com'),
+    ],
+
 ];

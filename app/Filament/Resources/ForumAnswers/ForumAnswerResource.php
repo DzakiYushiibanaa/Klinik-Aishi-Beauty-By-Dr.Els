@@ -20,7 +20,7 @@ class ForumAnswerResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
-    protected static ?string $recordTitleAttribute = 'id';
+    protected static ?string $recordTitleAttribute = 'body';
 
     protected static bool $shouldRegisterNavigation = false;
 

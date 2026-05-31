@@ -4,10 +4,8 @@ namespace App\Filament\Resources\Appointments\Schemas;
 
 use App\Models\Appointment;
 use App\Models\Bundle;
-use App\Models\BundleTreatmentItem;
 use App\Models\Consultation;
 use App\Models\JadwalPraktik;
-use App\Models\Terapis;
 use App\Models\Treatment;
 use Carbon\Carbon;
 use Filament\Facades\Filament;
@@ -158,84 +156,6 @@ class AppointmentForm
                 'bundle_id'    => $type === 'bundle' ? (int) $row['bundle_id'] : null,
                 'qty'          => max(1, (int) ($row['qty'] ?? 1)),
             ]);
-        }
-    }
-
-    /**
-     * Ambil min_level terbesar dari semua item yang dipilih (treatment langsung + treatment dalam bundle).
-     */
-    private static function requiredMinLevel(Get $get): int
-    {
-        if ($get('jenis') !== 'treatment') {
-            return 1;
-        }
-
-        $items = $get('items') ?? [];
-        if (! is_array($items) || empty($items)) {
-            return 1;
-        }
-
-        $max = 1;
-
-        foreach ($items as $item) {
-            $type = $item['item_type'] ?? null;
-
-            if ($type === 'treatment' && ! empty($item['treatment_id'])) {
-                $lvl = (int) (Treatment::query()->whereKey($item['treatment_id'])->value('min_level') ?? 1);
-                $max = max($max, $lvl);
-                continue;
-            }
-
-            if ($type === 'bundle' && ! empty($item['bundle_id'])) {
-                $treatmentIds = BundleTreatmentItem::query()
-                    ->where('bundle_id', $item['bundle_id'])
-                    ->pluck('treatment_id')
-                    ->filter()
-                    ->all();
-
-                if (! empty($treatmentIds)) {
-                    $keyName = (new Treatment())->getKeyName();
-                    $lvl = (int) (Treatment::query()->whereIn($keyName, $treatmentIds)->max('min_level') ?? 1);
-                    $max = max($max, $lvl);
-                }
-            }
-        }
-
-        return $max;
-    }
-
-    /**
-     * Konversi jabatan terapis (varchar) -> level angka.
-     */
-    private static function terapisLevelFromUserId(?int $userId): int
-    {
-        if (! $userId) return 1;
-
-        $jabatan = Terapis::query()
-            ->where('user_id', $userId)
-            ->value('jabatan');
-
-        $j = strtolower(trim((string) $jabatan));
-
-        if (str_contains($j, 'senior')) return 2;
-        if (str_contains($j, 'junior')) return 1;
-
-        return 1;
-    }
-
-    /**
-     * Kalau terapis yang sudah dipilih ternyata tidak memenuhi requiredMinLevel, kosongkan.
-     */
-    private static function ensureSelectedTerapisEligible(Get $get, callable $set): void
-    {
-        $terapisId = $get('terapis_id');
-        if (! $terapisId) return;
-
-        $required = self::requiredMinLevel($get);
-        $level = self::terapisLevelFromUserId((int) $terapisId);
-
-        if ($level < $required) {
-            $set('terapis_id', null);
         }
     }
 
@@ -437,40 +357,17 @@ class AppointmentForm
                                 ->relationship(
                                     name: 'terapis',
                                     titleAttribute: 'name',
-                                    modifyQueryUsing: function (Builder $query, Get $get) {
-                                        $required = self::requiredMinLevel($get);
-                                        $query->role('terapis')->whereHas('terapisProfile');
-                                        if ($required >= 2) {
-                                            $query->whereHas('terapisProfile', fn (Builder $q) =>
-                                                $q->whereRaw('LOWER(jabatan) LIKE ?', ['%senior%'])
-                                            );
-                                        }
-                                        return $query;
-                                    }
+                                    modifyQueryUsing: fn (Builder $query) =>
+                                        $query->role('terapis')
+                                            ->whereHas('terapisProfile', fn (Builder $q) =>
+                                                $q->whereIn('status_kerja', ['aktif', 'Aktif'])
+                                            )
                                 )
                                 ->searchable()
                                 ->preload()
                                 ->required(fn (Get $get) => $get('jenis') === 'treatment')
-                                ->helperText(fn (Get $get) =>
-                                    self::requiredMinLevel($get) >= 2
-                                        ? 'Minimal level: Senior'
-                                        : null
-                                )
                                 ->reactive()
-                                ->afterStateUpdated(function (Get $get, $set) {
-                                    self::ensureSelectedTerapisEligible($get, $set);
-                                    $set('tanggal_jam', null);
-                                })
-                                ->rule(function (Get $get) {
-                                    return function (string $attribute, $value, \Closure $fail) use ($get) {
-                                        if (! $value) return;
-                                        $required = self::requiredMinLevel($get);
-                                        $level = self::terapisLevelFromUserId((int) $value);
-                                        if ($level < $required) {
-                                            $fail('Terapis yang dipilih tidak memenuhi level minimal untuk salah satu treatment.');
-                                        }
-                                    };
-                                }),
+                                ->afterStateUpdated(fn ($state, $set) => $set('tanggal_jam', null)),
                         ])->visible(fn (Get $get) => $get('jenis') === 'treatment'),
 
                         Placeholder::make('info_dokter')

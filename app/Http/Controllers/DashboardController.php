@@ -73,22 +73,26 @@ class DashboardController extends Controller
             'total_appointments' => $appointments->count(),
             'upcoming' => $appointments->whereIn('status', ['diajukan', 'disetujui', 'menunggu_pembayaran'])->count(),
             'total_orders' => $orders->count(),
-            'active_orders' => $orders->where('order_type', 'produk')->whereIn('status', ['menunggu_pembayaran', 'sudah_dibayar', 'lunas'])->whereNotIn('shipping_status', ['selesai', 'dibatalkan'])->count(),
+            'active_orders' => $orders->where('order_type', 'produk')->whereIn('status', ['menunggu_pembayaran', 'sudah_dibayar'])->whereNotIn('shipping_status', ['selesai', 'dibatalkan'])->count(),
             'total_rekam_medis' => $rekamMedis->count(),
         ];
 
         // ── Sidebar Badges ──
         $badges = [
             'appointment' => $appointments->whereIn('status', ['diajukan', 'disetujui', 'menunggu_pembayaran'])->count(),
-            'pra_konsul' => $praKonsuls->whereIn('status', ['submitted', 'menunggu', 'reviewed'])->count(),
-            'pesanan' => $orders->where('order_type', 'produk')->whereIn('status', ['menunggu_pembayaran', 'sudah_dibayar', 'lunas'])->whereNotIn('shipping_status', ['selesai', 'dibatalkan'])->count(),
+            'pra_konsul' => $praKonsuls->whereIn('status', ['baru', 'submitted', 'menunggu', 'ditinjau', 'in_review', 'diproses', 'reviewed', 'direkomendasikan'])->count(),
+            'pesanan' => $orders->where('order_type', 'produk')->whereIn('status', ['menunggu_pembayaran', 'sudah_dibayar'])->whereNotIn('shipping_status', ['selesai', 'dibatalkan'])->count(),
         ];
 
         // ── Pending Payments ──
+        // Termasuk order menunggu pembayaran DAN order dengan pengajuan
+        // pembatalan (cancel_requested) — pasien tetap harus melihat
+        // statusnya sampai admin menyetujui/menolak.
         $pendingPayments = [];
-        $pendingOrders = $orders->where('status', 'menunggu_pembayaran')->filter(function ($order) {
-            return is_null($order->expired_at) || $order->expired_at > now();
-        });
+        $pendingOrders = $orders->whereIn('status', ['menunggu_pembayaran', 'cancel_requested'])
+            ->filter(function ($order) {
+                return is_null($order->expired_at) || $order->expired_at > now();
+            });
         
         foreach ($pendingOrders as $order) {
             $isTreatment = $order->items->contains(function ($item) {
@@ -116,7 +120,7 @@ class DashboardController extends Controller
 
         // ── Next Action Logic (Lanjutkan Aktivitas) ──
         $nextAction = null;
-        $reviewedKonsul = $praKonsuls->whereIn('status', ['reviewed', 'direkomendasikan'])->first();
+        $reviewedKonsul = $praKonsuls->whereIn('status', ['reviewed', 'direkomendasikan', 'selesai'])->first();
         $pendingAppointment = $appointments->where('status', 'diajukan')->first();
 
         if ($reviewedKonsul) {
@@ -265,7 +269,7 @@ class DashboardController extends Controller
             Cache::forget($key);
         }
         
-        return back()->with('success', 'Cache wilayah berhasil dihapus!');
+        return back()->with('success', 'Cache wilayah berhasil dihapus.');
     }
 
     // ==========================================
@@ -327,7 +331,42 @@ class DashboardController extends Controller
             });
 
             Log::info('Profile updated successfully', ['user_id' => $user->id]);
-            return back()->with('success', 'Profil berhasil diperbarui! ✅');
+
+            // Setelah profil disimpan, kalau user tadi di-redirect ke sini karena
+            // profil belum lengkap saat mau booking / checkout, antar dia balik
+            // ke flow itu. Cart session TIDAK disentuh sama sekali jadi produk
+            // di keranjang tetap aman.
+            $user->refresh();
+            $intended = session('profile_required_redirect');
+
+            if ($intended) {
+                $isCheckoutFlow = str_contains($intended, 'checkout') || str_contains($intended, 'keranjang') || str_contains($intended, 'cart');
+                $isAppointmentFlow = str_contains($intended, 'appointment') || str_contains($intended, 'janji-temu');
+
+                $hasContact     = $user->phone && $user->tanggal_lahir;
+                $pasienProfile  = $user->pasienProfile()->first();
+                $hasShipping    = $pasienProfile
+                    && !empty($pasienProfile->alamat)
+                    && !empty($pasienProfile->district_id);
+
+                $canResume = match (true) {
+                    $isCheckoutFlow    => $hasContact && $hasShipping,
+                    $isAppointmentFlow => $hasContact,
+                    default            => $hasContact,
+                };
+
+                if ($canResume) {
+                    session()->forget('profile_required_redirect');
+
+                    $msg = $isCheckoutFlow
+                        ? 'Profil berhasil diperbarui. Silakan lanjutkan checkout — produk Anda masih ada di keranjang.'
+                        : 'Profil berhasil diperbarui. Silakan lanjutkan janji temu Anda.';
+
+                    return redirect($intended)->with('success', $msg);
+                }
+            }
+
+            return back()->with('success', 'Profil berhasil diperbarui.');
             
         } catch (\Exception $e) {
             Log::error('Error updating profile: ' . $e->getMessage(), [
@@ -357,9 +396,17 @@ class DashboardController extends Controller
 
         Log::info('Order completed by user', ['order_id' => $order->order_id, 'user_id' => Auth::id()]);
 
-        return back()->with('success', 'Terima kasih! Pesanan telah diselesaikan. 🎉');
+        return back()->with('success', 'Terima kasih, pesanan Anda telah ditandai selesai.');
     }
 
+    /**
+     * Pasien mengajukan pembatalan pesanan.
+     *
+     * Pesanan TIDAK langsung dibatalkan — status berubah menjadi
+     * `cancel_requested` dan menunggu konfirmasi admin/apoteker.
+     * Stok belum dikembalikan; restock baru terjadi saat admin
+     * menyetujui pengajuan (lihat OrdersTable di Filament).
+     */
     public function cancelOrder(Order $order)
     {
         // 1. Validasi Pemilik
@@ -367,62 +414,24 @@ class DashboardController extends Controller
             abort(403, 'Akses ditolak.');
         }
 
-        // 2. Validasi Status
+        // 2. Validasi Status — hanya order yang masih menunggu pembayaran
+        //    yang boleh diajukan pembatalannya.
         if ($order->status !== 'menunggu_pembayaran') {
-            return back()->with('error', 'Pesanan tidak dapat dibatalkan.');
+            return back()->with('error', 'Pesanan ini tidak dapat dibatalkan lagi.');
         }
 
         try {
             DB::transaction(function () use ($order) {
-                
-                // A. KEMBALIKAN STOK BARANG (RESTOCK) 📦
-                // Kita load relasi items agar tidak query berulang
-                foreach ($order->items as $item) {
-                    
-                    // KASUS 1: PRODUK BIASA
-                    if ($item->item_type === 'product' && $item->product_id) {
-                        $product = \App\Models\Product::find($item->product_id);
-                        if ($product) {
-                            $product->increment('stok', $item->qty);
-                        }
-                    } 
-                    // KASUS 2: BUNDLE (FIXED)
-                    elseif ($item->item_type === 'bundle' && $item->bundle_id) {
-                        // Ambil Bundle beserta item-item penyusunnya
-                        $bundle = \App\Models\Bundle::with('productItems.product')->find($item->bundle_id);
-                        
-                        if ($bundle) {
-                            // Loop isi bundle, kembalikan stok produk aslinya
-                            foreach ($bundle->productItems as $bItem) {
-                                if ($bItem->product) {
-                                    // Hitung: Qty Pesanan * Qty Item dalam Bundle
-                                    $qtyToRestore = $item->qty * $bItem->qty;
-                                    $bItem->product->increment('stok', $qtyToRestore);
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // B. UPDATE STATUS JADI BATAL
                 $order->update([
-                    'status' => 'dibatalkan', // Sesuaikan enum di DB ('dibatalkan' atau 'batal')
-                    'shipping_status' => 'dibatalkan'
+                    'status' => 'cancel_requested',
                 ]);
 
-                // C. KIRIM NOTIFIKASI KE ADMIN & APOTEKER 🔔
-                // Cari user dengan role: super_admin, admin, atau apoteker
+                // Notifikasi admin/apoteker bahwa ada pengajuan pembatalan
+                // yang perlu ditinjau.
                 $penerimaNotif = \App\Models\User::whereHas('roles', function ($query) {
                     $query->whereIn('name', ['super_admin', 'admin', 'apoteker']);
                 })->get();
 
-                // Log untuk debugging
-                Log::info('Sending cancellation notification', [
-                    'order_id' => $order->order_id,
-                    'recipients_count' => $penerimaNotif->count(),
-                ]);
-
-                // Kirim Notifikasi Database - Manual Insert
                 foreach ($penerimaNotif as $penerima) {
                     try {
                         DB::table('notifications')->insert([
@@ -432,14 +441,14 @@ class DashboardController extends Controller
                             'notifiable_id' => $penerima->id,
                             'data' => json_encode([
                                 'format' => 'filament',
-                                'title' => 'Pesanan Dibatalkan User',
-                                'body' => "Pasien {$order->user->name} membatalkan pesanan {$order->kode_order}. Stok barang sudah otomatis dikembalikan.",
-                                'color' => 'danger',
-                                'icon' => 'heroicon-o-x-circle',
-                                'iconColor' => 'danger',
+                                'title' => 'Pengajuan Pembatalan Pesanan',
+                                'body' => "Pasien {$order->user->name} mengajukan pembatalan pesanan {$order->kode_order}. Mohon ditinjau.",
+                                'color' => 'warning',
+                                'icon' => 'heroicon-o-exclamation-triangle',
+                                'iconColor' => 'warning',
                                 'duration' => 'persistent',
-                                'actions' => [], // Kosongkan array actions biar aman json-nya
-                                'view' => 'filament-notifications::notification', // Default view filament
+                                'actions' => [],
+                                'view' => 'filament-notifications::notification',
                                 'viewData' => [],
                             ]),
                             'read_at' => null,
@@ -447,18 +456,21 @@ class DashboardController extends Controller
                             'updated_at' => now(),
                         ]);
                     } catch (\Exception $e) {
-                        Log::error('Failed to insert notification: ' . $e->getMessage());
+                        Log::error('Failed to insert cancellation notification: ' . $e->getMessage());
                     }
                 }
 
-                Log::info('Order cancelled, stock restored & admin notified', ['order_id' => $order->order_id]);
+                Log::info('Cancellation requested by patient', [
+                    'order_id' => $order->order_id,
+                    'user_id'  => $order->user_id,
+                ]);
             });
 
-            return back()->with('success', 'Pesanan berhasil dibatalkan.');
+            return back()->with('success', 'Permintaan pembatalan berhasil dikirim. Kami akan segera memprosesnya.');
 
         } catch (\Exception $e) {
-            Log::error('Gagal cancel order: ' . $e->getMessage());
-            return back()->with('error', 'Terjadi kesalahan sistem saat membatalkan pesanan.');
+            Log::error('Gagal request cancel order: ' . $e->getMessage());
+            return back()->with('error', 'Terjadi kesalahan sistem saat mengajukan pembatalan.');
         }
     }
 }

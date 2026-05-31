@@ -79,35 +79,12 @@ class TerapisForm
                             ->nullable()
                             ->columnSpanFull(),
 
-                        Grid::make(2)->schema([
+                        Grid::make(1)->schema([
                             TextInput::make('user_name')
                                 ->label('Nama Lengkap')
                                 ->placeholder('Masukkan nama')
                                 ->required()
                                 ->maxLength(255),
-
-                            Select::make('jabatan')
-                                ->label('Jabatan')
-                                ->options([
-                                    'Junior Beautician'   => 'Junior Beautician',
-                                    'Senior Beautician'   => 'Senior Beautician',
-                                    'Lead Physiotherapist'=> 'Lead Physiotherapist',
-                                    'Massage Therapist'   => 'Massage Therapist',
-                                    'Aesthetician'        => 'Aesthetician',
-                                ])
-                                ->native(false)
-                                ->placeholder('')
-                                ->required(),
-
-                            TextInput::make('pengalaman_tahun')
-                                ->label('Pengalaman')
-                                ->numeric()
-                                ->minValue(0)
-                                ->maxValue(60)
-                                ->default(0)
-                                ->placeholder('0')
-                                ->suffix('Tahun')
-                                ->columnSpanFull(),
                         ]),
                     ]),
 

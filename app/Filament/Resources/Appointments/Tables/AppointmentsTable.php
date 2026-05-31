@@ -7,15 +7,18 @@ use App\Filament\Resources\Appointments\Schemas\MulaiLayananForm;
 use App\Models\Appointment;
 use App\Notifications\AppointmentStatusChanged; // Pastikan notifikasi di-import
 use App\Services\Appointments\StartServiceFinalizer;
+use App\Services\FonnteService;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification; 
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\DatePicker;
 use Filament\Support\Enums\Alignment;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\Indicator;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -130,6 +133,111 @@ class AppointmentsTable
             ])
             ->defaultSort('tanggal_jam', 'desc')
             ->filters([
+                // === RANGE TANGGAL JADWAL ===
+                Filter::make('tanggal_jam')
+                    ->label('Rentang Tanggal')
+                    ->columnSpan(2)
+                    ->schema([
+                        DatePicker::make('from')
+                            ->label('Dari Tanggal')
+                            ->native(false)
+                            ->displayFormat('d M Y')
+                            ->closeOnDateSelection(),
+                        DatePicker::make('until')
+                            ->label('Sampai Tanggal')
+                            ->native(false)
+                            ->displayFormat('d M Y')
+                            ->closeOnDateSelection(),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        return $query
+                            ->when(
+                                $data['from'] ?? null,
+                                fn (Builder $q, $date): Builder => $q->whereDate('tanggal_jam', '>=', $date),
+                            )
+                            ->when(
+                                $data['until'] ?? null,
+                                fn (Builder $q, $date): Builder => $q->whereDate('tanggal_jam', '<=', $date),
+                            );
+                    })
+                    ->indicateUsing(function (array $data): array {
+                        $indicators = [];
+
+                        if ($data['from'] ?? null) {
+                            $indicators[] = Indicator::make('Dari ' . \Carbon\Carbon::parse($data['from'])->translatedFormat('d M Y'))
+                                ->removeField('from');
+                        }
+
+                        if ($data['until'] ?? null) {
+                            $indicators[] = Indicator::make('Sampai ' . \Carbon\Carbon::parse($data['until'])->translatedFormat('d M Y'))
+                                ->removeField('until');
+                        }
+
+                        return $indicators;
+                    }),
+
+                // === PRESET CEPAT ===
+                SelectFilter::make('preset_tanggal')
+                    ->label('Preset Cepat')
+                    ->options([
+                        'today'      => 'Hari Ini',
+                        'tomorrow'   => 'Besok',
+                        'this_week'  => 'Minggu Ini',
+                        'this_month' => 'Bulan Ini',
+                        'next_7'     => '7 Hari ke Depan',
+                        'next_30'    => '30 Hari ke Depan',
+                        'past'       => 'Sudah Lewat',
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        $value = $data['value'] ?? null;
+                        if (! $value) return $query;
+
+                        $now = \Carbon\Carbon::now();
+
+                        return match ($value) {
+                            'today'      => $query->whereDate('tanggal_jam', $now->toDateString()),
+                            'tomorrow'   => $query->whereDate('tanggal_jam', $now->copy()->addDay()->toDateString()),
+                            'this_week'  => $query->whereBetween('tanggal_jam', [
+                                $now->copy()->startOfWeek(),
+                                $now->copy()->endOfWeek(),
+                            ]),
+                            'this_month' => $query->whereBetween('tanggal_jam', [
+                                $now->copy()->startOfMonth(),
+                                $now->copy()->endOfMonth(),
+                            ]),
+                            'next_7'     => $query->whereBetween('tanggal_jam', [
+                                $now->copy()->startOfDay(),
+                                $now->copy()->addDays(7)->endOfDay(),
+                            ]),
+                            'next_30'    => $query->whereBetween('tanggal_jam', [
+                                $now->copy()->startOfDay(),
+                                $now->copy()->addDays(30)->endOfDay(),
+                            ]),
+                            'past'       => $query->where('tanggal_jam', '<', $now),
+                            default      => $query,
+                        };
+                    }),
+
+                // === STATUS ===
+                SelectFilter::make('status')
+                    ->label('Status')
+                    ->multiple()
+                    ->options([
+                        'diajukan'    => 'Diajukan',
+                        'disetujui'   => 'Disetujui',
+                        'selesai'     => 'Selesai',
+                        'batal'       => 'Batal',
+                        'tidak_hadir' => 'Tidak Hadir',
+                    ]),
+
+                // === JENIS LAYANAN ===
+                SelectFilter::make('jenis')
+                    ->label('Jenis Layanan')
+                    ->options([
+                        'konsultasi' => 'Konsultasi',
+                        'treatment'  => 'Treatment',
+                    ]),
+
                 SelectFilter::make('dokter_id')
                     ->label('Filter Dokter')
                     ->relationship('dokter', 'name', fn (Builder $query) => $query->role('dokter'))
@@ -157,6 +265,7 @@ class AppointmentsTable
                     })
                     ->visible(fn () => (Filament::auth()->user()?->hasAnyRole(['dokter','terapis','pasien']) ?? false)),
             ])
+            ->filtersFormColumns(2)
             ->recordActions([
                 // === VIEW DETAIL ===
                 Action::make('view_detail')
@@ -227,7 +336,18 @@ class AppointmentsTable
                             $record->pasien->notify(new AppointmentStatusChanged($record, 'Disetujui'));
                         }
 
-                        Notification::make()->title('Berhasil Disetujui')->success()->send();
+                        // 🔔 WhatsApp ke pasien (best-effort).
+                        try {
+                            $fresh = Appointment::with(['items.treatment', 'items.bundle', 'items.consultation', 'dokter', 'terapis', 'pasien'])
+                                ->find($record->appointment_id);
+                            if ($fresh) {
+                                app(FonnteService::class)->sendAppointmentApproved($fresh);
+                            }
+                        } catch (\Throwable $e) {
+                            \Illuminate\Support\Facades\Log::warning('Fonnte WA send gagal (admin setujui appointment): '.$e->getMessage());
+                        }
+
+                        Notification::make()->title('Janji temu berhasil disetujui')->success()->send();
                     }),
 
                 // === TOMBOL TOLAK ===
@@ -248,7 +368,18 @@ class AppointmentsTable
                             $record->pasien->notify(new AppointmentStatusChanged($record, 'Dibatalkan'));
                         }
 
-                        Notification::make()->title('Booking Dibatalkan')->danger()->send();
+                        // 🔔 WhatsApp ke pasien (best-effort).
+                        try {
+                            $fresh = Appointment::with(['items.treatment', 'items.bundle', 'items.consultation', 'dokter', 'terapis', 'pasien'])
+                                ->find($record->appointment_id);
+                            if ($fresh) {
+                                app(FonnteService::class)->sendAppointmentCancelledByClinic($fresh, $fresh->cancel_reason);
+                            }
+                        } catch (\Throwable $e) {
+                            \Illuminate\Support\Facades\Log::warning('Fonnte WA send gagal (admin tolak appointment): '.$e->getMessage());
+                        }
+
+                        Notification::make()->title('Booking dibatalkan')->body('Pasien akan menerima notifikasi pembatalan.')->danger()->send();
                     }),
 
                 // === MULAI LAYANAN ===
@@ -262,19 +393,25 @@ class AppointmentsTable
                     ->slideOver()
                     ->stickyModalFooter()
                     ->modalHeading('Mulai Layanan')
-                    ->modalDescription(fn (Appointment $record) => new \Illuminate\Support\HtmlString(
-                        '<div style="padding:12px 14px; background:#FEF7E6; border:1px solid #F3E4C4; border-radius:10px; color:#7A5A3A; font-size:0.875rem; line-height:1.5;">'
-                        . '<strong>Perhatian:</strong> Ketika Anda menekan <strong>Selesaikan Layanan</strong>, sistem akan otomatis membuat <strong>Rekam Medis</strong> dan <strong>Transaksi</strong>, lalu mengirim notifikasi + email invoice ke pasien ('
-                        . e($record->pasien?->email ?? '—') . ').'
-                        . '</div>'
-                    ))
+                    ->modalDescription('Pastikan hasil pemeriksaan sudah benar sebelum menyelesaikan layanan.')
                     ->modalWidth('3xl')
                     ->modalSubmitActionLabel('Selesaikan Layanan')
-                    ->modalCancelActionLabel('Cancel')
+                    ->modalCancelActionLabel('Batal')
                     ->modalFooterActionsAlignment(Alignment::End)
                     ->visible(fn (Appointment $record) => $record->status === 'disetujui'
                         && (Filament::auth()->user()?->hasAnyRole(['admin', 'dokter', 'terapis']) ?? false))
                     ->schema(fn (Appointment $record) => MulaiLayananForm::schema($record))
+                    ->modalSubmitAction(function ($action) {
+                        // Konfirmasi sebelum benar-benar finalisasi.
+                        // Pesan-nya konsisten dengan flow workflow klinik:
+                        // hasil pemeriksaan masuk ke rekam medis, tagihan
+                        // diteruskan ke admin/frontdesk untuk pembayaran.
+                        return $action->extraAttributes([
+                            'wire:confirm' => 'Selesaikan Layanan?
+
+Hasil pemeriksaan akan disimpan ke rekam medis pasien dan tagihan akan diteruskan ke proses pembayaran.',
+                        ]);
+                    })
                     ->action(function (array $data, Appointment $record) {
                         try {
                             $result = app(StartServiceFinalizer::class)->complete($record, $data);
@@ -293,18 +430,11 @@ class AppointmentsTable
                             return;
                         }
 
-                        $kodeOrder   = $result['order']?->kode_order;
-                        $noKunjungan = $result['rekam_medis']?->no_kunjungan;
-
                         Notification::make()
-                            ->title('Layanan Selesai')
-                            ->body(
-                                'Rekam medis ' . ($noKunjungan ?: '-')
-                                . ($kodeOrder ? ' & transaksi ' . $kodeOrder : '')
-                                . ' berhasil dibuat. Notifikasi + email invoice telah dikirim ke pelanggan.'
-                            )
+                            ->title('Layanan berhasil diselesaikan')
+                            ->body('Hasil pemeriksaan tersimpan dan tagihan telah diteruskan ke proses pembayaran.')
                             ->success()
-                            ->duration(7000)
+                            ->duration(6000)
                             ->send();
                     }),
 

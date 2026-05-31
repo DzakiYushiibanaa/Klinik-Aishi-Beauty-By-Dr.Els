@@ -96,7 +96,7 @@ class ProductForm
 
                         Toggle::make('is_active')
                             ->label('Aktif')
-                            ->helperText('Tampilkan produk ini di katalog pasien')
+                            ->helperText('Tampilkan produk ini di katalog produk')
                             ->default(true)
                             ->inline()
                             ->columnSpanFull(),

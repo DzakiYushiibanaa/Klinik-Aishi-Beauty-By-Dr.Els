@@ -10,12 +10,13 @@ use App\Models\PatientForm;
 use App\Models\PraKonsultasiRekomendasiItem;
 use App\Models\Treatment;
 use App\Models\User;
-use App\Models\Terapis;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
 use App\Filament\Resources\Appointments\AppointmentResource;
+use App\Services\FonnteService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Midtrans\Config as MidtransConfig;
@@ -28,12 +29,21 @@ class AppointmentController extends Controller
         return view('appointment.select-type');
     }
 
-    public function bookingTreatment()
+    public function bookingTreatment(Request $request)
     {
         $user = Auth::user();
 
         if (!$user->phone || !$user->tanggal_lahir) {
-            return redirect('/dashboard')->with('error', 'Silakan lengkapi Nomor WhatsApp dan Tanggal Lahir Anda di tab Profil sebelum membuat janji temu.')->with('active_tab', 'profile');
+            // Simpan URL tujuan ke session (persisten lintas request) supaya
+            // setelah profil dilengkapi user bisa langsung kembali ke flow ini.
+            session(['profile_required_redirect' => $request->fullUrl()]);
+
+            // Tidak pakai flash 'error' karena UI sudah ditangani oleh modal
+            // <x-profile-required-modal /> di dashboard. Toast error akan
+            // duplikat dengan modal dan terkesan ribut.
+            return redirect('/dashboard')
+                ->with('active_tab', 'profile')
+                ->with('show_profile_required_modal', true);
         }
 
         $treatments = Treatment::with('category')
@@ -186,7 +196,7 @@ class AppointmentController extends Controller
                 }
 
                 // C. Buat Order
-                $kodeOrder       = 'ORD-' . strtoupper(Str::random(8));
+                $kodeOrder       = \App\Support\OrderCodeGenerator::next();
                 $midtransOrderId = $kodeOrder . '-' . time();
                 
                 $order = Order::create([
@@ -284,13 +294,18 @@ class AppointmentController extends Controller
         }
     }
 
-    public function konsultasi()
+    public function konsultasi(Request $request)
     {
         $user = Auth::user();
         
         // Pengecekan Kelengkapan Profil
         if (!$user->phone || !$user->tanggal_lahir) {
-            return redirect('/dashboard')->with('error', 'Silakan lengkapi Nomor WhatsApp dan Tanggal Lahir Anda di tab Profil sebelum membuat janji temu.')->with('active_tab', 'profile');
+            session(['profile_required_redirect' => $request->fullUrl()]);
+
+            // Tidak pakai flash 'error' — UI sudah ditangani oleh modal global.
+            return redirect('/dashboard')
+                ->with('active_tab', 'profile')
+                ->with('show_profile_required_modal', true);
         }
 
         // Dummy data for Doctors (since we need them for Step 2)
@@ -316,129 +331,141 @@ class AppointmentController extends Controller
         $request->validate([
             'jenis' => 'required|string',
             'dokter_id' => 'required|exists:users,id',
-            'tanggal' => 'required|date',
+            'tanggal' => 'required|date|after_or_equal:today',
             'jam' => 'required|string',
         ]);
 
         $user = Auth::user();
 
-        // Buat record Appointment & Item dalam Transaction
-        $appointment = \Illuminate\Support\Facades\DB::transaction(function () use ($user, $request) {
-            $appointment = Appointment::create([
-                'user_id' => $user->id,
-                'dokter_id' => $request->dokter_id,
-                'dibuat_oleh_id' => $user->id,
-                'jenis' => 'konsultasi',
-                'sumber' => 'online',
-                'tanggal_jam' => $request->tanggal . ' ' . str_replace('.', ':', substr($request->jam, 0, 5)) . ':00',
-                'status' => 'diajukan',
-                'catatan_pasien' => 'Konsultasi Dokter (' . ucfirst($request->jenis) . ')',
-            ]);
+        $tanggalJam = $request->tanggal . ' ' . str_replace('.', ':', substr($request->jam, 0, 5)) . ':00';
 
-            // Cari ID konsultasi berdasarkan jenis
-            $konsultasiNama = strtolower($request->jenis) === 'awal' ? 'Konsultasi Awal' : 'Konsultasi Lanjutan';
-            $consultation = \App\Models\Consultation::where('nama', $konsultasiNama)->first();
+        // ─────────────────────────────────────────
+        // 1. Cek apakah slot ini sudah diambil dokter+jam yg sama
+        //    (1 dokter pada tanggal_jam yang sama hanya untuk 1 pasien)
+        // ─────────────────────────────────────────
+        $alreadyTaken = Appointment::where('dokter_id', $request->dokter_id)
+            ->where('tanggal_jam', $tanggalJam)
+            ->where('jenis', 'konsultasi')
+            ->whereNotIn('status', ['batal', 'tidak_hadir'])
+            ->exists();
 
-            if ($consultation) {
-                \App\Models\AppointmentItem::create([
-                    'appointment_id' => $appointment->appointment_id,
-                    'item_type' => 'consultation',
-                    'consultation_id' => $consultation->consultation_id,
-                    'qty' => 1,
+        if ($alreadyTaken) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Slot ini baru saja diambil pasien lain. Silakan pilih jam lain.',
+            ], 422);
+        }
+
+        try {
+            $appointment = \Illuminate\Support\Facades\DB::transaction(function () use ($user, $request, $tanggalJam) {
+
+                // Lock baris untuk mencegah race condition
+                $taken = Appointment::where('dokter_id', $request->dokter_id)
+                    ->where('tanggal_jam', $tanggalJam)
+                    ->where('jenis', 'konsultasi')
+                    ->whereNotIn('status', ['batal', 'tidak_hadir'])
+                    ->lockForUpdate()
+                    ->exists();
+
+                if ($taken) {
+                    throw new \Exception('SLOT_TAKEN');
+                }
+
+                $appointment = Appointment::create([
+                    'user_id'        => $user->id,
+                    'dokter_id'      => $request->dokter_id,
+                    'dibuat_oleh_id' => $user->id,
+                    'jenis'          => 'konsultasi',
+                    'sumber'         => 'online',
+                    'tanggal_jam'    => $tanggalJam,
+                    'status'         => 'diajukan',
+                    'catatan_pasien' => 'Konsultasi Dokter (' . ucfirst($request->jenis) . ')',
                 ]);
+
+                $konsultasiNama = strtolower($request->jenis) === 'awal' ? 'Konsultasi Awal' : 'Konsultasi Lanjutan';
+                $consultation   = \App\Models\Consultation::where('nama', $konsultasiNama)->first();
+
+                if ($consultation) {
+                    \App\Models\AppointmentItem::create([
+                        'appointment_id'  => $appointment->appointment_id,
+                        'item_type'       => 'consultation',
+                        'consultation_id' => $consultation->consultation_id,
+                        'qty'             => 1,
+                    ]);
+                }
+
+                return $appointment;
+            });
+        } catch (\Exception $e) {
+            if ($e->getMessage() === 'SLOT_TAKEN') {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'Slot ini baru saja diambil pasien lain. Silakan pilih jam lain.',
+                ], 422);
             }
 
-            return $appointment;
-        });
+            \Illuminate\Support\Facades\Log::error('submitKonsultasi: ' . $e->getMessage());
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Gagal membuat janji temu. Silakan coba lagi.',
+            ], 500);
+        }
 
-        // Simpan data, kirim notifikasi, dll.
-        // Bisa diintegrasikan ke WA/Email di sini (contoh: SendWAJob::dispatch($appointment))
-
-        // Set session untuk Toast di halaman Dashboard nanti
         session()->flash('success', 'Janji Temu Berhasil Dibuat! Silakan cek WhatsApp/Email Anda.');
+        session()->flash('active_tab', 'appointment');
 
-        // Kembalikan response JSON untuk ditangkap oleh AlpineJS
+        // 🔔 WhatsApp notification (best-effort, tidak menghentikan flow).
+        try {
+            $appointmentForWa = Appointment::with(['items.consultation', 'dokter', 'pasien'])
+                ->find($appointment->appointment_id);
+            if ($appointmentForWa) {
+                app(FonnteService::class)->sendAppointmentCreated($appointmentForWa);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Fonnte WA send gagal (konsultasi created): '.$e->getMessage());
+        }
+
         return response()->json([
-            'status' => 'success',
-            'message' => 'Janji temu berhasil dibuat.',
-            'data' => $appointment
+            'status'         => 'success',
+            'message'        => 'Janji temu berhasil dibuat.',
+            'appointment_id' => $appointment->appointment_id,
+            'data'           => $appointment,
+        ]);
+    }
+
+    /**
+     * Cek slot konsultasi yang sudah ter-booking untuk dokter & tanggal tertentu.
+     * Dipakai oleh wizard konsultasi blade untuk men-disable slot yang sudah penuh.
+     */
+    public function checkKonsultasiSlots(Request $request)
+    {
+        $request->validate([
+            'dokter_id' => 'required|exists:users,id',
+            'tanggal'   => 'required|date',
+        ]);
+
+        $bookedTimes = Appointment::where('dokter_id', $request->dokter_id)
+            ->where('jenis', 'konsultasi')
+            ->whereDate('tanggal_jam', $request->tanggal)
+            ->whereNotIn('status', ['batal', 'tidak_hadir'])
+            ->pluck('tanggal_jam')
+            ->map(fn ($dt) => \Carbon\Carbon::parse($dt)->format('H:i'))
+            ->values();
+
+        return response()->json([
+            'booked' => $bookedTimes,
         ]);
     }
 
     public function create(Request $request)
     {
-        $linkedFormId = $request->query('patient_form_id');
-        $selectedTreatmentId = $request->query('treatment_id');
-
-        $autoTreatments = [];
-        $autoDoctorId   = null;
-
-        // Auto-fill Logic
-        if ($linkedFormId) {
-            $form = PatientForm::find($linkedFormId);
-            if ($form) {
-                $autoDoctorId = $form->dokter_id;
-                $autoTreatments = PraKonsultasiRekomendasiItem::where('patient_form_id', $linkedFormId)
-                    ->whereNotNull('treatment_id')
-                    ->pluck('treatment_id')
-                    ->toArray();
-            }
-        }
-
-        if ($selectedTreatmentId) {
-            $autoTreatments[] = $selectedTreatmentId;
-            $autoTreatments = array_unique($autoTreatments);
-        }
-
-        // ============================================================
-        // 1. LOAD TREATMENTS (FIX: Nama Kolom 'min_level')
-        // ============================================================
-        $treatments = Treatment::with('category')
-            ->where('is_active', true)
-            ->get()
-            ->map(function($t) {
-                // Sesuai schema Filament: kolomnya 'min_level'
-                $t->min_level = $t->min_level ?? 1; 
-                return $t;
-            });
-
-        // ============================================================
-        // 2. LOAD THERAPISTS (FIX: Logic Jabatan 'Senior' via Helper)
-        // ============================================================
-        $therapists = User::role('terapis')
-            ->get()
-            ->map(function($user) {
-                // Panggil Helper private function (sama kayak Filament)
-                $level = $this->terapisLevelFromUserId($user->id);
-                
-                $displayLabel = ($level === 2) ? 'Senior Beautician' : 'Junior Beautician';
-
-                return [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'level' => $level, // 1=Junior, 2=Senior
-                    'display_label' => $displayLabel, 
-                    'initial' => substr($user->name, 0, 1),
-                ];
-            });
-
-        // 3. LOAD DOCTORS
-        $doctors = User::role('dokter')
-            ->with('dokterProfile')
-            ->whereHas('dokterProfile', function($q) {
-                $q->where('status_praktik', 'aktif');
-            })
-            ->get();
-
-        return view('appointment.create', [
-            'treatments'      => $treatments,
-            'doctors'         => $doctors,
-            'therapists_json' => $therapists->toJson(), 
-            'therapists'      => $therapists,
-            'linkedFormId'    => $linkedFormId,
-            'autoTreatments'  => $autoTreatments,
-            'autoDoctorId'    => $autoDoctorId,
-        ]);
+        // Form booking treatment lama (create.blade.php) sudah deprecated.
+        // Sekarang semua entry point (treatment list, footer, banner, deep link
+        // dari pra-konsultasi) diarahkan ke wizard 4-langkah booking-treatment.
+        // Param treatment_id, bundle_id, dan patient_form_id tetap ikut supaya
+        // wizard bisa pre-select kalau dibutuhkan ke depan.
+        $params = $request->only(['treatment_id', 'bundle_id', 'patient_form_id']);
+        return redirect()->route('appointment.booking-treatment', array_filter($params));
     }
 
     public function store(Request $request)
@@ -462,35 +489,17 @@ class AppointmentController extends Controller
             'treatments' => ['required_if:jenis,treatment', 'array'],
             'treatments.*' => ['exists:treatments,treatment_id'],
 
-            // Validasi Terapis (Cek Level Sesuai Filament Logic)
+            // Validasi Terapis: hanya cek role.
+            // Pembatasan handler kini diatur di level kategori treatment
+            // via TreatmentCategory::allowedHandlerTypes(), bukan jabatan.
             'terapis_id' => [
-                'nullable', 
+                'nullable',
                 'exists:users,id',
-                function ($attribute, $value, $fail) use ($request) {
-                    if (!$value) return; // Skip if null (siapa saja)
-
-                    // 1. Cek Role
+                function ($attribute, $value, $fail) {
+                    if (!$value) return;
                     $user = User::find($value);
-                    if (!$user->hasRole('terapis')) {
+                    if (!$user || !$user->hasRole('terapis')) {
                         return $fail('User bukan terapis.');
-                    }
-
-                    // 2. Cek Level Requirement
-                    if ($request->jenis === 'treatment' && !empty($request->treatments)) {
-                        
-                        // Ambil MAX min_level dari DB untuk treatment yang dipilih
-                        // Sesuai logic Filament: $max = max($max, $lvl);
-                        $maxLevelRequired = Treatment::whereIn('treatment_id', $request->treatments)
-                            ->max('min_level') ?? 1;
-
-                        if ($maxLevelRequired > 1) {
-                            // Cek Level Terapis User Ini
-                            $levelTerapis = $this->terapisLevelFromUserId($value);
-
-                            if ($levelTerapis < $maxLevelRequired) {
-                                $fail('Salah satu treatment yang dipilih membutuhkan Terapis Senior.');
-                            }
-                        }
                     }
                 },
             ],
@@ -533,8 +542,19 @@ class AppointmentController extends Controller
             return $appointment;
         });
 
+        // 🔔 WhatsApp notification (best-effort).
+        try {
+            $appointmentForWa = Appointment::with(['items.treatment', 'items.bundle', 'items.consultation', 'dokter', 'terapis', 'pasien'])
+                ->find($appointment->appointment_id);
+            if ($appointmentForWa) {
+                app(FonnteService::class)->sendAppointmentCreated($appointmentForWa);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Fonnte WA send gagal (appointment store): '.$e->getMessage());
+        }
+
         return redirect('/dashboard?tab=appointment&highlight=' . $appointment->appointment_id)
-            ->with('success', 'Janji temu berhasil diajukan! Menunggu konfirmasi admin.');
+            ->with('success', 'Janji temu berhasil diajukan. Menunggu konfirmasi admin.');
     }
 
     /**
@@ -552,10 +572,21 @@ class AppointmentController extends Controller
             return back()->with('error', 'Janji temu ini tidak dapat dibatalkan lagi.');
         }
 
-        // 3. Validasi Alasan
-        $request->validate([
+        // 3. Validasi Alasan (pesan custom + flash ke session untuk toast)
+        $validator = Validator::make($request->all(), [
             'cancel_reason' => 'required|string|min:5|max:255',
+        ], [
+            'cancel_reason.required' => 'Mohon isi alasan pembatalan terlebih dahulu.',
+            'cancel_reason.min'      => 'Alasan pembatalan minimal 5 karakter.',
+            'cancel_reason.max'      => 'Alasan pembatalan maksimal 255 karakter.',
         ]);
+
+        if ($validator->fails()) {
+            return back()
+                ->withErrors($validator)
+                ->withInput()
+                ->with('error', $validator->errors()->first('cancel_reason'));
+        }
         
         try {
             DB::transaction(function () use ($appointment, $request) {
@@ -631,6 +662,17 @@ class AppointmentController extends Controller
                     }
                 }
             });
+
+            // 🔔 WhatsApp notification (best-effort, jangan ganggu UX).
+            try {
+                $appointmentForWa = Appointment::with(['items.treatment', 'items.bundle', 'items.consultation', 'dokter', 'terapis', 'pasien'])
+                    ->find($appointment->appointment_id);
+                if ($appointmentForWa) {
+                    app(FonnteService::class)->sendAppointmentCancelledByPatient($appointmentForWa);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Fonnte WA send gagal (cancel by patient): '.$e->getMessage());
+            }
 
             return back()->with('success', 'Janji temu berhasil dibatalkan.');
 
@@ -709,31 +751,22 @@ class AppointmentController extends Controller
                 }
             });
 
+            // 🔔 WhatsApp notification: konfirmasi pengajuan ubah jadwal.
+            try {
+                $appointmentForWa = Appointment::with(['items.treatment', 'items.bundle', 'items.consultation', 'dokter', 'terapis', 'pasien'])
+                    ->find($appointment->appointment_id);
+                if ($appointmentForWa) {
+                    app(FonnteService::class)->sendAppointmentRescheduled($appointmentForWa);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Fonnte WA send gagal (reschedule): '.$e->getMessage());
+            }
+
             return back()->with('success', 'Pengajuan ubah jadwal berhasil. Menunggu konfirmasi admin.');
 
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Gagal merubah janji temu: ' . $e->getMessage());
             return back()->with('error', 'Terjadi kesalahan sistem.');
         }
-    }
-
-    /**
-     * LOGIC FILAMENT: Konversi jabatan terapis (varchar) -> level angka.
-     */
-    private function terapisLevelFromUserId(?int $userId): int
-    {
-        if (!$userId) return 1;
-
-        // Query persis dari Filament Schema lu
-        $jabatan = Terapis::query()
-            ->where('user_id', $userId)
-            ->value('jabatan');
-
-        $j = strtolower(trim((string) $jabatan));
-
-        if (str_contains($j, 'senior')) return 2;
-        if (str_contains($j, 'junior')) return 1;
-
-        return 1;
     }
 }

@@ -66,7 +66,7 @@
 
                         <div>
                             <label for="email" class="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Email</label>
-                            <input id="email" type="email" name="email" :value="old('email')" required autofocus autocomplete="username" 
+                            <input id="email" type="email" name="email" value="{{ old('email') }}" required autofocus autocomplete="username" 
                                 class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 placeholder-slate-400 focus:border-[#CFAF53] focus:bg-white focus:ring-2 focus:ring-[#CFAF53]/20 transition-all"
                                 placeholder="nama@email.com">
                             <x-input-error :messages="$errors->get('email')" class="mt-2" />
@@ -81,9 +81,11 @@
                                     </a>
                                 @endif
                             </div>
-                            <input id="password" type="password" name="password" required autocomplete="current-password"
-                                class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 placeholder-slate-400 focus:border-[#CFAF53] focus:bg-white focus:ring-2 focus:ring-[#CFAF53]/20 transition-all"
-                                placeholder="••••••••">
+                            <x-password-input
+                                id="password"
+                                name="password"
+                                autocomplete="current-password"
+                                placeholder="••••••••" />
                             <x-input-error :messages="$errors->get('password')" class="mt-2" />
                         </div>
 
@@ -101,13 +103,25 @@
                         </button>
                     </form>
 
+                    {{-- Divider "atau" --}}
+                    <div class="auth-divider mt-6">
+                        <span class="auth-divider__line"></span>
+                        <span class="auth-divider__text">atau</span>
+                        <span class="auth-divider__line"></span>
+                    </div>
+
+                    {{-- Google OAuth button --}}
+                    <div class="mt-4">
+                        <x-google-auth-button label="Masuk dengan Google" />
+                    </div>
+
                     {{-- Footer: Register Link --}}
                     <div class="mt-8 text-center">
                         <p class="text-sm text-slate-500">
                             Belum punya akun? 
                             @if (Route::has('register'))
                                 <a href="{{ route('register') }}" class="font-bold text-slate-900 hover:text-[#CFAF53] transition underline decoration-slate-300 hover:decoration-[#CFAF53] underline-offset-4">
-                                    Daftar Gratis
+                                    Daftar Akun
                                 </a>
                             @endif
                         </p>

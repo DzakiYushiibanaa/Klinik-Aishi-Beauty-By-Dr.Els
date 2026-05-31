@@ -22,7 +22,7 @@ class ProductCategoryResource extends Resource
     protected static string |UnitEnum| null $navigationGroup = 'Master Data';
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-m-tag';
 
-    protected static ?string $recordTitleAttribute = 'php artisan make:filament-resource Product';
+    protected static ?string $recordTitleAttribute = 'nama';
 
     public static function form(Schema $schema): Schema
     {

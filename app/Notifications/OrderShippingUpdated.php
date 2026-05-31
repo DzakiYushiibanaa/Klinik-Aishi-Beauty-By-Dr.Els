@@ -12,11 +12,12 @@ class OrderShippingUpdated extends Notification
 {
     use Queueable;
 
-    public $order;
+    public Order $order;
 
     public function __construct(Order $order)
     {
-        $this->order = $order;
+        // Eager-load relasi yang dipakai email view supaya tidak N+1.
+        $this->order = $order->loadMissing(['items.product', 'items.bundle', 'pasien.pasienProfile']);
     }
 
     /**
@@ -28,37 +29,28 @@ class OrderShippingUpdated extends Notification
     }
 
     /**
-     * Format Tampilan Email
+     * Email pakai template HTML custom (bukan default Laravel MailMessage).
      */
     public function toMail(object $notifiable): MailMessage
     {
-        // Tentukan Label Status
-        $statusLabel = match($this->order->shipping_status) {
-            'dikirim' => 'Sedang Dikirim 🚚',
-            'selesai' => 'Pesanan Selesai ✅',
-            'diproses' => 'Sedang Diproses 📦',
-            'dibatalkan' => 'Pengiriman Dibatalkan ❌',
-            default => 'Status Diupdate'
+        $statusLabel = $this->statusLabel();
+
+        // Subject lebih natural untuk inbox.
+        $subject = match ($this->order->shipping_status) {
+            'dikirim'    => "Pesanan Anda Sedang Dikirim - {$this->order->kode_order}",
+            'selesai'    => "Pesanan Anda Selesai - {$this->order->kode_order}",
+            'dikemas'    => "Pesanan Anda Sedang Dikemas - {$this->order->kode_order}",
+            'diproses'   => "Pesanan Anda Sedang Diproses - {$this->order->kode_order}",
+            'dibatalkan' => "Pengiriman Pesanan Dibatalkan - {$this->order->kode_order}",
+            default      => "Update Pesanan {$this->order->kode_order}",
         };
 
-        // Buat Pesan Email
-        $mail = (new MailMessage)
-            ->subject("Update Pesanan #{$this->order->kode_order}: {$statusLabel}")
-            ->greeting("Halo, {$notifiable->name}!")
-            ->line("Ada update terbaru untuk pesanan Anda **#{$this->order->kode_order}**.")
-            ->line("Status saat ini: **{$statusLabel}**");
-
-        // Jika status DIKIRIM, tambahkan info Resi
-        if ($this->order->shipping_status == 'dikirim' && $this->order->shipping_waybill) {
-            $kurir = strtoupper($this->order->shipping_method ?? '-');
-            $mail->line("Paket dikirim menggunakan kurir **{$kurir}**.")
-                 ->line("Nomor Resi: **{$this->order->shipping_waybill}**")
-                 ->line('(Simpan nomor resi ini untuk melacak paket Anda).');
-        }
-
-        // Tombol Aksi & Penutup
-        return $mail->action('Lihat Detail Pesanan', route('dashboard'))
-                    ->line('Terima kasih telah berbelanja di Aishi Beauty!');
+        return (new MailMessage)
+            ->subject($subject)
+            ->view('emails.orders.shipping-updated', [
+                'order'      => $this->order,
+                'notifiable' => $notifiable,
+            ]);
     }
 
     /**
@@ -66,26 +58,31 @@ class OrderShippingUpdated extends Notification
      */
     public function toArray(object $notifiable): array
     {
-        $statusLabel = match($this->order->shipping_status) {
-            'dikirim' => 'Sedang Dikirim 🚚',
-            'selesai' => 'Pesanan Selesai ✅',
-            'diproses' => 'Sedang Diproses 📦',
-            'dibatalkan' => 'Pengiriman Dibatalkan ❌',
-            default => 'Status Diupdate'
-        };
-
+        $statusLabel = $this->statusLabel();
         $pesan = "Status pesanan #{$this->order->kode_order} berubah menjadi {$statusLabel}.";
-        
-        if ($this->order->shipping_status == 'dikirim' && $this->order->shipping_waybill) {
+
+        if ($this->order->shipping_status === 'dikirim' && $this->order->shipping_waybill) {
             $pesan = "Paket #{$this->order->kode_order} sedang dikirim. Resi: {$this->order->shipping_waybill}";
         }
 
         return [
             'order_id' => $this->order->order_id,
-            'title' => $statusLabel,
-            'message' => $pesan,
-            'type' => 'shipping_update',
-            'link' => route('dashboard'), // Arahkan ke dashboard user
+            'title'    => $statusLabel,
+            'message'  => $pesan,
+            'type'     => 'shipping_update',
+            'link'     => route('dashboard') . '?tab=orders&highlight=' . $this->order->order_id,
         ];
+    }
+
+    private function statusLabel(): string
+    {
+        return match ($this->order->shipping_status) {
+            'dikirim'    => 'Sedang Dikirim',
+            'selesai'    => 'Pesanan Selesai',
+            'diproses'   => 'Sedang Diproses',
+            'dikemas'    => 'Sedang Dikemas',
+            'dibatalkan' => 'Pengiriman Dibatalkan',
+            default      => 'Status Diupdate',
+        };
     }
 }

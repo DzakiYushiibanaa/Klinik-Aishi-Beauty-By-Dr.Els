@@ -2,18 +2,18 @@
 
 namespace App\Services\Orders;
 
-use App\Models\Bundle;
 use App\Models\BundleProductItem;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Handles product stock deduction/restoration for orders.
  *
  * Deduction happens when an order status transitions to a "reserved" state
- * (menunggu_pembayaran, pending, lunas, sudah_dibayar). Restoration happens when
+ * (menunggu_pembayaran, pending, sudah_dibayar). Restoration happens when
  * an order is cancelled after stock was previously deducted.
  */
 class ProductStockService
@@ -22,14 +22,13 @@ class ProductStockService
     private const RESERVING_STATUSES = [
         'menunggu_pembayaran',
         'pending',
-        'lunas',
         'sudah_dibayar',
-        'paid',
     ];
 
     /** Statuses that release reserved stock. */
     private const RELEASING_STATUSES = [
         'batal',
+        'dibatalkan',
         'cancelled',
         'refund',
     ];
@@ -41,22 +40,24 @@ class ProductStockService
      */
     public function deductForOrder(Order $order): void
     {
-        if (!$this->isReservingStatus($order->status)) {
-            return;
-        }
-
-        if ($order->is_stock_deducted) {
-            return;
-        }
-
         DB::transaction(function () use ($order) {
-            $order->loadMissing(['items.product', 'items.bundle.productItems']);
+            $lockedOrder = Order::lockForUpdate()->find($order->getKey());
 
-            foreach ($order->items as $item) {
+            if (!$lockedOrder || !$this->isReservingStatus($lockedOrder->status)) {
+                return;
+            }
+
+            if ($lockedOrder->is_stock_deducted) {
+                return;
+            }
+
+            $lockedOrder->loadMissing(['items.product', 'items.bundle.productItems']);
+
+            foreach ($lockedOrder->items as $item) {
                 $this->deductForItem($item);
             }
 
-            $order->update(['is_stock_deducted' => true]);
+            $lockedOrder->update(['is_stock_deducted' => true]);
         });
     }
 
@@ -65,18 +66,20 @@ class ProductStockService
      */
     public function restoreForOrder(Order $order): void
     {
-        if (!$order->is_stock_deducted) {
-            return;
-        }
-
         DB::transaction(function () use ($order) {
-            $order->loadMissing(['items.product', 'items.bundle.productItems']);
+            $lockedOrder = Order::lockForUpdate()->find($order->getKey());
 
-            foreach ($order->items as $item) {
-                $this->restoreForItem($item);
+            if (!$lockedOrder || !$lockedOrder->is_stock_deducted) {
+                return;
             }
 
-            $order->update(['is_stock_deducted' => false]);
+            $lockedOrder->loadMissing(['items.product']);
+
+            foreach ($lockedOrder->items as $item) {
+                $this->restoreForItem($lockedOrder, $item);
+            }
+
+            $lockedOrder->update(['is_stock_deducted' => false]);
         });
     }
 
@@ -121,17 +124,12 @@ class ProductStockService
         }
     }
 
-    private function restoreForItem(OrderItem $item): void
+    private function restoreForItem(Order $order, OrderItem $item): void
     {
         $qty = max(1, (int) $item->qty);
 
-        if ($item->item_type === 'product' && $item->product_id) {
-            $this->incrementProductStock((int) $item->product_id, $qty);
-            return;
-        }
-
-        if ($item->item_type === 'bundle' && $item->bundle_id) {
-            $this->incrementBundleProductsStock((int) $item->bundle_id, $qty);
+        if ($item->product_id) {
+            $this->incrementProductStock((int) $item->product_id, $qty, $order);
         }
     }
 
@@ -144,12 +142,25 @@ class ProductStockService
         $product->update(['stok' => $newStock]);
     }
 
-    private function incrementProductStock(int $productId, int $qty): void
+    private function incrementProductStock(int $productId, int $qty, ?Order $order = null): void
     {
         $product = Product::lockForUpdate()->find($productId);
         if (!$product) return;
 
-        $product->update(['stok' => (int) $product->stok + $qty]);
+        $stockBefore = (int) $product->stok;
+        $stockAfter = $stockBefore + $qty;
+
+        $product->update(['stok' => $stockAfter]);
+
+        Log::info('[Cancel Approved]', [
+            'order_id' => $order?->order_id,
+            'order' => $order?->kode_order,
+            'product_id' => $product->product_id,
+            'product' => $product->nama,
+            'qty_restore' => $qty,
+            'stock_before' => $stockBefore,
+            'stock_after' => $stockAfter,
+        ]);
     }
 
     /**
@@ -165,13 +176,4 @@ class ProductStockService
         }
     }
 
-    private function incrementBundleProductsStock(int $bundleId, int $bundleQty): void
-    {
-        $bundleProducts = BundleProductItem::where('bundle_id', $bundleId)->get();
-
-        foreach ($bundleProducts as $bp) {
-            $productQty = (int) ($bp->qty ?? 1) * $bundleQty;
-            $this->incrementProductStock((int) $bp->product_id, $productQty);
-        }
-    }
 }

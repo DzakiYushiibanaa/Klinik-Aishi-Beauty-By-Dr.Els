@@ -13,7 +13,7 @@
                             this.activeSlide = this.activeSlide === this.slides.length - 1 ? 0 : this.activeSlide + 1;
                         }, 5000);
                     }
-                 }" class="relative w-full h-[600px] lg:h-[800px] overflow-hidden bg-black">
+                 }" class="relative w-full min-h-[600px] md:min-h-[calc(100vh-5rem)] md:max-h-[900px] overflow-hidden bg-black flex">
 
             {{-- Background Images Slider --}}
             <template x-for="(slide, index) in slides" :key="index">
@@ -30,7 +30,7 @@
                 class="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-transparent z-10 pointer-events-none">
             </div>
 
-            <div class="relative z-20 mx-auto h-full max-w-7xl px-4 sm:px-6 lg:px-8 flex items-center">
+            <div class="relative z-20 mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 flex items-center py-16 sm:py-20">
                 <div class="max-w-2xl text-white">
                     <h1
                         class="text-4xl sm:text-5xl lg:text-[4.5rem] font-bold font-sans mb-6 leading-tight drop-shadow-lg">
@@ -110,17 +110,17 @@
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center divide-x divide-[#4A453F]" x-data="{ countTo(max, key) { 
                         let start = 0; 
                         const duration = 2000; 
-                        const stepTime = Math.abs(Math.floor(duration / max)); 
+                        const stepTime = Math.abs(Math.floor(duration / Math.max(max, 1))); 
                         let timer = setInterval(() => { 
-                            start += Math.ceil(max / (duration/30)); 
+                            start += Math.ceil(Math.max(max, 1) / (duration/30)); 
                             if(start >= max) { start = max; clearInterval(timer); } 
                             this[key] = start; 
                         }, 30); 
                      }, c1: 0, c2: 0, c3: 0, c4: 0 }" x-init="
-                        setTimeout(() => countTo(15000, 'c1'), 500);
-                        setTimeout(() => countTo(50, 'c2'), 500);
-                        setTimeout(() => countTo(20, 'c3'), 500);
-                        setTimeout(() => countTo(2018, 'c4'), 500);
+                        setTimeout(() => countTo({{ (int) ($stats['pasien_terlayani'] ?? 0) }}, 'c1'), 500);
+                        setTimeout(() => countTo({{ (int) ($stats['jenis_perawatan'] ?? 0) }}, 'c2'), 500);
+                        setTimeout(() => countTo({{ (int) ($stats['ahli_kecantikan'] ?? 0) }}, 'c3'), 500);
+                        setTimeout(() => countTo({{ max(now()->year - 2018, 1) }}, 'c4'), 500);
                      ">
 
                     <div class="flex flex-col items-center justify-center px-4">
@@ -171,8 +171,8 @@
                                     d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                             </svg>
                         </div>
-                        <h3 class="text-3xl font-sans text-white mb-1"><span x-text="c4">0</span></h3>
-                        <p class="text-[10px] font-semibold tracking-widest text-[#8C7A63] uppercase">Tahun Berdiri</p>
+                        <h3 class="text-3xl font-sans text-white mb-1"><span x-text="c4">0</span><span class="text-base align-top ml-0.5">+</span></h3>
+                        <p class="text-[10px] font-semibold tracking-widest text-[#8C7A63] uppercase">Tahun Berpengalaman</p>
                     </div>
                 </div>
             </div>
