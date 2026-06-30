@@ -133,8 +133,10 @@ class PatientFormsTable
             ->requiresConfirmation()
             ->modalHeading('Mulai Review Pra-Konsultasi?')
             ->modalDescription('Form pasien akan ditandai sebagai sedang direview oleh Anda.')
-            ->modalSubmitActionLabel('Ya, Mulai Review')
+            ->modalSubmitActionLabel('Mulai Review')
             ->modalCancelActionLabel('Batal')
+            ->modalWidth('sm')
+            ->modalFooterActionsAlignment(Alignment::End)
             ->modalIcon('heroicon-o-clipboard-document-check')
             ->modalIconColor('primary')
             ->action(function (PatientForm $record): void {

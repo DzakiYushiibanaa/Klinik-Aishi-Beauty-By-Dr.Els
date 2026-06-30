@@ -4,13 +4,22 @@
 
 <div class="mt-6 space-y-3">
 @forelse ($appointments as $a)
+    @php
+        $statusLabel = match ($a->status) {
+            'diajukan' => 'Diajukan',
+            'akan_datang', 'diproses', 'disetujui' => 'Disetujui',
+            'selesai' => 'Selesai',
+            'batal' => 'Dibatalkan',
+            default => ucfirst(str_replace('_', ' ', (string) $a->status)),
+        };
+    @endphp
     <div class="rounded-xl border border-slate-200 bg-white p-4">
         <p class="font-medium">
             {{ ucfirst($a->jenis) }} —
             {{ $a->tanggal_jam->format('d M Y H:i') }}
         </p>
         <p class="text-sm text-slate-600">
-            Status: {{ $a->status }}
+            Status: {{ $statusLabel }}
         </p>
     </div>
 @empty

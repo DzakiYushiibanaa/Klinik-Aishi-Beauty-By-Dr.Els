@@ -37,13 +37,27 @@
                     Ringkasan janji temu, pesanan, dan rekam perawatan Anda.
                 </p>
 
-                <div class="dash-hero__date">
-                    <span class="dash-hero__date-icon">
-                        <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                        </svg>
-                    </span>
-                    <span class="dash-hero__date-text">{{ now()->translatedFormat('l, d F Y') }}</span>
+                <div class="dash-hero__meta">
+                    <div class="dash-hero__date">
+                        <span class="dash-hero__date-icon">
+                            <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                        </span>
+                        <span class="dash-hero__date-text">{{ now()->translatedFormat('l, d F Y') }}</span>
+                    </div>
+
+                    @if($isMember)
+                        <div class="dash-member-chip dash-member-chip--active">
+                            <span class="dash-member-chip__icon">
+                                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.3" d="M5 13l4 4L19 7"/>
+                                </svg>
+                            </span>
+                            <span>Member Aktif</span>
+                            <span class="dash-member-chip__code">{{ $user->pasienProfile?->no_rekam_medis }}</span>
+                        </div>
+                    @endif
                 </div>
             </div>
 
@@ -225,8 +239,15 @@
         @media (min-width: 768px) { .dash-hero__subtitle { font-size: 0.875rem; } }
 
         /* Date pill — compact elegant */
-        .dash-hero__date {
+        .dash-hero__meta {
             margin-top: 0.875rem;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .dash-hero__date {
             display: inline-flex;
             align-items: center;
             gap: 0.5rem;
@@ -254,6 +275,45 @@
         }
 
         /* RIGHT — Quick action pills (horizontal row) */
+        .dash-member-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            min-height: 32px;
+            max-width: 100%;
+            padding: 0.375rem 0.75rem;
+            border-radius: 9999px;
+            border: 1px solid rgba(232, 224, 216, 0.9);
+            background: rgba(255, 255, 255, 0.72);
+            color: #64748B;
+            font-size: 0.72rem;
+            font-weight: 700;
+            line-height: 1.25;
+        }
+        .dash-member-chip--active {
+            border-color: rgba(207, 175, 83, 0.45);
+            background: #1A1A1A;
+            color: #FFFFFF;
+            box-shadow: 0 8px 18px -12px rgba(26, 26, 26, 0.45);
+        }
+        .dash-member-chip__icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            border-radius: 9999px;
+            background: #CFAF53;
+            color: #1A1A1A;
+            flex-shrink: 0;
+        }
+        .dash-member-chip__code {
+            color: #EBD68E;
+            font-size: 0.68rem;
+            font-weight: 900;
+            letter-spacing: 0.04em;
+        }
+
         .dash-hero__actions {
             display: flex;
             flex-wrap: wrap;
@@ -1226,6 +1286,21 @@
 
                                     {{-- Modal Body --}}
                                     <div class="p-6 overflow-y-auto custom-scrollbar space-y-6">
+                                        @php $latestReviewDoctor = $latestPraKonsul->reviewer ?: $latestPraKonsul->dokter; @endphp
+                                        @if($latestReviewDoctor)
+                                            <div class="bg-[#FAF8F5] rounded-2xl border border-[#E8E0D8]/60 p-4 flex items-center gap-3">
+                                                <div class="w-10 h-10 rounded-full bg-white border border-[#E8E0D8] flex items-center justify-center text-[#CFAF53] shrink-0">
+                                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                                                    </svg>
+                                                </div>
+                                                <div class="min-w-0">
+                                                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Dokter Reviewer</p>
+                                                    <p class="text-sm font-extrabold text-[#1A1A1A] truncate">Dr. {{ $latestReviewDoctor->name }}</p>
+                                                </div>
+                                            </div>
+                                        @endif
+
                                         {{-- Row 1: Vital Stats --}}
                                         <div class="grid grid-cols-2 gap-4">
                                             <div class="bg-[#FAF8F5] rounded-2xl border border-[#E8E0D8]/60 p-4">
@@ -1378,6 +1453,19 @@
                                                         </div>
                                                     @endforeach
                                                 @endif
+                                            </div>
+                                        @endif
+
+                                        @if($latestPraKonsul->catatan_tambahan)
+                                            <div class="bg-white border border-[#E8E0D8] rounded-xl p-4 shadow-sm relative overflow-hidden">
+                                                <div class="absolute left-0 top-0 bottom-0 w-1 bg-[#CFAF53] rounded-l-xl"></div>
+                                                <div class="flex items-center gap-2 mb-2 pl-2">
+                                                    <svg class="w-4 h-4 text-[#CFAF53]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h7m-9 8l3.5-3.5H19a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v8.5a2 2 0 002 2z"/>
+                                                    </svg>
+                                                    <p class="text-xs font-bold text-[#8C7A63] uppercase tracking-wider">Komentar Dokter</p>
+                                                </div>
+                                                <p class="text-sm text-[#1A1A1A] leading-relaxed pl-2">{{ $latestPraKonsul->catatan_tambahan }}</p>
                                             </div>
                                         @endif
                                     </div>
@@ -1647,4 +1735,3 @@
         .dash-empty__cta:hover { transform: none; filter: none; }
     }
 </style>
-

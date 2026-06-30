@@ -9,6 +9,7 @@ use App\Models\Pasien;
 use App\Models\PatientForm;
 use App\Models\RekamMedis;
 use App\Models\User;
+use App\Services\Members\ConsultationMembershipService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -23,11 +24,15 @@ class DashboardController extends Controller
     public function index()
     {
         $user = Auth::user();
+
+        app(ConsultationMembershipService::class)->syncForUser($user);
+        $user->load('pasienProfile');
+
         $pasienId = Pasien::where('user_id', $user->id)->value('pasien_id');
 
         // ── Data Janji Temu ──
         $appointments = Appointment::where('user_id', $user->id)
-            ->with(['dokter', 'terapis', 'items.treatment', 'items.bundle', 'items.consultation'])
+            ->with(['dokter', 'terapis', 'items.handler', 'items.treatment', 'items.bundle', 'items.consultation'])
             ->orderBy('tanggal_jam', 'desc')
             ->get();
 
@@ -43,7 +48,7 @@ class DashboardController extends Controller
 
         // ── Data Pra-Konsultasi ──
         $praKonsuls = PatientForm::where('pasien_id', $pasienId)
-            ->with(['dokter', 'rekomendasiItems.product', 'rekomendasiItems.treatment', 'rekomendasiItems.bundle'])
+            ->with(['dokter', 'reviewer', 'rekomendasiItems.product', 'rekomendasiItems.treatment', 'rekomendasiItems.bundle'])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -57,7 +62,7 @@ class DashboardController extends Controller
         $upcomingAppointments = Appointment::where('user_id', $user->id)
             ->whereIn('status', ['diajukan', 'disetujui'])
             ->where('tanggal_jam', '>=', now())
-            ->with(['dokter', 'items.treatment'])
+            ->with(['dokter', 'terapis', 'items.handler', 'items.treatment'])
             ->orderBy('tanggal_jam', 'asc')
             ->limit(3)
             ->get();

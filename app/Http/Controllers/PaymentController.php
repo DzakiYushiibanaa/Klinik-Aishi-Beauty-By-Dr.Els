@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Appointment;
 use App\Models\Order;
 use App\Services\FonnteService;
+use App\Services\Members\ConsultationMembershipService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -457,6 +458,9 @@ class PaymentController extends Controller
                         Log::info("Membership activated via Midtrans. User: {$order->user_id}. New RM: {$newKodeRM}");
                     }
                 }
+
+                app(ConsultationMembershipService::class)
+                    ->activateIfEligibleForOrder($order->fresh(['items.consultation', 'items.appointment.items.consultation']));
             });
 
             // 🔔 WhatsApp ke pasien — kirim setelah transaksi commit (best-effort).

@@ -9,7 +9,10 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\RekamMedis;
+use App\Models\Treatment;
 use App\Notifications\AppointmentCompleted;
+use App\Services\Members\ConsultationMembershipService;
+use App\Services\Orders\ProductStockService;
 use App\Support\CodeGenerator;
 use App\Support\TreatmentCommissionCalculator;
 use Illuminate\Support\Facades\DB;
@@ -55,6 +58,9 @@ class StartServiceFinalizer
                 'status' => 'selesai',
             ]);
 
+            app(ConsultationMembershipService::class)
+                ->activateIfEligibleForOrder($order->fresh(['items.consultation', 'items.appointment.items.consultation']));
+
             // 5. Notifikasi ke customer
             $this->notifyCustomer($appointment->fresh(), $order);
 
@@ -84,8 +90,13 @@ class StartServiceFinalizer
             if (empty($row['treatment_id'])) continue;
 
             if (empty($row['handled_by_type']) || empty($row['handled_by_id'])) {
+                $treatment = Treatment::with('category')->find($row['treatment_id']);
+                $allowed = $treatment?->category?->allowedHandlerTypes() ?? ['dokter', 'terapis'];
+
                 throw new \RuntimeException(
-                    'Silakan pilih staff yang menangani setiap treatment terlebih dahulu.'
+                    $allowed === ['dokter']
+                        ? 'Pilih dokter yang menangani treatment ini.'
+                        : 'Pilih dokter/terapis yang menangani treatment ini.'
                 );
             }
         }
@@ -101,6 +112,7 @@ class StartServiceFinalizer
     {
         return DB::transaction(function () use ($appointment, $data) {
             $this->syncAppointmentItems($appointment, $data);
+            $appointment->refresh()->load('items');
 
             $rekamMedis = $this->upsertRekamMedis($appointment, $data, asDraft: true);
 
@@ -187,7 +199,7 @@ class StartServiceFinalizer
             'appointment_id'      => $appointment->appointment_id,
             'pasien_id'           => $appointment->user_id,
             'dokter_id'           => $appointment->dokter_id,
-            'terapis_id'          => $appointment->terapis_id,
+            'terapis_id'          => $this->resolveTerapisIdForMedicalRecord($appointment),
             'keluhan'             => $data['keluhan'] ?? null,
             'diagnosa'            => $data['diagnosa'] ?? null,
             'tindakan'            => $tindakanText,
@@ -291,6 +303,15 @@ class StartServiceFinalizer
     // ───────────────────────────────────────────────────────
     // STEP 3: create order
     // ───────────────────────────────────────────────────────
+    protected function resolveTerapisIdForMedicalRecord(Appointment $appointment): ?int
+    {
+        $handlerId = $appointment->items
+            ?->first(fn ($item) => strtolower((string) $item->handled_by_type) === 'terapis' && ! empty($item->handled_by_id))
+            ?->handled_by_id;
+
+        return $handlerId ? (int) $handlerId : ($appointment->terapis_id ? (int) $appointment->terapis_id : null);
+    }
+
     protected function createOrder(Appointment $appointment, array $data): Order
     {
         $items = [];
@@ -401,6 +422,8 @@ class StartServiceFinalizer
                 'subtotal'        => $row['subtotal'],
             ]);
         }
+
+        app(ProductStockService::class)->deductForOrder($order->fresh('items'));
 
         return $order->fresh('items');
     }

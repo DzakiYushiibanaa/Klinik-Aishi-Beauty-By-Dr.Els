@@ -273,12 +273,13 @@
                                             </svg>
                                             Pra-Konsultasi
                                         </span>
-                                        @if($form->dokter)
+                                        @php $reviewDoctor = $form->reviewer ?: $form->dokter; @endphp
+                                        @if($reviewDoctor)
                                             <span class="prakonsul-modal__chip">
                                                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                                                 </svg>
-                                                {{ $form->dokter->name }}
+                                                Direview oleh Dr. {{ $reviewDoctor->name }}
                                             </span>
                                         @endif
                                     </div>
@@ -508,6 +509,22 @@
                                                 @endforeach
                                             @endif
                                         </div>
+                                    @endif
+
+                                    @if($form->catatan_tambahan)
+                                        <section class="prakonsul-modal__section">
+                                            <header class="prakonsul-modal__section-head">
+                                                <span class="prakonsul-modal__section-icon">
+                                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 8h10M7 12h7m-9 8l3.5-3.5H19a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v8.5a2 2 0 002 2z"/>
+                                                    </svg>
+                                                </span>
+                                                <h4 class="prakonsul-modal__section-title">Komentar Dokter</h4>
+                                            </header>
+                                            <div class="prakonsul-modal__note">
+                                                <p>{{ $form->catatan_tambahan }}</p>
+                                            </div>
+                                        </section>
                                     @endif
                                 </div>
 

@@ -26,27 +26,72 @@
     }
 
     $treatmentName = null;
+    $dokterHandlerDetails = collect();
+    $terapisHandlers = collect();
+    $terapisHandlerDetails = collect();
     if (!empty($rm->tindakan)) {
         $treatmentName = strip_tags($rm->tindakan);
-    } elseif ($rm->appointment?->items?->isNotEmpty()) {
+    }
+
+    if ($rm->appointment?->items?->isNotEmpty()) {
         // Skip item type "consultation" — konsultasi bukan treatment medis.
         $items = $rm->appointment->items->filter(
             fn ($i) => in_array(strtolower((string) $i->item_type), ['treatment', 'bundle'], true)
         )->values();
 
+        $dokterHandlerDetails = $items
+            ->filter(fn ($i) => strtolower((string) $i->handled_by_type) === 'dokter' && $i->handler)
+            ->map(function ($i) {
+                $serviceName = strtolower((string) $i->item_type) === 'treatment'
+                    ? ($i->treatment?->nama ?? 'Treatment')
+                    : ($i->bundle ? 'Bundle: '.$i->bundle->nama : 'Bundle');
+
+                return [
+                    'name' => $i->handler->name,
+                    'service' => $serviceName,
+                ];
+            })
+            ->values();
+
+        $terapisHandlerDetails = $items
+            ->filter(fn ($i) => strtolower((string) $i->handled_by_type) === 'terapis' && $i->handler)
+            ->map(function ($i) {
+                $serviceName = strtolower((string) $i->item_type) === 'treatment'
+                    ? ($i->treatment?->nama ?? 'Treatment')
+                    : ($i->bundle ? 'Bundle: '.$i->bundle->nama : 'Bundle');
+
+                return [
+                    'name' => $i->handler->name,
+                    'service' => $serviceName,
+                ];
+            })
+            ->values();
+
+        $terapisHandlers = $terapisHandlerDetails
+            ->pluck('name')
+            ->filter()
+            ->unique()
+            ->values();
+
         if ($items->isNotEmpty()) {
             $first = $items->first();
-            $treatmentName = match (true) {
-                strtolower((string) $first->item_type) === 'treatment' && $first->treatment => $first->treatment->nama,
-                strtolower((string) $first->item_type) === 'bundle'    && $first->bundle    => 'Bundle: '.$first->bundle->nama,
-                default => null,
-            };
+            if (!$treatmentName) {
+                $treatmentName = match (true) {
+                    strtolower((string) $first->item_type) === 'treatment' && $first->treatment => $first->treatment->nama,
+                    strtolower((string) $first->item_type) === 'bundle'    && $first->bundle    => 'Bundle: '.$first->bundle->nama,
+                    default => null,
+                };
 
-            $rest = $items->count() - 1;
-            if ($treatmentName && $rest > 0) {
-                $treatmentName .= ' + '.$rest.' item';
+                $rest = $items->count() - 1;
+                if ($treatmentName && $rest > 0) {
+                    $treatmentName .= ' + '.$rest.' item';
+                }
             }
         }
+    }
+
+    if ($terapisHandlers->isEmpty() && $rm->terapis) {
+        $terapisHandlers = collect([$rm->terapis->name]);
     }
 
     $fotoSebelum = $rm->foto_sebelum_path ? \Illuminate\Support\Facades\Storage::disk('public')->url($rm->foto_sebelum_path) : null;
@@ -67,8 +112,8 @@
         </div>
     </div>
 
-    {{-- PASIEN + DOKTER (grid 2 kolom) --}}
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
+    {{-- PASIEN + DOKTER + TERAPIS --}}
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:16px; margin-bottom:20px;">
         <div style="padding:14px; background:#FAF8F5; border:1px solid #EDE8E3; border-radius:10px;">
             <div style="font-size:10px; font-weight:700; color:#8A8078; text-transform:uppercase; margin-bottom:6px; letter-spacing:0.08em;">
                 Pasien
@@ -90,10 +135,44 @@
             <div style="font-size:14px; font-weight:700; color:#111827;">
                 {{ $rm->dokter->name ?? '—' }}
             </div>
-            @if ($jenisLabel)
+            @if ($dokterHandlerDetails->isNotEmpty())
+                <div style="font-size:12px; color:#B8956F; font-weight:500; margin-top:4px; line-height:1.45;">
+                    @foreach ($dokterHandlerDetails as $detail)
+                        <div>{{ $detail['service'] }}</div>
+                    @endforeach
+                </div>
+            @elseif ($jenisLabel)
                 <div style="font-size:12px; color:#B8956F; font-weight:500; margin-top:2px;">
                     {{ $jenisLabel }}
                 </div>
+            @endif
+        </div>
+
+        <div style="padding:14px; background:#FAF8F5; border:1px solid #EDE8E3; border-radius:10px;">
+            <div style="font-size:10px; font-weight:700; color:#8A8078; text-transform:uppercase; margin-bottom:6px; letter-spacing:0.08em;">
+                Terapis
+            </div>
+            @if ($terapisHandlers->isNotEmpty())
+                <div style="display:flex; flex-direction:column; gap:5px;">
+                    @foreach ($terapisHandlers as $name)
+                        <div style="font-size:14px; font-weight:700; color:#111827;">
+                            {{ $name }}
+                        </div>
+                    @endforeach
+                </div>
+                @if ($terapisHandlerDetails->isNotEmpty())
+                    <div style="font-size:12px; color:#B8956F; font-weight:500; margin-top:4px; line-height:1.45;">
+                        @foreach ($terapisHandlerDetails as $detail)
+                            <div>{{ $detail['service'] }}</div>
+                        @endforeach
+                    </div>
+                @else
+                    <div style="font-size:12px; color:#B8956F; font-weight:500; margin-top:2px;">
+                        Menangani treatment
+                    </div>
+                @endif
+            @else
+                <div style="font-size:14px; font-weight:700; color:#111827;">—</div>
             @endif
         </div>
     </div>

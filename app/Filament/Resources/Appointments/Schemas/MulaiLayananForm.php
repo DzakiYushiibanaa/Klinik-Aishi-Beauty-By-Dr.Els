@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\Treatment;
 use App\Models\User;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
@@ -45,14 +46,19 @@ class MulaiLayananForm
      */
     public static function schema(Appointment $appointment): array
     {
-        return [
+        $schema = [
             self::sectionRingkasanPasien($appointment),
             self::sectionDetailLayanan($appointment),
             self::sectionHasilPemeriksaan($appointment),
             self::sectionDokumentasiFoto(),
-            self::sectionTreatmentLanjutan($appointment),
             self::sectionRekomendasiCatatan(),
         ];
+
+        if ($appointment->jenis === 'konsultasi') {
+            array_splice($schema, 4, 0, [self::sectionTreatmentLanjutan($appointment)]);
+        }
+
+        return $schema;
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -86,10 +92,12 @@ class MulaiLayananForm
                             : '-';
 
                         $statusMap = [
-                            'diajukan'   => ['Menunggu',  '#FEF3C7', '#92400E'],
-                            'disetujui'  => ['Diproses',  '#DBEAFE', '#1E40AF'],
-                            'selesai'    => ['Selesai',   '#D1FAE5', '#065F46'],
-                            'batal'      => ['Dibatalkan','#FEE2E2', '#991B1B'],
+                            'diajukan'    => ['Diajukan',     '#FEF3C7', '#92400E'],
+                            'akan_datang' => ['Disetujui',    '#DCFCE7', '#166534'],
+                            'disetujui'   => ['Disetujui',    '#DCFCE7', '#166534'],
+                            'diproses'    => ['Disetujui',    '#DCFCE7', '#166534'],
+                            'selesai'     => ['Selesai',      '#D1FAE5', '#065F46'],
+                            'batal'       => ['Dibatalkan',   '#FEE2E2', '#991B1B'],
                         ];
                         [$statusLabel, $statusBg, $statusColor] = $statusMap[strtolower((string) $appointment->status)]
                             ?? ['Diproses', '#DBEAFE', '#1E40AF'];
@@ -243,7 +251,6 @@ class MulaiLayananForm
         return Section::make('Treatment Lanjutan Hari Ini')
             ->description('Pasien melanjutkan treatment setelah konsultasi.')
             ->compact()
-            ->visible(fn (): bool => $appointment->jenis === 'konsultasi')
             ->schema([
                 Toggle::make('add_followup_treatments')
                     ->label('Aktifkan treatment lanjutan')
@@ -408,33 +415,13 @@ class MulaiLayananForm
                                 $currentType = null;
                             }
 
-                            if ($currentType) {
+                            if ($currentType && $get('handled_by_id')) {
                                 return; // sudah ada handler yang valid.
                             }
 
-                            // 1. Coba pakai default handler dari appointment.
-                            [$defaultType, $defaultId] = self::resolveDefaultHandler($appointment);
-                            if ($defaultType && in_array($defaultType, $allowedTypes, true)) {
-                                $set('handled_by_type', $defaultType);
-                                $set('handled_by_id', $defaultId);
-                                return;
-                            }
-
-                            // 2. Treatment hanya boleh satu tipe staff: kunci tipe-nya
-                            //    walaupun staff-id belum ketemu. Dropdown nama petugas
-                            //    akan memunculkan list user dengan role yang sesuai
-                            //    sehingga admin bisa pilih manual.
-                            if (count($allowedTypes) === 1) {
-                                $forcedType = $allowedTypes[0];
-                                $set('handled_by_type', $forcedType);
-
-                                $forcedId = match ($forcedType) {
-                                    'dokter'  => $appointment->dokter_id,
-                                    'terapis' => $appointment->terapis_id,
-                                    default   => null,
-                                };
-                                $set('handled_by_id', $forcedId ? (int) $forcedId : null);
-                            }
+                            $defaultId = self::resolveDefaultHandlerIdForTreatment((int) $state, $appointment);
+                            $set('handled_by_id', $defaultId);
+                            $set('handled_by_type', $defaultId ? self::resolveSelectedHandlerType($defaultId) : null);
                         }),
 
                     Select::make('bundle_id')
@@ -465,63 +452,35 @@ class MulaiLayananForm
                         ->required()
                         ->reactive(),
 
-                    Select::make('handled_by_type')
-                        ->label('Tipe Petugas')
-                        ->options(function (Get $get): array {
-                            $allowed = self::resolveAllowedHandlerTypes((int) $get('treatment_id'));
-                            $map = [
-                                'dokter'  => 'Dokter',
-                                'terapis' => 'Terapis',
-                            ];
-                            return array_intersect_key($map, array_flip($allowed));
-                        })
-                        ->native(false)
-                        ->required(fn (Get $get) => $get('item_type') === 'treatment')
-                        ->reactive()
-                        ->disabled(function (Get $get): bool {
-                            $allowed = self::resolveAllowedHandlerTypes((int) $get('treatment_id'));
-                            return count($allowed) === 1;
-                        })
-                        ->dehydrated()
-                        ->afterStateUpdated(fn ($state, Set $set) => $set('handled_by_id', null))
-                        ->helperText(function (Get $get): ?string {
-                            $allowed = self::resolveAllowedHandlerTypes((int) $get('treatment_id'));
-                            if (count($allowed) >= 2) return null;
-                            if ($allowed === ['dokter']) {
-                                return 'Treatment ini hanya dapat ditangani oleh dokter.';
-                            }
-                            if ($allowed === ['terapis']) {
-                                return 'Treatment ini hanya dapat ditangani oleh terapis.';
-                            }
-                            return null;
-                        }),
+                    Hidden::make('handled_by_type')
+                        ->dehydrated(),
 
                     Select::make('handled_by_id')
-                        ->label('Nama Petugas')
-                        ->options(function (Get $get): array {
-                            $type = $get('handled_by_type');
-
-                            // Fallback: kalau tipe belum ter-set tapi treatment
-                            // sudah dipilih dan kategorinya hanya boleh satu tipe,
-                            // resolve tipe dari rule kategori. Ini menangani edge case
-                            // saat appointment treatment yang hanya punya terapis_id
-                            // dipakai untuk treatment doctor-only — type tidak ter-fill
-                            // otomatis lewat resolveDefaultHandler.
-                            if (! $type) {
-                                $allowed = self::resolveAllowedHandlerTypes((int) $get('treatment_id'));
-                                if (count($allowed) === 1) {
-                                    $type = $allowed[0];
-                                }
-                            }
-
-                            if (! $type) return [];
-
-                            return self::activeStaffOptions($type);
-                        })
+                        ->label('Dokter / Terapis')
+                        ->placeholder(fn (Get $get): string => self::isDoctorOnlyTreatment((int) $get('treatment_id'))
+                            ? 'Pilih dokter'
+                            : 'Pilih petugas')
+                        ->options(fn (Get $get): array => self::handlerOptionsForTreatment((int) $get('treatment_id')))
                         ->searchable()
                         ->native(false)
-                        ->required(fn (Get $get) => $get('item_type') === 'treatment')
-                        ->reactive(),
+                        ->rules([
+                            function (Get $get) {
+                                return function (string $attribute, $value, \Closure $fail) use ($get): void {
+                                    if ($get('item_type') !== 'treatment' || filled($value)) {
+                                        return;
+                                    }
+
+                                    $fail(self::isDoctorOnlyTreatment((int) $get('treatment_id'))
+                                        ? 'Pilih dokter yang menangani treatment ini.'
+                                        : 'Pilih dokter/terapis yang menangani treatment ini.');
+                                };
+                            },
+                        ])
+                        ->dehydrated()
+                        ->reactive()
+                        ->afterStateUpdated(fn ($state, Set $set) => $set('handled_by_type', $state ? self::resolveSelectedHandlerType((int) $state) : null))
+                        ->helperText(fn (Get $get): ?string => self::handlerHelperText((int) $get('treatment_id')))
+                        ->columnSpan(['md' => 2]),
                 ]),
             ]);
     }
@@ -639,6 +598,78 @@ class MulaiLayananForm
         }
 
         return [];
+    }
+
+    private static function handlerOptionsForTreatment(?int $treatmentId): array
+    {
+        $allowed = self::resolveAllowedHandlerTypes($treatmentId);
+        $options = [];
+
+        if (in_array('dokter', $allowed, true)) {
+            foreach (self::activeStaffOptions('dokter') as $id => $name) {
+                $options[$id] = 'Dr. ' . $name . ' — Dokter';
+            }
+        }
+
+        if (in_array('terapis', $allowed, true)) {
+            foreach (self::activeStaffOptions('terapis') as $id => $name) {
+                $options[$id] = $name . ' — Terapis';
+            }
+        }
+
+        return $options;
+    }
+
+    private static function resolveDefaultHandlerIdForTreatment(?int $treatmentId, Appointment $appointment): ?int
+    {
+        $allowed = self::resolveAllowedHandlerTypes($treatmentId);
+
+        if ($allowed === ['dokter']) {
+            if ($appointment->dokter_id) {
+                return (int) $appointment->dokter_id;
+            }
+
+            $user = auth()->user();
+
+            return $user?->hasRole('dokter')
+                ? (int) $user->id
+                : null;
+        }
+
+        if ($allowed === ['terapis'] && $appointment->terapis_id) {
+            return (int) $appointment->terapis_id;
+        }
+
+        [$defaultType, $defaultId] = self::resolveDefaultHandler($appointment);
+
+        return $defaultType && in_array($defaultType, $allowed, true)
+            ? $defaultId
+            : null;
+    }
+
+    private static function resolveSelectedHandlerType(?int $userId): ?string
+    {
+        if (! $userId) return null;
+
+        $user = User::find($userId);
+        if (! $user) return null;
+
+        if ($user->hasRole('dokter')) return 'dokter';
+        if ($user->hasRole('terapis')) return 'terapis';
+
+        return null;
+    }
+
+    private static function isDoctorOnlyTreatment(?int $treatmentId): bool
+    {
+        return self::resolveAllowedHandlerTypes($treatmentId) === ['dokter'];
+    }
+
+    private static function handlerHelperText(?int $treatmentId): ?string
+    {
+        return self::isDoctorOnlyTreatment($treatmentId)
+            ? 'Treatment ini hanya dapat ditangani oleh dokter.'
+            : null;
     }
 
     /**

@@ -7,6 +7,7 @@ use App\Models\Bundle;
 use App\Models\Consultation;
 use App\Models\JadwalPraktik;
 use App\Models\Treatment;
+use App\Models\User;
 use Carbon\Carbon;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\DateTimePicker;
@@ -151,10 +152,14 @@ class AppointmentForm
         foreach ($pending['items'] as $row) {
             $type = $row['item_type'];
             $record->items()->create([
-                'item_type'    => $type,
-                'treatment_id' => $type === 'treatment' ? (int) $row['treatment_id'] : null,
-                'bundle_id'    => $type === 'bundle' ? (int) $row['bundle_id'] : null,
-                'qty'          => max(1, (int) ($row['qty'] ?? 1)),
+                'item_type'       => $type,
+                'treatment_id'    => $type === 'treatment' ? (int) $row['treatment_id'] : null,
+                'bundle_id'       => $type === 'bundle' ? (int) $row['bundle_id'] : null,
+                'qty'             => max(1, (int) ($row['qty'] ?? 1)),
+                'handled_by_type' => $type === 'treatment' ? ($row['handled_by_type'] ?? null) : null,
+                'handled_by_id'   => $type === 'treatment' && ! empty($row['handled_by_id'])
+                    ? (int) $row['handled_by_id']
+                    : null,
             ]);
         }
     }
@@ -268,7 +273,7 @@ class AppointmentForm
                                             ->when($record, fn ($q) => $q->where('appointment_id', '!=', $record->appointment_id))
                                             ->where('jenis', $jenis)
                                             ->where('tanggal_jam', $dt->format('Y-m-d H:i:s'))
-                                            ->whereIn('status', ['diajukan', 'disetujui'])
+                                            ->whereIn('status', ['diajukan', 'akan_datang', 'diproses', 'disetujui'])
                                             ->when(
                                                 $jenis === 'treatment',
                                                 fn ($q) => $q->where('terapis_id', $petugasId),
@@ -400,7 +405,12 @@ class AppointmentForm
                                         ->preload()
                                         ->visible(fn (Get $get) => $get('item_type') === 'treatment')
                                         ->required(fn (Get $get) => $get('item_type') === 'treatment')
-                                        ->reactive(),
+                                        ->reactive()
+                                        ->afterStateUpdated(function ($state, $set) {
+                                            $handlerId = self::defaultHandlerIdForTreatment((int) $state);
+                                            $set('handled_by_id', $handlerId);
+                                            $set('handled_by_type', $handlerId ? self::resolveSelectedHandlerType($handlerId) : null);
+                                        }),
 
                                     Select::make('bundle_id')
                                         ->label('Bundle')
@@ -418,6 +428,26 @@ class AppointmentForm
                                     ->minValue(1)
                                     ->default(1)
                                     ->required(),
+
+                                Hidden::make('handled_by_type')
+                                    ->dehydrated(),
+
+                                Select::make('handled_by_id')
+                                    ->label('Dokter / Terapis')
+                                    ->placeholder('Pilih petugas')
+                                    ->options(fn (Get $get): array => self::handlerOptionsForTreatment((int) $get('treatment_id')))
+                                    ->searchable()
+                                    ->native(false)
+                                    ->visible(fn (Get $get) => $get('item_type') === 'treatment' && ! (Filament::auth()->user()?->hasRole('pasien') ?? false))
+                                    ->required(fn (Get $get) => $get('item_type') === 'treatment' && ! (Filament::auth()->user()?->hasRole('pasien') ?? false))
+                                    ->validationMessages([
+                                        'required' => 'Pilih dokter/terapis yang menangani treatment ini.',
+                                    ])
+                                    ->disabled(fn (Get $get): bool => self::isDoctorOnlyTreatment((int) $get('treatment_id')))
+                                    ->dehydrated()
+                                    ->reactive()
+                                    ->afterStateUpdated(fn ($state, $set) => $set('handled_by_type', $state ? self::resolveSelectedHandlerType((int) $state) : null))
+                                    ->helperText(fn (Get $get): ?string => self::handlerHelperText((int) $get('treatment_id'))),
                             ])
                             ->defaultItems(1)
                             ->addActionLabel('Tambah Item')
@@ -444,7 +474,7 @@ class AppointmentForm
                             ->options([
                                 'diajukan' => 'Diajukan',
                                 'disetujui' => 'Disetujui',
-                                'batal' => 'Batal',
+                                'batal' => 'Dibatalkan',
                                 'selesai' => 'Selesai',
                                 'tidak_hadir' => 'Tidak Hadir',
                             ])
@@ -506,6 +536,8 @@ class AppointmentForm
                                         'treatment_id' => $i->treatment_id,
                                         'bundle_id'    => $i->bundle_id,
                                         'qty'          => (int) ($i->qty ?? 1),
+                                        'handled_by_type' => $i->handled_by_type,
+                                        'handled_by_id'   => $i->handled_by_id,
                                     ])
                                     ->all();
                                 if (! empty($items)) {
@@ -542,7 +574,12 @@ class AppointmentForm
                                         ->preload()
                                         ->visible(fn (Get $get) => $get('item_type') === 'treatment')
                                         ->required(fn (Get $get) => $get('item_type') === 'treatment')
-                                        ->reactive(),
+                                        ->reactive()
+                                        ->afterStateUpdated(function ($state, $set) {
+                                            $handlerId = self::defaultHandlerIdForTreatment((int) $state);
+                                            $set('handled_by_id', $handlerId);
+                                            $set('handled_by_type', $handlerId ? self::resolveSelectedHandlerType($handlerId) : null);
+                                        }),
 
                                     Select::make('bundle_id')
                                         ->label('Bundle')
@@ -570,6 +607,26 @@ class AppointmentForm
                                         ->default(1)
                                         ->required()
                                         ->reactive(),
+
+                                    Hidden::make('handled_by_type')
+                                        ->dehydrated(),
+
+                                    Select::make('handled_by_id')
+                                        ->label('Dokter / Terapis')
+                                        ->placeholder('Pilih petugas')
+                                        ->options(fn (Get $get): array => self::handlerOptionsForTreatment((int) $get('treatment_id')))
+                                        ->searchable()
+                                        ->native(false)
+                                        ->visible(fn (Get $get) => $get('item_type') === 'treatment' && ! (Filament::auth()->user()?->hasRole('pasien') ?? false))
+                                        ->required(fn (Get $get) => $get('item_type') === 'treatment' && ! (Filament::auth()->user()?->hasRole('pasien') ?? false))
+                                        ->validationMessages([
+                                            'required' => 'Pilih dokter/terapis yang menangani treatment ini.',
+                                        ])
+                                        ->disabled(fn (Get $get): bool => self::isDoctorOnlyTreatment((int) $get('treatment_id')))
+                                        ->dehydrated()
+                                        ->reactive()
+                                        ->afterStateUpdated(fn ($state, $set) => $set('handled_by_type', $state ? self::resolveSelectedHandlerType((int) $state) : null))
+                                        ->helperText(fn (Get $get): ?string => self::handlerHelperText((int) $get('treatment_id'))),
 
                                     Placeholder::make('harga_satuan')
                                         ->label('Harga Satuan')
@@ -618,5 +675,95 @@ class AppointmentForm
                     ]),
             ])
             ->columns(1);
+    }
+
+    private static function resolveAllowedHandlerTypes(?int $treatmentId): array
+    {
+        if (! $treatmentId) {
+            return ['dokter', 'terapis'];
+        }
+
+        $treatment = Treatment::with('category')->find($treatmentId);
+
+        return $treatment?->category?->allowedHandlerTypes() ?? ['dokter', 'terapis'];
+    }
+
+    private static function handlerOptionsForTreatment(?int $treatmentId): array
+    {
+        $allowed = self::resolveAllowedHandlerTypes($treatmentId);
+        $options = [];
+
+        if (in_array('dokter', $allowed, true)) {
+            foreach (self::activeStaffOptions('dokter') as $id => $name) {
+                $options[$id] = 'Dr. ' . $name . ' - Dokter';
+            }
+        }
+
+        if (in_array('terapis', $allowed, true)) {
+            foreach (self::activeStaffOptions('terapis') as $id => $name) {
+                $options[$id] = $name . ' - Terapis';
+            }
+        }
+
+        return $options;
+    }
+
+    private static function activeStaffOptions(string $type): array
+    {
+        if ($type === 'dokter') {
+            return User::role('dokter')
+                ->whereHas('dokterProfile', fn (Builder $query) =>
+                    $query->whereIn('status_praktik', ['aktif', 'Aktif'])
+                )
+                ->orderBy('name')
+                ->pluck('name', 'id')
+                ->all();
+        }
+
+        if ($type === 'terapis') {
+            return User::role('terapis')
+                ->whereHas('terapisProfile', fn (Builder $query) =>
+                    $query->whereIn('status_kerja', ['aktif', 'Aktif'])
+                )
+                ->orderBy('name')
+                ->pluck('name', 'id')
+                ->all();
+        }
+
+        return [];
+    }
+
+    private static function defaultHandlerIdForTreatment(?int $treatmentId): ?int
+    {
+        $allowed = self::resolveAllowedHandlerTypes($treatmentId);
+
+        return $allowed === ['dokter']
+            ? array_key_first(self::activeStaffOptions('dokter'))
+            : null;
+    }
+
+    private static function resolveSelectedHandlerType(?int $userId): ?string
+    {
+        if (! $userId) return null;
+
+        $user = User::find($userId);
+        if (! $user) return null;
+
+        if ($user->hasRole('dokter')) return 'dokter';
+        if ($user->hasRole('terapis')) return 'terapis';
+
+        return null;
+    }
+
+    private static function isDoctorOnlyTreatment(?int $treatmentId): bool
+    {
+        return self::resolveAllowedHandlerTypes($treatmentId) === ['dokter'];
+    }
+
+    private static function handlerHelperText(?int $treatmentId): ?string
+    {
+        return self::isDoctorOnlyTreatment($treatmentId)
+            ? 'Treatment ini hanya dapat ditangani oleh dokter.'
+            : null;
     }
 }

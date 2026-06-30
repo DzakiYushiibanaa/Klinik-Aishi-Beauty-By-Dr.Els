@@ -156,15 +156,30 @@
             <div class="flex flex-col gap-4">
                 @foreach($appointments as $apt)
                     @php
-                        $aptStatus = strtolower($apt->status);
+                        $aptStatus = strtolower((string) $apt->status);
+                        if (in_array($aptStatus, ['akan_datang', 'diproses'], true)) {
+                            $aptStatus = 'disetujui';
+                        }
                         $totalDurasi = 0; $totalHarga = 0;
                         foreach($apt->items as $item) {
                             if($item->item_type == 'treatment' && $item->treatment) { $totalDurasi += $item->treatment->durasi_menit * $item->qty; $totalHarga += $item->treatment->harga * $item->qty; }
                             elseif($item->item_type == 'bundle' && $item->bundle) { $totalHarga += $item->bundle->harga * $item->qty; }
                             elseif($item->item_type == 'consultation' && $item->consultation) { $totalDurasi += $item->consultation->durasi_menit * $item->qty; $totalHarga += $item->consultation->harga * $item->qty; }
                         }
-                        $statusLabel = match($aptStatus) { 'diajukan' => 'Diajukan', 'disetujui' => 'Akan Datang', 'menunggu_pembayaran' => 'Belum Bayar', 'selesai' => 'Selesai', 'batal' => 'Dibatalkan', default => ucfirst($apt->status) };
+                        $statusLabel = match($aptStatus) { 'diajukan' => 'Diajukan', 'disetujui', 'akan_datang', 'diproses' => 'Disetujui', 'menunggu_pembayaran' => 'Belum Bayar', 'selesai' => 'Selesai', 'batal' => 'Dibatalkan', default => ucfirst(str_replace('_', ' ', (string) $apt->status)) };
                         $statusBadge = match($aptStatus) { 'diajukan' => 'bg-amber-50 text-amber-700 border-amber-200', 'disetujui' => 'bg-blue-50 text-blue-700 border-blue-200', 'menunggu_pembayaran' => 'bg-amber-50 text-amber-600 border-amber-200', 'selesai' => 'bg-emerald-50 text-emerald-700 border-emerald-200', 'batal' => 'bg-rose-50 text-rose-700 border-rose-200', default => 'bg-slate-50 text-slate-600 border-slate-200' };
+
+                        $handlerItem = $apt->items
+                            ->first(fn ($item) => in_array($item->item_type, ['treatment', 'consultation'], true) && $item->handler);
+                        $staffName = $handlerItem?->handler?->name
+                            ?? $apt->dokter?->name
+                            ?? $apt->terapis?->name
+                            ?? 'Belum Ditentukan';
+                        $staffRole = match ($handlerItem?->handled_by_type) {
+                            'dokter' => 'Dokter',
+                            'terapis' => 'Terapis',
+                            default => $apt->dokter ? 'Dokter' : ($apt->terapis ? 'Terapis' : 'Staff'),
+                        };
 
                         // Relasi: status pembayaran dari order
                         $relatedOrder = $appointmentOrderMap[$apt->appointment_id] ?? null;
@@ -198,7 +213,7 @@
                             }
                         }
 
-                        $searchableText = strtolower(addslashes(($apt->dokter?->name ?? '') . ' ' . $apt->jenis . ' ' . collect($apt->items)->map(function($i) { return $i->treatment?->nama ?? $i->bundle?->nama ?? $i->consultation?->nama ?? ''; })->implode(' ')));
+                        $searchableText = strtolower(addslashes($staffName . ' ' . $apt->jenis . ' ' . collect($apt->items)->map(function($i) { return $i->treatment?->nama ?? $i->bundle?->nama ?? $i->consultation?->nama ?? ''; })->implode(' ')));
                     @endphp
 
                     @php
@@ -221,7 +236,7 @@
                         }
                     @endphp
 
-                    <div x-show="(filterStatus === 'semua' || (filterStatus === 'aktif' && ('{{ strtolower($apt->status) }}' === 'diajukan' || '{{ strtolower($apt->status) }}' === 'disetujui')) || filterStatus === '{{ strtolower($apt->status) }}') && (filterJenis === 'semua' || filterJenis === '{{ strtolower($apt->jenis) }}') && (filterPayment === 'semua' || filterPayment === '{{ $payFilterKey }}') && isDateInRange('{{ $apt->tanggal_jam->format('Y-m-d') }}') && (searchQuery === '' || '{{ $searchableText }}'.includes(searchQuery.toLowerCase()))"
+                    <div x-show="(filterStatus === 'semua' || (filterStatus === 'aktif' && ('{{ $aptStatus }}' === 'diajukan' || '{{ $aptStatus }}' === 'disetujui')) || filterStatus === '{{ $aptStatus }}') && (filterJenis === 'semua' || filterJenis === '{{ strtolower($apt->jenis) }}') && (filterPayment === 'semua' || filterPayment === '{{ $payFilterKey }}') && isDateInRange('{{ $apt->tanggal_jam->format('Y-m-d') }}') && (searchQuery === '' || '{{ $searchableText }}'.includes(searchQuery.toLowerCase()))"
                          :style="`order: ${sortOrder === 'terdekat' ? {{ $apt->tanggal_jam->timestamp }} : -{{ $apt->tanggal_jam->timestamp }}}`"
                          x-data="{ 
                         openCancelModal: false, 
@@ -381,8 +396,8 @@
                                     <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
                                 </div>
                                 <div>
-                                    <p class="text-sm font-bold text-[#1A1A1A]">{{ $apt->dokter->name ?? 'Belum Ditentukan' }}</p>
-                                    <p class="text-[11px] text-slate-400">Dokter</p>
+                                    <p class="text-sm font-bold text-[#1A1A1A]">{{ $staffName }}</p>
+                                    <p class="text-[11px] text-slate-400">{{ $staffRole }}</p>
                                 </div>
                             </div>
 
@@ -390,7 +405,9 @@
                             @if($totalHarga > 0)
                                 <div class="mt-3">
                                     <p class="text-sm font-extrabold text-[#1A1A1A]">Rp {{ number_format($totalHarga, 0, ',', '.') }}</p>
-                                    <p class="text-[11px] text-slate-400 mt-0.5">(Bayar di klinik setelah sesi ini selesai)</p>
+                                    @if($apt->jenis === 'konsultasi')
+                                        <p class="text-[11px] text-slate-400 mt-0.5">(Bayar di klinik setelah sesi ini selesai)</p>
+                                    @endif
                                 </div>
                             @endif
 

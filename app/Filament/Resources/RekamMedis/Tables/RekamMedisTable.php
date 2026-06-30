@@ -37,6 +37,7 @@ class RekamMedisTable
                 self::columnTanggalKunjungan(),
                 self::columnPasien(),
                 self::columnDokter(),
+                self::columnTerapis(),
                 self::columnJenisLayanan(),
                 self::columnKeluhan(),
                 self::columnDiagnosa(),
@@ -288,6 +289,59 @@ class RekamMedisTable
             ->searchable(query: fn (Builder $q, string $s) => $q->whereHas('dokter', fn ($qq) => $qq->where('name', 'like', "%{$s}%")));
     }
 
+    private static function columnTerapis(): TextColumn
+    {
+        return TextColumn::make('terapis_handler')
+            ->label('Terapis')
+            ->html()
+            ->state(function (RekamMedis $record) {
+                $names = self::resolveTerapisHandlers($record);
+
+                if ($names->isEmpty()) {
+                    return '<span style="color:#8A8078; font-size:0.8125rem;">—</span>';
+                }
+
+                $first = e($names->first());
+                $rest = $names->count() - 1;
+                $sub = $rest > 0
+                    ? '<span style="font-size:0.8125rem; color:#8A8078; margin-top:2px;">+'.(int) $rest.' terapis lain</span>'
+                    : '<span style="font-size:0.8125rem; color:#B8956F; font-weight:500; margin-top:2px;">Menangani treatment</span>';
+
+                return '
+                    <div style="display:flex; flex-direction:column;">
+                        <span style="font-weight:600; color:#111827;">'.$first.'</span>
+                        '.$sub.'
+                    </div>
+                ';
+            })
+            ->tooltip(fn (RekamMedis $record) => self::resolveTerapisHandlers($record)->implode(', '))
+            ->searchable(query: function (Builder $query, string $search) {
+                return $query
+                    ->whereHas('terapis', fn ($q) => $q->where('name', 'like', "%{$search}%"))
+                    ->orWhereHas('appointment.items', function ($q) use ($search) {
+                        $q->where('handled_by_type', 'terapis')
+                            ->whereHas('handler', fn ($handler) => $handler->where('name', 'like', "%{$search}%"));
+                    });
+            });
+    }
+
+    private static function resolveTerapisHandlers(RekamMedis $record): \Illuminate\Support\Collection
+    {
+        $itemHandlers = $record->appointment?->items
+            ?->filter(fn ($item) => strtolower((string) $item->handled_by_type) === 'terapis' && $item->handler)
+            ->map(fn ($item) => $item->handler->name)
+            ->filter()
+            ->unique()
+            ->values()
+            ?? collect();
+
+        if ($itemHandlers->isNotEmpty()) {
+            return $itemHandlers;
+        }
+
+        return collect([$record->terapis?->name])->filter()->values();
+    }
+
     /**
      * Detail layanan untuk sub-text kartu Dokter di tabel & slideover.
      *
@@ -511,6 +565,7 @@ class RekamMedisTable
                     'appointment.items.treatment',
                     'appointment.items.bundle',
                     'appointment.items.consultation',
+                    'appointment.items.handler',
                     'pasien.pasienProfile',
                     'dokter',
                     'terapis',
