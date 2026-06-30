@@ -6,6 +6,7 @@ use App\Models\Appointment;
 use App\Models\AppointmentItem;
 use App\Models\Dokter;
 use App\Models\Order;
+use App\Support\TreatmentCommissionCalculator;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -142,8 +143,6 @@ class DoctorPerformanceReportService
         $appointments = Appointment::query()
             ->whereIn('appointment_id', array_keys($paidMap))
             ->where('status', 'selesai')
-            ->whereNotNull('dokter_id')
-            ->when($dokterUserId, fn ($q) => $q->where('dokter_id', $dokterUserId))
             ->with(['dokter', 'pasien'])
             ->get()
             ->keyBy('appointment_id');
@@ -154,11 +153,19 @@ class DoctorPerformanceReportService
         $appointmentItems = AppointmentItem::query()
             ->whereIn('appointment_id', $appointments->keys())
             ->whereIn('item_type', ['consultation', 'treatment'])
-            ->with(['consultation', 'treatment'])
+            ->with(['consultation', 'treatment', 'handler'])
             ->get();
 
         // Map dokter profile
-        $userIds = $appointments->pluck('dokter_id')->unique();
+        $handlerDoctorIds = $appointmentItems
+            ->where('item_type', 'treatment')
+            ->where('handled_by_type', 'dokter')
+            ->pluck('handled_by_id');
+
+        $userIds = $appointments->pluck('dokter_id')
+            ->merge($handlerDoctorIds)
+            ->filter()
+            ->unique();
         $dokterProfiles = Dokter::with('user')
             ->whereIn('user_id', $userIds)
             ->get()
@@ -167,9 +174,22 @@ class DoctorPerformanceReportService
         $rows = collect();
 
         // === 1. Treatment dari appointment_items ===
-        foreach ($appointmentItems->where('item_type', 'treatment') as $item) {
+        foreach (
+            $appointmentItems
+                ->where('item_type', 'treatment')
+                ->where('handled_by_type', 'dokter')
+                ->whereNotNull('handled_by_id') as $item
+        ) {
+            if ($dokterUserId && (int) $item->handled_by_id !== (int) $dokterUserId) {
+                continue;
+            }
+
             $apt = $appointments[$item->appointment_id] ?? null;
             if (!$apt) continue;
+
+            $price = (int) ($item->treatment?->harga ?? 0);
+            $qty = (int) $item->qty;
+            $commission = (int) ($item->commission_amount ?: TreatmentCommissionCalculator::forItem($item));
 
             $rows->push($this->buildRow(
                 apt: $apt,
@@ -177,9 +197,12 @@ class DoctorPerformanceReportService
                 paidMap: $paidMap,
                 type: 'treatment',
                 serviceName: $item->treatment?->nama ?? 'Treatment dihapus',
-                qty: (int) $item->qty,
-                price: (int) ($item->treatment?->harga ?? 0),
+                qty: $qty,
+                price: $price,
                 consultationCategory: null,
+                handlerUserId: (int) $item->handled_by_id,
+                handlerName: $item->handler?->name,
+                overrideCommission: $commission,
             ));
         }
 
@@ -190,6 +213,8 @@ class DoctorPerformanceReportService
         foreach ($consultationFromAppItems as $item) {
             $apt = $appointments[$item->appointment_id] ?? null;
             if (!$apt) continue;
+            if (!$apt->dokter_id) continue;
+            if ($dokterUserId && (int) $apt->dokter_id !== (int) $dokterUserId) continue;
 
             $consultName = $item->consultation?->nama ?? 'Konsultasi';
             $rows->push($this->buildRow(
@@ -219,6 +244,8 @@ class DoctorPerformanceReportService
             foreach ($orderItemsKonsul as $oi) {
                 $apt = $appointments[$oi->appointment_id] ?? null;
                 if (!$apt) continue;
+                if (!$apt->dokter_id) continue;
+                if ($dokterUserId && (int) $apt->dokter_id !== (int) $dokterUserId) continue;
 
                 // Detect awal/lanjutan dari harga: 125000 default awal, 100000 lanjutan
                 $price = (int) $oi->harga_satuan ?: ((int) $oi->subtotal / max(1, (int) $oi->qty));
@@ -261,9 +288,13 @@ class DoctorPerformanceReportService
         int $price,
         ?string $consultationCategory,
         ?int $overrideRevenue = null,
+        ?int $handlerUserId = null,
+        ?string $handlerName = null,
+        ?int $overrideCommission = null,
     ): array {
-        $userId = $apt->dokter_id;
+        $userId = $handlerUserId ?? $apt->dokter_id;
         $dokterProfile = $userId ? ($dokterProfiles[$userId] ?? null) : null;
+        $overrideDoctorName = $handlerName;
         $userName = $apt->dokter?->name ?? '—';
 
         $paidAt = $paidMap[$apt->appointment_id] ?? $apt->tanggal_jam ?? now();
@@ -277,7 +308,7 @@ class DoctorPerformanceReportService
         return [
             'user_id' => $userId,
             'dokter_id' => $dokterProfile?->dokter_id,
-            'dokter_name' => $userName,
+            'dokter_name' => $overrideDoctorName ?? $userName,
             'kode_dokter' => $dokterProfile?->kode_dokter ?? '—',
             'status_praktik' => $dokterProfile?->status_praktik ?? 'unknown',
             'appointment_id' => $apt->appointment_id,
@@ -290,7 +321,7 @@ class DoctorPerformanceReportService
             'price' => $price,
             'revenue' => $revenue,
             'commission_rate' => $rate,
-            'commission' => (int) round($revenue * $rate / 100),
+            'commission' => $overrideCommission ?? (int) round($revenue * $rate / 100),
             'week' => self::weekOfMonth($paidAt),
             'date' => $paidAt,
         ];
@@ -320,8 +351,8 @@ class DoctorPerformanceReportService
             $revenueTreatment = (int) $treatmentRows->sum('revenue');
             $totalRevenue = $revenueKonsultasi + $revenueTreatment;
 
-            $komisiKonsultasi = (int) round($revenueKonsultasi * self::COMMISSION_RATE_KONSULTASI / 100);
-            $komisiTreatment = (int) round($revenueTreatment * self::COMMISSION_RATE_TREATMENT / 100);
+            $komisiKonsultasi = (int) $consultationRows->sum('commission');
+            $komisiTreatment = (int) $treatmentRows->sum('commission');
             $totalKomisi = $komisiKonsultasi + $komisiTreatment;
 
             $totalPasien = $rows->pluck('pasien_user_id')->filter()->unique()->count();

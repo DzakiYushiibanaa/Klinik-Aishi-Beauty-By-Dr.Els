@@ -6,6 +6,7 @@ use App\Models\Appointment;
 use App\Models\AppointmentItem;
 use App\Models\Order;
 use App\Models\Terapis;
+use App\Support\TreatmentCommissionCalculator;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -136,8 +137,6 @@ class TherapistPerformanceReportService
         $appointments = Appointment::query()
             ->whereIn('appointment_id', $this->paidAppointmentIds)
             ->where('status', 'selesai')
-            ->whereNotNull('terapis_id')
-            ->when($terapisUserId, fn ($q) => $q->where('terapis_id', $terapisUserId))
             ->with(['terapis', 'pasien'])
             ->get()
             ->keyBy('appointment_id');
@@ -151,11 +150,14 @@ class TherapistPerformanceReportService
             ->whereIn('appointment_id', $appointments->keys())
             ->where('item_type', 'treatment')
             ->whereNotNull('treatment_id')
-            ->with('treatment')
+            ->where('handled_by_type', 'terapis')
+            ->whereNotNull('handled_by_id')
+            ->when($terapisUserId, fn ($q) => $q->where('handled_by_id', $terapisUserId))
+            ->with(['treatment', 'handler'])
             ->get();
 
         // Map terapis profile
-        $userIds = $appointments->pluck('terapis_id')->unique();
+        $userIds = $items->pluck('handled_by_id')->filter()->unique();
         $terapisProfiles = Terapis::with('user')
             ->whereIn('user_id', $userIds)
             ->get()
@@ -165,7 +167,7 @@ class TherapistPerformanceReportService
             $apt = $appointments[$item->appointment_id] ?? null;
             if (!$apt) return null;
 
-            $userId = $apt->terapis_id;
+            $userId = (int) $item->handled_by_id;
             $terapisProfile = $userId ? ($terapisProfiles[$userId] ?? null) : null;
             $userName = $apt->terapis?->name ?? '—';
 
@@ -182,7 +184,7 @@ class TherapistPerformanceReportService
             return [
                 'user_id' => $userId,
                 'terapis_id' => $terapisProfile?->terapis_id,
-                'terapis_name' => $userName,
+                'terapis_name' => $item->handler?->name ?? $userName,
                 'kode_terapis' => $terapisProfile?->kode_terapis ?? '—',
                 'status_kerja' => $terapisProfile?->status_kerja ?? 'unknown',
                 'appointment_id' => $apt->appointment_id,
@@ -194,7 +196,7 @@ class TherapistPerformanceReportService
                 'price' => $price,
                 'revenue' => $revenue,
                 'commission_rate' => $rate,
-                'commission' => (int) round($revenue * $rate / 100),
+                'commission' => (int) ($item->commission_amount ?: TreatmentCommissionCalculator::forItem($item)),
                 'week' => $week,
                 'date' => $paidAt,
             ];
@@ -250,7 +252,7 @@ class TherapistPerformanceReportService
                 'favorite_treatment' => $favorite['name'] ?? null,
                 'total_revenue' => $totalRevenue,
                 'commission_rate' => $rate,
-                'total_commission' => (int) round($totalRevenue * $rate / 100),
+                'total_commission' => (int) $rows->sum('commission'),
                 'weeks_label' => $weeksList->isEmpty() ? '—' : 'Minggu ' . $weeksList->implode(', '),
             ];
         })->values();
