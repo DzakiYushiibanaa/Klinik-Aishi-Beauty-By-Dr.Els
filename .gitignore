@@ -1,4 +1,4 @@
-*.log
+*.log   
 .DS_Store
 .env
 .env.backup
@@ -26,6 +26,7 @@ Thumbs.db
 .kiro
 .agents/
 .agent/
+.codex
 rr
 .rr.yaml
 cloudflared.yml
