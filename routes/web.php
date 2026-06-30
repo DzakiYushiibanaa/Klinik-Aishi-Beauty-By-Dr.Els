@@ -19,12 +19,6 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', [LandingController::class, 'index'])->name('landing');
 
 // ============================
-    // MEMBER REGISTRATION
-    // ============================
-    Route::get('/member/daftar', [App\Http\Controllers\MemberRegistrationController::class, 'create'])->name('member.register');
-    Route::post('/member/daftar', [App\Http\Controllers\MemberRegistrationController::class, 'store'])->name('member.store');
-
-// ============================
 // SHOP
 // ============================
 Route::get('/shop', [ShopController::class, 'index'])->name('shop.index');

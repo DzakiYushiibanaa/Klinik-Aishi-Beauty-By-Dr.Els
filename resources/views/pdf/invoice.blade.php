@@ -87,6 +87,9 @@
             ->first(fn ($v) => $v !== '' && $v !== '-');
 
         /* ── Resolve alamat lengkap (prefer shipping_address, fallback profil) ── */
+        $needsShippingAddress = $order->items->isNotEmpty()
+            && $order->items->every(fn ($item) => ! empty($item->product_id));
+
         $profile = $order->user?->pasienProfile;
         $fullAddress = trim((string) ($order->shipping_address ?? ''));
         if ($fullAddress === '' && $profile) {
@@ -112,7 +115,7 @@
                 <div class="info-text">
                     {{ $phone ?: 'Nomor HP belum diisi' }}
                 </div>
-                @if($fullAddress !== '')
+                @if($needsShippingAddress && $fullAddress !== '')
                     <div class="info-text" style="margin-top:6px; line-height:1.5;">
                         {{ $fullAddress }}
                     </div>

@@ -34,7 +34,7 @@ class InvoicePrintService
         // Meta (invoice + date + kasir + time + customer)
         $createdAt = $order->created_at ? Carbon::parse($order->created_at) : now();
         $lines[] = $this->twoCols('No: ' . $order->kode_order, $createdAt->format('d/m/Y'));
-        $lines[] = $this->twoCols('Kasir: ' . ($order->dibuatOleh?->name ?? 'Admin'), $createdAt->format('H:i'));
+        $lines[] = $this->twoCols('Kasir: Admin', $createdAt->format('H:i'));
         $lines[] = 'Pel.: ' . ($order->pasien?->name ?? '-');
         $lines[] = $this->divider();
 

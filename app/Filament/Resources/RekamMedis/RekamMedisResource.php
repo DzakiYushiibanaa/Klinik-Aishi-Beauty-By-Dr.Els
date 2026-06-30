@@ -47,6 +47,7 @@ class RekamMedisResource extends Resource
             'appointment.items.treatment',
             'appointment.items.bundle',
             'appointment.items.consultation',
+            'appointment.items.handler',
             'pasien.pasienProfile',
             'dokter',
             'terapis',

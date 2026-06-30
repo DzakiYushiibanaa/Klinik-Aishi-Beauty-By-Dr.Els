@@ -19,9 +19,7 @@ use Illuminate\Support\Facades\DB;
  * - Tahan terhadap data lama berformat 4 digit (membaca MAX numerik
  *   apa pun panjangnya).
  *
- * Catatan: Pendaftaran member memakai format sendiri (MEM-YYYYMMDD-XXXX,
- * 4 digit) karena bersifat sekali per pasien — lihat
- * MemberRegistrationController::generateKodeOrder().
+ * Catatan: fitur pendaftaran member mandiri sudah tidak digunakan.
  */
 class OrderCodeGenerator
 {

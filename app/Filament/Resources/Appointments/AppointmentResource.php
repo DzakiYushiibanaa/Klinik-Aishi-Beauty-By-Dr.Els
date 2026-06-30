@@ -61,11 +61,22 @@ class AppointmentResource extends Resource
                 // Pasien cuma liat data dia sendiri
                 $query->where('user_id', $user->id);
             } elseif ($user->hasRole('dokter')) {
-                // Dokter cuma liat yang dia handle
-                $query->where('dokter_id', $user->id);
+                // Dokter cuma lihat appointment aktif yang ditugaskan per item layanan.
+                $query
+                    ->whereIn('status', ['akan_datang', 'diproses', 'disetujui'])
+                    ->where(function (Builder $q) use ($user) {
+                        $q->where('dokter_id', $user->id)
+                            ->orWhereHas('items', fn (Builder $itemQuery) => $itemQuery
+                                ->where('handled_by_type', 'dokter')
+                                ->where('handled_by_id', $user->id));
+                    });
             } elseif ($user->hasRole('terapis')) {
-                // Terapis cuma liat yang dia kerjain
-                $query->where('terapis_id', $user->id);
+                // Terapis cuma lihat appointment aktif yang ditugaskan per item layanan.
+                $query
+                    ->whereIn('status', ['akan_datang', 'diproses', 'disetujui'])
+                    ->whereHas('items', fn (Builder $q) => $q
+                        ->where('handled_by_type', 'terapis')
+                        ->where('handled_by_id', $user->id));
             }
         }
 

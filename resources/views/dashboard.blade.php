@@ -15,11 +15,16 @@
                 }
             }
         }
+        $handlerItem = $apt->items?->first(fn ($item) => in_array($item->item_type, ['treatment', 'consultation'], true) && $item->handler);
+
         return [
             'id' => $apt->appointment_id, 'date' => $apt->tanggal_jam->format('Y-m-d'),
             'day' => (int)$apt->tanggal_jam->format('d'), 'time' => $apt->tanggal_jam->format('H:i'),
-            'title' => ucfirst($apt->jenis), 'doctor' => $apt->dokter->name ?? 'Dokter Umum',
-            'status' => strtolower($apt->status), 'total_harga' => $totalHarga,
+            'title' => ucfirst($apt->jenis), 'doctor' => $handlerItem?->handler?->name ?? $apt->dokter?->name ?? $apt->terapis?->name ?? 'Dokter Umum',
+            'status' => in_array(strtolower((string) $apt->status), ['akan_datang', 'diproses'], true)
+                ? 'disetujui'
+                : strtolower((string) $apt->status),
+            'total_harga' => $totalHarga,
             'total_durasi' => $totalDurasi, 'items_list' => $itemsList,
         ];
     });
@@ -212,30 +217,26 @@
                     {{-- Member Card --}}
                     <div class="p-3">
                         @if($isMember)
-                            <div class="p-4 rounded-xl bg-gradient-to-br from-[#CFAF53] to-[#8B6F1B] text-white relative overflow-hidden shadow-md shadow-[#CFAF53]/20">
-                                <div class="absolute top-0 right-0 -mt-2 -mr-2 w-16 h-16 bg-white/10 rounded-full blur-xl"></div>
-                                <div class="relative z-10">
-                                    <div class="flex items-center justify-between mb-2">
-                                        <h3 class="font-extrabold text-sm tracking-wide">Aishi VIP Member</h3>
-                                        <span class="text-[9px] font-black bg-white/20 px-2 py-0.5 rounded tracking-widest uppercase">ACTIVE</span>
+                            <div class="relative overflow-hidden rounded-xl border border-[#CFAF53]/35 bg-[#1A1A1A] p-4 text-white shadow-md shadow-[#1A1A1A]/10">
+                                <div class="absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-[#CFAF53]/25 to-transparent"></div>
+                                <div class="relative">
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div>
+                                            <p class="text-[10px] font-extrabold uppercase tracking-[0.22em] text-[#EBD68E]">Member Aktif</p>
+                                            <h3 class="mt-1 text-sm font-black tracking-tight">Aishi Beauty</h3>
+                                        </div>
+                                        <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#CFAF53] text-[#1A1A1A]">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M5 13l4 4L19 7"/></svg>
+                                        </span>
                                     </div>
-                                    <p class="text-xs text-yellow-100 font-medium mb-3">Nikmati diskon 10% untuk produk & treatment.</p>
-                                    <button class="text-xs font-bold bg-white/10 hover:bg-white/20 transition-colors px-3 py-1.5 rounded-lg border border-white/20 inline-flex items-center gap-1">
-                                        Lihat Benefit
-                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                                    </button>
+                                    <div class="mt-3 border-t border-white/10 pt-3 text-[11px] text-slate-200">
+                                        <p class="font-semibold">{{ $user->pasienProfile?->no_rekam_medis ?? 'Member Aishi' }}</p>
+                                        <p class="mt-0.5 text-slate-400">
+                                            Sejak {{ optional($user->pasienProfile?->member_since)->translatedFormat('d M Y') ?? '-' }}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
-                        @else
-                            <a href="{{ route('member.register') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-[#CFAF53]/10 to-transparent text-[#8B6F1B] hover:from-[#CFAF53]/20 transition-colors text-sm font-bold border border-[#CFAF53]/20">
-                                <div class="bg-[#CFAF53] text-white p-1 rounded-full">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
-                                </div>
-                                <div>
-                                    Upgrade Member
-                                    <p class="text-[10px] font-normal text-slate-500">Dapat Diskon & Promo</p>
-                                </div>
-                            </a>
                         @endif
                     </div>
 

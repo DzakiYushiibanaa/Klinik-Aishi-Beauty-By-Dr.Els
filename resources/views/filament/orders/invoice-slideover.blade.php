@@ -32,6 +32,9 @@
         ->first(fn ($v) => $v !== '' && $v !== '-');
 
     /* ── Resolve alamat lengkap (prefer shipping_address, fallback ke profil) ── */
+    $needsShippingAddress = $order->items->isNotEmpty()
+        && $order->items->every(fn ($item) => ! empty($item->product_id));
+
     $profile = $order->pasien?->pasienProfile;
     $fullAddress = trim((string) ($order->shipping_address ?? ''));
     if ($fullAddress === '' && $profile) {
@@ -126,8 +129,8 @@
         </div>
     </div>
 
-    {{-- ALAMAT PENGIRIMAN (prioritas: shipping_address, fallback ke profil pasien) --}}
-    @if ($fullAddress !== '')
+    {{-- ALAMAT PENGIRIMAN: tampil hanya untuk order yang berisi produk fisik --}}
+    @if ($needsShippingAddress && $fullAddress !== '')
         <div style="margin-bottom:20px; padding:12px 14px; background:#FAF8F5; border:1px solid #EDE8E3; border-radius:10px;">
             <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:6px; letter-spacing:0.08em;">
                 Alamat Pengiriman

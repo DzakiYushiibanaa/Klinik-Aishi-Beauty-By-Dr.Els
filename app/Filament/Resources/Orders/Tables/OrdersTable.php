@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Orders\Tables;
 use App\Models\Order;
 use App\Notifications\OrderShippingUpdated;
 use App\Services\FonnteService;
+use App\Services\Members\ConsultationMembershipService;
 use App\Support\PaymentMethodFormatter;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
@@ -349,6 +350,9 @@ class OrdersTable
 
                 // Deduct stock (idempotent).
                 app(\App\Services\Orders\ProductStockService::class)->deductForOrder($record->fresh());
+
+                app(ConsultationMembershipService::class)
+                    ->activateIfEligibleForOrder($record->fresh(['items.consultation', 'items.appointment.items.consultation']));
 
                 // Notify customer (DB + email).
                 self::notifyCustomer($record, 'Pembayaran Dikonfirmasi');
@@ -710,11 +714,25 @@ class OrdersTable
      */
     private static function orderHasShipping(Order $order): bool
     {
+        $order->loadMissing('items');
+
+        if (! self::isProductOnlyOrder($order)) {
+            return false;
+        }
+
         if (! empty($order->shipping_method)) return true;
         if (! empty($order->shipping_address)) return true;
         if ((int) ($order->ongkir ?? 0) > 0) return true;
 
         return false;
+    }
+
+    private static function isProductOnlyOrder(Order $order): bool
+    {
+        $order->loadMissing('items');
+
+        return $order->items->isNotEmpty()
+            && $order->items->every(fn ($item): bool => ! empty($item->product_id) || $item->item_type === 'product');
     }
 
     /**
@@ -734,7 +752,9 @@ class OrdersTable
             ->modalFooterActionsAlignment(Alignment::End)
             ->visible(fn (Order $record) =>
                 $record->status === 'sudah_dibayar' &&
-                $record->shipping_status !== 'selesai'
+                ! in_array($record->shipping_status, ['dikirim', 'selesai', 'dibatalkan'], true) &&
+                empty($record->shipping_waybill) &&
+                self::isProductOnlyOrder($record)
             )
             ->fillForm(fn (Order $record) => [
                 'shipping_waybill' => $record->shipping_waybill,
@@ -821,9 +841,10 @@ class OrdersTable
             )
             ->modalIcon('heroicon-o-exclamation-triangle')
             ->modalIconColor('danger')
-            ->modalSubmitActionLabel('Ya, Batalkan')
+            ->modalSubmitActionLabel('Batalkan')
             ->modalCancelActionLabel('Kembali')
             ->modalWidth('md')
+            ->modalFooterActionsAlignment(Alignment::End)
             ->schema([
                 Textarea::make('cancellation_reason')
                     ->label('Alasan Pembatalan (opsional)')
@@ -886,7 +907,7 @@ class OrdersTable
             ->color('success')
             ->modalHeading('Setujui Pembatalan Pesanan?')
             ->modalDescription('')
-            ->modalSubmitActionLabel('Ya, Setujui')
+            ->modalSubmitActionLabel('Setujui')
             ->modalCancelActionLabel('Kembali')
             ->modalSubmitAction(fn ($action) => $action->color('primary'))
             ->modalWidth('md')
@@ -963,7 +984,7 @@ class OrdersTable
             ->color('warning')
             ->modalHeading('Tolak Pembatalan Pesanan?')
             ->modalDescription('')
-            ->modalSubmitActionLabel('Ya, Tolak')
+            ->modalSubmitActionLabel('Tolak')
             ->modalCancelActionLabel('Kembali')
             ->modalWidth('md')
             ->modalAlignment(Alignment::Center)
