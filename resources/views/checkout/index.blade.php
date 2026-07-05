@@ -61,39 +61,14 @@
                         </svg>
                     </div>
 
-                    <h2 class="checkout-notice__title">Lengkapi Data Pengiriman</h2>
+                    <h2 class="checkout-notice__title">Lengkapi Alamat Pengiriman</h2>
                     <p class="checkout-notice__desc">
                         Untuk melanjutkan checkout, lengkapi nomor HP dan alamat pengiriman Anda terlebih dahulu agar pesanan dapat diproses dengan benar.
                     </p>
 
-                    <div class="checkout-notice__checklist-wrap">
-                        <p class="checkout-notice__checklist-label">Data yang dibutuhkan</p>
-                        <ul class="checkout-notice__checklist" role="list">
-                            @foreach($checkoutFields as $key => $field)
-                                <li class="checkout-notice__item {{ $field['filled'] ? 'checkout-notice__item--done' : 'checkout-notice__item--missing' }}">
-                                    <span class="checkout-notice__item-dot">
-                                        @if($field['filled'])
-                                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
-                                            </svg>
-                                        @else
-                                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                                <circle cx="12" cy="12" r="9" stroke-width="1.6"/>
-                                            </svg>
-                                        @endif
-                                    </span>
-                                    <span class="checkout-notice__item-label">{{ $field['label'] }}</span>
-                                </li>
-                            @endforeach
-                        </ul>
-                    </div>
-
                     <div class="checkout-notice__actions">
                         <a href="{{ route('dashboard', ['tab' => 'profile']) }}" class="checkout-notice__btn checkout-notice__btn--primary">
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                            </svg>
-                            <span>Lengkapi Profil</span>
+                            <span>Lengkapi Alamat Pengiriman</span>
                         </a>
                         <a href="{{ route('cart.index') }}" class="checkout-notice__back">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -629,22 +604,18 @@
             margin-bottom: 1.75rem;
             display: flex;
             flex-direction: column;
+            align-items: center;
+            text-align: center;
             gap: 1.25rem;
         }
         @media (min-width: 768px) {
             .checkout-header { margin-bottom: 2.25rem; gap: 1.5rem; }
         }
-        @media (min-width: 1024px) {
-            .checkout-header {
-                flex-direction: row;
-                align-items: center;
-                justify-content: space-between;
-            }
-        }
         .checkout-header__heading { min-width: 0; }
         .checkout-header__eyebrow {
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 0.5rem;
             margin: 0 0 0.5rem 0;
             font-family: 'Plus Jakarta Sans', sans-serif;
@@ -1285,7 +1256,7 @@
         @media (min-width: 1024px) {
             .checkout-summary {
                 position: sticky;
-                top: 1.5rem;
+                top: 6.5rem;
             }
         }
         .checkout-summary__inner {
@@ -1520,7 +1491,7 @@
             font-size: 1.375rem;
             font-weight: 900;
             letter-spacing: -0.01em;
-            background: linear-gradient(120deg, #1A1A1A 0%, #B8956F 100%);
+            background: linear-gradient(135deg, #CFAF53 0%, #B8956F 100%);
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;

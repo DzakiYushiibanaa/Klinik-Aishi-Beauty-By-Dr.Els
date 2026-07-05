@@ -52,7 +52,7 @@ class OrderResource extends Resource
                 'pasien.pasienProfile',
                 'items.product',
                 'items.treatment',
-                'items.bundle',
+                
                 'promotion',
             ]);
     }

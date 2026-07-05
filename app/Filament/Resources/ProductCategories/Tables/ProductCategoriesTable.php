@@ -15,6 +15,7 @@ class ProductCategoriesTable
     {
         return $table
             ->columns([
+                \Filament\Tables\Columns\TextColumn::make("No")->rowIndex(),
                 TextColumn::make('nama')->label('Nama')->searchable()->sortable(),
                 TextColumn::make('deskripsi')->label('Deskripsi')->searchable()->sortable(),
                 IconColumn::make('is_active')->label('Aktif')->boolean(),

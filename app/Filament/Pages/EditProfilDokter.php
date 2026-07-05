@@ -62,7 +62,7 @@ class EditProfilDokter extends Page implements HasForms
             'name' => $user->name,
             'email' => $user->email,
             'phone' => $user->phone,
-            'pengalaman_tahun' => $dokter?->pengalaman_tahun,
+
             'status_praktik' => $dokter?->status_praktik ?? 'Aktif',
             'foto_profil_path' => $dokter?->foto_profil_path,
         ]);
@@ -103,11 +103,7 @@ class EditProfilDokter extends Page implements HasForms
                 Section::make('Informasi Dokter')
                     ->description('Data detail mengenai keahlian dan status dokter.')
                     ->schema([
-                        TextInput::make('pengalaman_tahun')
-                            ->label('Pengalaman (Tahun)')
-                            ->numeric()
-                            ->required()
-                            ->minValue(0),
+
                             
                         Select::make('status_praktik')
                             ->label('Status Praktik')
@@ -151,7 +147,7 @@ class EditProfilDokter extends Page implements HasForms
 
         if ($user->dokterProfile) {
             $user->dokterProfile->update([
-                'pengalaman_tahun' => $data['pengalaman_tahun'],
+
                 'status_praktik' => $data['status_praktik'],
                 'foto_profil_path' => $data['foto_profil_path'],
             ]);

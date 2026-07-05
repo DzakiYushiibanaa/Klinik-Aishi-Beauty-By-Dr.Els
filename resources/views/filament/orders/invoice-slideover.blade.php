@@ -170,7 +170,6 @@
                 @php
                     $itemName = $item->product->nama
                         ?? $item->treatment->nama
-                        ?? ($item->bundle ? 'Bundle: ' . $item->bundle->nama : null)
                         ?? $item->description
                         ?? 'Item';
 

@@ -12,7 +12,7 @@ class Product extends Model
     protected $primaryKey = 'product_id';
     protected $fillable = [
         'product_category_id','nama','deskripsi','harga','berat_gram',
-        'stok','tanggal_kadaluarsa','foto_path','is_active'
+        'stok','foto_path','is_active'
     ];
 
     protected $casts = [
@@ -27,5 +27,10 @@ class Product extends Model
     public function category()
     {
         return $this->belongsTo(ProductCategory::class, 'product_category_id', 'product_category_id');
+    }
+
+    public function stockHistories()
+    {
+        return $this->hasMany(StockHistory::class, 'product_id', 'product_id');
     }
 }

@@ -32,29 +32,31 @@ class DashboardController extends Controller
 
         // ── Data Janji Temu ──
         $appointments = Appointment::where('user_id', $user->id)
-            ->with(['dokter', 'terapis', 'items.handler', 'items.treatment', 'items.bundle', 'items.consultation'])
+            ->with(['dokter', 'terapis', 'items.handler', 'items.treatment', 'items.consultation', 'orderItems.product', 'orderItems.treatment', 'orderItems.consultation'])
             ->orderBy('tanggal_jam', 'desc')
             ->get();
 
         // ── Data Jadwal Praktik Dokter (untuk modal reschedule) ──
         $jadwals = \App\Models\JadwalPraktik::where('is_active', true)->get();
 
-        // Mapping appointment_id => order payment status (untuk tab Janji Temu)
+        // Mapping appointment_id => collection of orders (untuk tab Janji Temu)
         $appointmentOrderMap = OrderItem::whereIn('appointment_id', $appointments->pluck('appointment_id'))
-            ->with('order')
+            ->with(['order.items.product', 'order.items.treatment', 'order.items.consultation'])
             ->get()
             ->groupBy('appointment_id')
-            ->map(fn($items) => $items->first()->order);
+            ->map(function($items) {
+                return $items->pluck('order')->unique('order_id')->filter();
+            });
 
         // ── Data Pra-Konsultasi ──
         $praKonsuls = PatientForm::where('pasien_id', $pasienId)
-            ->with(['dokter', 'reviewer', 'rekomendasiItems.product', 'rekomendasiItems.treatment', 'rekomendasiItems.bundle'])
+            ->with(['dokter', 'reviewer', 'rekomendasiItems.product', 'rekomendasiItems.treatment'])
             ->orderBy('created_at', 'desc')
             ->get();
 
         // ── Data Pesanan (semua tipe) ──
         $orders = Order::where('user_id', $user->id)
-            ->with(['items.product', 'items.treatment', 'items.bundle'])
+            ->with(['items.product', 'items.treatment'])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -126,8 +128,7 @@ class DashboardController extends Controller
         // ── Next Action Logic (Lanjutkan Aktivitas) ──
         $nextAction = null;
         $reviewedKonsul = $praKonsuls->whereIn('status', ['reviewed', 'direkomendasikan', 'selesai'])->first();
-        $pendingAppointment = $appointments->where('status', 'diajukan')->first();
-
+        $pendingAppointment = $appointments->where('status', 'disetujui')->first();
         if ($reviewedKonsul) {
             $nextAction = [
                 'type' => 'recommendation',
@@ -141,8 +142,8 @@ class DashboardController extends Controller
         } elseif ($pendingAppointment) {
             $nextAction = [
                 'type' => 'appointment',
-                'title' => 'Janji Temu Menunggu Konfirmasi',
-                'description' => 'Admin kami sedang meninjau jadwal janji temu Anda. Harap tunggu konfirmasi.',
+                'title' => 'Janji Temu Disetujui',
+                'description' => 'Jadwal janji temu Anda telah disetujui.',
                 'cta_text' => 'Lihat Jadwal',
                 'cta_tab' => 'appointment',
                 'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>',
@@ -306,8 +307,6 @@ class DashboardController extends Controller
                 $user->update([
                     'name'          => $request->name,
                     'phone'         => $request->phone,
-                    'jenis_kelamin' => $request->jenis_kelamin,
-                    'tanggal_lahir' => $request->tanggal_lahir,
                 ]);
 
                 $fotoPath = $user->pasienProfile?->foto_profil_path; 
@@ -331,6 +330,8 @@ class DashboardController extends Controller
                         'provinsi'         => $request->provinsi,
                         'kota'             => $request->kota,
                         'district_name'    => $request->district_name,
+                        'jenis_kelamin'    => $request->jenis_kelamin,
+                        'tanggal_lahir'    => $request->tanggal_lahir,
                     ]
                 );
             });
@@ -348,8 +349,8 @@ class DashboardController extends Controller
                 $isCheckoutFlow = str_contains($intended, 'checkout') || str_contains($intended, 'keranjang') || str_contains($intended, 'cart');
                 $isAppointmentFlow = str_contains($intended, 'appointment') || str_contains($intended, 'janji-temu');
 
-                $hasContact     = $user->phone && $user->tanggal_lahir;
                 $pasienProfile  = $user->pasienProfile()->first();
+                $hasContact     = $user->phone && $pasienProfile?->tanggal_lahir;
                 $hasShipping    = $pasienProfile
                     && !empty($pasienProfile->alamat)
                     && !empty($pasienProfile->district_id);
@@ -419,9 +420,8 @@ class DashboardController extends Controller
             abort(403, 'Akses ditolak.');
         }
 
-        // 2. Validasi Status — hanya order yang masih menunggu pembayaran
-        //    yang boleh diajukan pembatalannya.
-        if ($order->status !== 'menunggu_pembayaran') {
+        // 2. Validasi Status
+        if (!in_array($order->status, ['menunggu_pembayaran', 'sudah_dibayar'])) {
             return back()->with('error', 'Pesanan ini tidak dapat dibatalkan lagi.');
         }
 

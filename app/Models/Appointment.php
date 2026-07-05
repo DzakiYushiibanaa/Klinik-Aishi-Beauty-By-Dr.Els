@@ -11,8 +11,7 @@ class Appointment extends Model
     protected $primaryKey = 'appointment_id';
 
     protected $fillable = [
-        'user_id','dokter_id','terapis_id','patient_form_id',
-        'sumber','dibuat_oleh_id',
+        'user_id','dokter_id','terapis_id','dibuat_oleh_id',
         'jenis',
         'tanggal_jam','payment_expired_at','status',
         'catatan_pasien','catatan_klinik',
@@ -44,10 +43,7 @@ class Appointment extends Model
         return $this->belongsTo(User::class, 'dibuat_oleh_id', 'id');
     }
 
-    public function patientForm()
-    {
-        return $this->belongsTo(PatientForm::class, 'patient_form_id', 'patient_form_id');
-    }
+
 
     public function treatment()
     {
@@ -62,5 +58,10 @@ class Appointment extends Model
     public function items(): HasMany
     {
         return $this->hasMany(AppointmentItem::class, 'appointment_id', 'appointment_id');
+    }
+
+    public function orderItems(): HasMany
+    {
+        return $this->hasMany(OrderItem::class, 'appointment_id', 'appointment_id');
     }
 }

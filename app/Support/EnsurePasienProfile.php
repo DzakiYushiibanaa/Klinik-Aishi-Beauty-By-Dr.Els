@@ -65,8 +65,8 @@ class EnsurePasienProfile
             'user_id'        => $user->id,
             'nama'           => $overrides['nama'] ?? $user->name,
             'no_telepon'     => $overrides['no_telepon'] ?? $user->phone,
-            'tanggal_lahir'  => $overrides['tanggal_lahir'] ?? $user->tanggal_lahir,
-            'jenis_kelamin'  => $overrides['jenis_kelamin'] ?? $user->jenis_kelamin,
+            'tanggal_lahir'  => $overrides['tanggal_lahir'] ?? null,
+            'jenis_kelamin'  => $overrides['jenis_kelamin'] ?? null,
             'no_rekam_medis' => $overrides['no_rekam_medis']
                 ?? CodeGenerator::prefixNumber(new Pasien(), 'no_rekam_medis', $prefix, 6, '-'),
             'is_member'      => $isMember,

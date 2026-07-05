@@ -52,4 +52,9 @@ class Order extends Model
     {
         return $this->belongsTo(Promotion::class, 'promotion_id', 'promotion_id');
     }
+
+    public function stockHistories()
+    {
+        return $this->hasMany(StockHistory::class, 'order_id', 'order_id');
+    }
 }

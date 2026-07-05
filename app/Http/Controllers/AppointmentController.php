@@ -33,7 +33,7 @@ class AppointmentController extends Controller
     {
         $user = Auth::user();
 
-        if (!$user->phone || !$user->tanggal_lahir) {
+        if (!$user->phone || !$user->pasienProfile?->tanggal_lahir) {
             // Simpan URL tujuan ke session (persisten lintas request) supaya
             // setelah profil dilengkapi user bisa langsung kembali ke flow ini.
             session(['profile_required_redirect' => $request->fullUrl()]);
@@ -164,7 +164,7 @@ class AppointmentController extends Controller
                 $appointment = Appointment::create([
                     'user_id'            => $user->id,
                     'jenis'              => 'treatment',
-                    'sumber'             => 'online',
+
                     'dibuat_oleh_id'     => $user->id,
                     'tanggal_jam'        => $tanggalJam,
                     'status'             => 'menunggu_pembayaran',
@@ -299,7 +299,7 @@ class AppointmentController extends Controller
         $user = Auth::user();
         
         // Pengecekan Kelengkapan Profil
-        if (!$user->phone || !$user->tanggal_lahir) {
+        if (!$user->phone || !$user->pasienProfile?->tanggal_lahir) {
             session(['profile_required_redirect' => $request->fullUrl()]);
 
             // Tidak pakai flash 'error' — UI sudah ditangani oleh modal global.
@@ -376,9 +376,9 @@ class AppointmentController extends Controller
                     'dokter_id'      => $request->dokter_id,
                     'dibuat_oleh_id' => $user->id,
                     'jenis'          => 'konsultasi',
-                    'sumber'         => 'online',
+
                     'tanggal_jam'    => $tanggalJam,
-                    'status'         => 'diajukan',
+                    'status'         => 'disetujui',
                     'catatan_pasien' => 'Konsultasi Dokter (' . ucfirst($request->jenis) . ')',
                 ]);
 
@@ -462,9 +462,9 @@ class AppointmentController extends Controller
         // Form booking treatment lama (create.blade.php) sudah deprecated.
         // Sekarang semua entry point (treatment list, footer, banner, deep link
         // dari pra-konsultasi) diarahkan ke wizard 4-langkah booking-treatment.
-        // Param treatment_id, bundle_id, dan patient_form_id tetap ikut supaya
+        // Param treatment_id dan bundle_id tetap ikut supaya
         // wizard bisa pre-select kalau dibutuhkan ke depan.
-        $params = $request->only(['treatment_id', 'bundle_id', 'patient_form_id']);
+        $params = $request->only(['treatment_id', 'bundle_id']);
         return redirect()->route('appointment.booking-treatment', array_filter($params));
     }
 
@@ -506,7 +506,7 @@ class AppointmentController extends Controller
 
             'tanggal' => ['required', 'date', 'after_or_equal:today'],
             'waktu'   => ['required'],
-            'patient_form_id' => ['nullable'],
+
             'catatan_pasien' => ['nullable', 'string'],
         ]);
 
@@ -520,11 +520,11 @@ class AppointmentController extends Controller
                 'jenis'   => $request->jenis,
                 'dokter_id' => $finalDoctorId,
                 'terapis_id' => $request->terapis_id,
-                'patient_form_id' => $request->patient_form_id,
+
                 'tanggal_jam' => $tanggalJam,
-                'status' => 'diajukan',
+                'status' => 'disetujui',
                 'catatan_pasien' => $request->catatan_pasien,
-                'sumber' => 'online',
+
                 'dibuat_oleh_id' => Auth::id(),
             ]);
 
@@ -544,7 +544,7 @@ class AppointmentController extends Controller
 
         // 🔔 WhatsApp notification (best-effort).
         try {
-            $appointmentForWa = Appointment::with(['items.treatment', 'items.bundle', 'items.consultation', 'dokter', 'terapis', 'pasien'])
+            $appointmentForWa = Appointment::with(['items.treatment', 'items.consultation', 'dokter', 'terapis', 'pasien'])
                 ->find($appointment->appointment_id);
             if ($appointmentForWa) {
                 app(FonnteService::class)->sendAppointmentCreated($appointmentForWa);
@@ -554,7 +554,7 @@ class AppointmentController extends Controller
         }
 
         return redirect('/dashboard?tab=appointment&highlight=' . $appointment->appointment_id)
-            ->with('success', 'Janji temu berhasil diajukan. Menunggu konfirmasi admin.');
+            ->with('success', 'Janji temu berhasil dibuat.');
     }
 
     /**
@@ -665,7 +665,7 @@ class AppointmentController extends Controller
 
             // 🔔 WhatsApp notification (best-effort, jangan ganggu UX).
             try {
-                $appointmentForWa = Appointment::with(['items.treatment', 'items.bundle', 'items.consultation', 'dokter', 'terapis', 'pasien'])
+                $appointmentForWa = Appointment::with(['items.treatment', 'items.consultation', 'dokter', 'terapis', 'pasien'])
                     ->find($appointment->appointment_id);
                 if ($appointmentForWa) {
                     app(FonnteService::class)->sendAppointmentCancelledByPatient($appointmentForWa);
@@ -713,7 +713,7 @@ class AppointmentController extends Controller
                 // A. Update Database Appointment
                 $appointment->update([
                     'tanggal_jam' => $newTanggalJam,
-                    'status'      => 'diajukan', // kembali ke diajukan agar admin konfirmasi
+                    'status'      => 'disetujui', // tetap disetujui
                 ]);
 
                 // B. Notifikasi ke Admin
@@ -726,8 +726,8 @@ class AppointmentController extends Controller
                             'notifiable_type' => \App\Models\User::class,
                             'notifiable_id' => $user->id,
                             'data' => json_encode([
-                                'title' => 'Pengajuan Ubah Jadwal',
-                                'body' => "Pasien {$appointment->user->name} mengajukan perubahan jadwal untuk {$appointment->catatan_pasien}.",
+                                'title' => 'Perubahan Jadwal',
+                                'body' => "Pasien {$appointment->user->name} mengubah jadwal untuk {$appointment->catatan_pasien}.",
                                 'icon' => 'heroicon-o-calendar',
                                 'iconColor' => 'warning',
                                 'duration' => 'persistent',
@@ -753,7 +753,7 @@ class AppointmentController extends Controller
 
             // 🔔 WhatsApp notification: konfirmasi pengajuan ubah jadwal.
             try {
-                $appointmentForWa = Appointment::with(['items.treatment', 'items.bundle', 'items.consultation', 'dokter', 'terapis', 'pasien'])
+                $appointmentForWa = Appointment::with(['items.treatment', 'items.consultation', 'dokter', 'terapis', 'pasien'])
                     ->find($appointment->appointment_id);
                 if ($appointmentForWa) {
                     app(FonnteService::class)->sendAppointmentRescheduled($appointmentForWa);
@@ -762,7 +762,7 @@ class AppointmentController extends Controller
                 Log::warning('Fonnte WA send gagal (reschedule): '.$e->getMessage());
             }
 
-            return back()->with('success', 'Pengajuan ubah jadwal berhasil. Menunggu konfirmasi admin.');
+            return back()->with('success', 'Perubahan jadwal telah disetujui.');
 
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Gagal merubah janji temu: ' . $e->getMessage());

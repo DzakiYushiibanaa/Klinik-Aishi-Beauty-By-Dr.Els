@@ -107,9 +107,7 @@ class PaymentController extends Controller
 
         foreach ($order->items as $item) {
             // Generate ID unik untuk midtrans
-            $itemId = $item->item_type === 'bundle' 
-                ? 'BUN-' . ($item->bundle_id ?? $item->order_item_id)
-                : 'PRD-' . ($item->product_id ?? $item->order_item_id);
+            $itemId = 'PRD-' . ($item->product_id ?? $item->order_item_id);
 
             $itemDetails[] = [
                 'id'       => substr($itemId, 0, 50), // Limit length

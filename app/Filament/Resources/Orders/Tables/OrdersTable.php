@@ -35,6 +35,7 @@ class OrdersTable
         return $table
             ->defaultSort('order_id', 'desc')
             ->columns([
+                \Filament\Tables\Columns\TextColumn::make("No")->rowIndex(),
                 self::columnPesananWaktu(),
                 self::columnPelanggan(),
                 self::columnDetailPengiriman(),
@@ -229,7 +230,7 @@ class OrdersTable
             ->modalSubmitAction(false)
             ->modalFooterActionsAlignment(Alignment::End)
             ->modalContent(function (Order $record) {
-                $order = Order::with(['items.product', 'items.treatment', 'items.bundle', 'pasien.pasienProfile'])
+                $order = Order::with(['items.product', 'items.treatment', 'pasien.pasienProfile'])
                     ->find($record->order_id);
 
                 return view('filament.orders.invoice-slideover', ['order' => $order]);
@@ -425,7 +426,7 @@ class OrdersTable
                     ->hiddenLabel()
                     ->content(function () use ($order): HtmlString {
                         $items = $order->items()
-                            ->with(['product', 'treatment', 'bundle', 'consultation'])
+                            ->with(['product', 'treatment', 'consultation'])
                             ->get();
 
                         if ($items->isEmpty()) {
@@ -448,7 +449,6 @@ class OrdersTable
 
                             $name = $item->product?->nama
                                 ?? $item->treatment?->nama
-                                ?? ($item->bundle ? 'Bundle: '.$item->bundle->nama : null)
                                 ?? $consultationName
                                 ?? $item->description
                                 ?? 'Item';
@@ -456,7 +456,6 @@ class OrdersTable
                             $tipeMap = [
                                 'product'      => 'Produk',
                                 'treatment'    => 'Treatment',
-                                'bundle'       => 'Bundle',
                                 'consultation' => 'Konsultasi',
                             ];
                             $tipeLabel = $tipeMap[strtolower((string) $item->item_type)] ?? ucfirst((string) $item->item_type);
@@ -792,7 +791,7 @@ class OrdersTable
 
                 // 🔔 WhatsApp ke pasien (best-effort).
                 try {
-                    $fresh = Order::with(['user.pasienProfile', 'items.product', 'items.treatment', 'items.bundle'])
+                    $fresh = Order::with(['user.pasienProfile', 'items.product', 'items.treatment'])
                         ->find($record->order_id);
                     if ($fresh) {
                         app(FonnteService::class)->sendOrderShipped($fresh);
@@ -1062,7 +1061,6 @@ class OrdersTable
         $name = match (true) {
             $first->item_type === 'product' && $first->product     => $first->product->nama,
             $first->item_type === 'treatment' && $first->treatment => $first->treatment->nama,
-            $first->item_type === 'bundle' && $first->bundle       => 'Bundle: ' . $first->bundle->nama,
             default                                                 => ($first->description ?: ucfirst((string) $first->item_type)),
         };
 

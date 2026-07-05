@@ -69,7 +69,7 @@ class DoctorPerformanceSheet implements FromQuery, WithHeadings, WithMapping, Wi
             'Rank',
             'Kode Dokter',
             'Nama Dokter',
-            'Pengalaman (Tahun)',
+
             'Status',
             'Total Pasien',
             'Total Omset',
@@ -92,7 +92,7 @@ class DoctorPerformanceSheet implements FromQuery, WithHeadings, WithMapping, Wi
             $this->rowNumber,
             $user->dokterProfile->kode_dokter ?? '-',
             $user->name,
-            $user->dokterProfile->pengalaman_tahun ?? 0,
+
             $user->dokterProfile->status_praktik ?? '-',
             $totalPasien,
             'Rp ' . number_format($totalOmset, 0, ',', '.'),

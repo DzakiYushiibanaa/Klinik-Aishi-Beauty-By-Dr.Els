@@ -69,14 +69,13 @@ class ReviewSubmissionService
             foreach ((array) ($data['treatment_recommendations'] ?? []) as $row) {
                 $type = $row['item_type'] ?? 'treatment';
                 $treatmentId = $type === 'treatment' ? (int) ($row['treatment_id'] ?? 0) : null;
-                $bundleId    = $type === 'bundle'    ? (int) ($row['bundle_id'] ?? 0)    : null;
 
-                if (! $treatmentId && ! $bundleId) continue;
+                if (! $treatmentId) continue;
 
                 PraKonsultasiRekomendasiItem::create([
                     'patient_form_id' => $form->patient_form_id,
                     'treatment_id'    => $treatmentId ?: null,
-                    'bundle_id'       => $bundleId ?: null,
+
                     'product_id'      => null,
                     'catatan'         => $row['catatan'] ?? null,
                 ]);
@@ -90,7 +89,6 @@ class ReviewSubmissionService
                     'patient_form_id' => $form->patient_form_id,
                     'product_id'      => $productId,
                     'treatment_id'    => null,
-                    'bundle_id'       => null,
                     'catatan'         => $row['catatan'] ?? null,
                 ]);
             }

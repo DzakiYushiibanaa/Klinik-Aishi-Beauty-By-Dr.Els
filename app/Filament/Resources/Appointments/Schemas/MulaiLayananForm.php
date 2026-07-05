@@ -3,7 +3,7 @@
 namespace App\Filament\Resources\Appointments\Schemas;
 
 use App\Models\Appointment;
-use App\Models\Bundle;
+
 use App\Models\Consultation;
 use App\Models\Product;
 use App\Models\Treatment;
@@ -176,30 +176,10 @@ class MulaiLayananForm
         return Section::make('Hasil Pemeriksaan')
             ->compact()
             ->schema([
-                Placeholder::make('keluhan_readonly')
-                    ->label('Keluhan Pasien')
-                    ->visible(fn () => self::resolveKeluhanFromContext($appointment) !== null)
-                    ->content(function () use ($appointment): HtmlString {
-                        $text = self::resolveKeluhanFromContext($appointment);
-                        return new HtmlString(
-                            '<div style="padding:12px 14px; background:#FAF8F5; border-left:3px solid #B8956F; border-radius:8px; font-size:0.95rem; line-height:1.6; color:#1A1A1A; white-space:pre-wrap;">'
-                            .nl2br(e($text ?? '-'))
-                            .'</div>'
-                        );
-                    }),
-
-                Textarea::make('keluhan')
-                    ->label('Keluhan Pasien')
-                    ->rows(3)
-                    ->autosize()
-                    ->placeholder('Catat keluhan utama pasien...')
-                    ->visible(fn () => self::resolveKeluhanFromContext($appointment) === null),
-
                 Textarea::make('diagnosa')
                     ->label('Diagnosa / Hasil Pemeriksaan')
                     ->rows(4)
                     ->autosize()
-                    ->required()
                     ->maxLength(2000)
                     ->placeholder('Tuliskan hasil pemeriksaan atau diagnosa pasien...'),
             ]);
@@ -245,7 +225,7 @@ class MulaiLayananForm
     private static function sectionTreatmentLanjutan(Appointment $appointment): Section
     {
         $hasExistingItems = $appointment->items()
-            ->whereIn('item_type', ['treatment', 'bundle'])
+            ->whereIn('item_type', ['treatment'])
             ->exists();
 
         return Section::make('Treatment Lanjutan Hari Ini')
@@ -355,12 +335,12 @@ class MulaiLayananForm
                 [$defaultType, $defaultId] = self::resolveDefaultHandler($appointment);
 
                 return $appointment->items()
-                    ->whereIn('item_type', ['treatment', 'bundle'])
+                    ->whereIn('item_type', ['treatment'])
                     ->get()
                     ->map(fn ($i) => [
                         'item_type'        => $i->item_type,
                         'treatment_id'     => $i->treatment_id,
-                        'bundle_id'        => $i->bundle_id,
+
                         'qty'              => (int) ($i->qty ?? 1),
                         'handled_by_type'  => $i->handled_by_type ?: $defaultType,
                         'handled_by_id'    => $i->handled_by_id   ?: $defaultId,
@@ -372,21 +352,8 @@ class MulaiLayananForm
             ->itemLabel(fn (array $state): ?string => self::resolveRepeaterItemLabel($state))
             ->schema([
                 Grid::make(['default' => 1, 'md' => 3])->schema([
-                    Select::make('item_type')
-                        ->label('Tipe')
-                        ->options([
-                            'treatment' => 'Treatment',
-                            'bundle'    => 'Bundle',
-                        ])
-                        ->default('treatment')
-                        ->required()
-                        ->reactive()
-                        ->afterStateUpdated(fn ($state, $set) => [
-                            $set('treatment_id', null),
-                            $set('bundle_id', null),
-                            $set('handled_by_type', null),
-                            $set('handled_by_id', null),
-                        ]),
+                    Hidden::make('item_type')
+                        ->default('treatment'),
 
                     Select::make('treatment_id')
                         ->label('Nama Treatment')
@@ -400,10 +367,9 @@ class MulaiLayananForm
                         )
                         ->searchable()
                         ->preload()
-                        ->visible(fn (Get $get) => $get('item_type') === 'treatment')
-                        ->required(fn (Get $get) => $get('item_type') === 'treatment')
+                        ->required()
                         ->reactive()
-                        ->columnSpan(['md' => 2])
+                        ->columnSpanFull()
                         ->afterStateUpdated(function ($state, Set $set, Get $get) use ($appointment) {
                             $allowedTypes = self::resolveAllowedHandlerTypes((int) $state);
                             $currentType  = $get('handled_by_type');
@@ -424,23 +390,7 @@ class MulaiLayananForm
                             $set('handled_by_type', $defaultId ? self::resolveSelectedHandlerType($defaultId) : null);
                         }),
 
-                    Select::make('bundle_id')
-                        ->label('Bundle')
-                        ->options(fn () => Bundle::query()
-                            ->where('is_active', true)
-                            ->orderBy('nama')
-                            ->get()
-                            ->mapWithKeys(function ($b) {
-                                $price = (int) ($b->harga_promo ?: $b->harga_normal);
-                                return [$b->bundle_id => $b->nama . ' — Rp ' . number_format($price, 0, ',', '.')];
-                            })
-                        )
-                        ->searchable()
-                        ->preload()
-                        ->visible(fn (Get $get) => $get('item_type') === 'bundle')
-                        ->required(fn (Get $get) => $get('item_type') === 'bundle')
-                        ->reactive()
-                        ->columnSpan(['md' => 2]),
+
                 ]),
 
                 Grid::make(['default' => 1, 'md' => 3])->schema([
@@ -490,7 +440,6 @@ class MulaiLayananForm
      * yang masih dalam state form (belum tersimpan ke DB).
      *
      * Treatment → harga_treatment × qty.
-     * Bundle    → (harga_promo ?: harga_normal) × qty.
      */
     private static function calculateTreatmentSubtotal(array $items): int
     {
@@ -505,22 +454,11 @@ class MulaiLayananForm
             ->values()
             ->all();
 
-        $bundleIds = collect($items)
-            ->pluck('bundle_id')
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
+
 
         $treatmentPrices = $treatmentIds
             ? Treatment::whereIn('treatment_id', $treatmentIds)->pluck('harga', 'treatment_id')->all()
             : [];
-
-        $bundles = $bundleIds
-            ? Bundle::whereIn('bundle_id', $bundleIds)
-                ->get(['bundle_id', 'harga_promo', 'harga_normal'])
-                ->keyBy('bundle_id')
-            : collect();
 
         $total = 0;
         foreach ($items as $row) {
@@ -530,12 +468,6 @@ class MulaiLayananForm
             if ($type === 'treatment' && ! empty($row['treatment_id'])) {
                 $price  = (int) ($treatmentPrices[$row['treatment_id']] ?? 0);
                 $total += $price * $qty;
-            } elseif ($type === 'bundle' && ! empty($row['bundle_id'])) {
-                $b = $bundles->get($row['bundle_id']);
-                if ($b) {
-                    $price  = (int) ($b->harga_promo ?: $b->harga_normal);
-                    $total += $price * $qty;
-                }
             }
         }
 
@@ -695,25 +627,7 @@ class MulaiLayananForm
         return [null, null];
     }
 
-    /**
-     * Ambil keluhan pasien dari konteks appointment / pra-konsultasi.
-     *
-     * Sumber prioritas:
-     *   1. patient_form (pra-konsul) yang ter-link → keluhan_utama
-     *   2. catatan_pasien di appointment
-     *
-     * Return null kalau tidak ada → form akan render textarea editable.
-     */
-    private static function resolveKeluhanFromContext(Appointment $appointment): ?string
-    {
-        $appointment->loadMissing('patientForm');
-        if ($keluhan = $appointment->patientForm?->keluhan_utama) {
-            $clean = trim((string) $keluhan);
-            if ($clean !== '') return $clean;
-        }
-        $catatan = trim((string) ($appointment->catatan_pasien ?? ''));
-        return $catatan !== '' ? $catatan : null;
-    }
+    // Remove resolveKeluhanFromContext
 
     /**
      * Label compact untuk row repeater saat ditutup.
@@ -725,10 +639,7 @@ class MulaiLayananForm
             $t = Treatment::find($state['treatment_id']);
             if ($t) return $t->nama;
         }
-        if ($type === 'bundle' && ! empty($state['bundle_id'])) {
-            $b = Bundle::find($state['bundle_id']);
-            if ($b) return 'Bundle: '.$b->nama;
-        }
+
         return null;
     }
 }

@@ -25,6 +25,7 @@ class ForumQuestionsTable
         return $table
             ->defaultSort('created_at', 'desc')
             ->columns([
+                \Filament\Tables\Columns\TextColumn::make("No")->rowIndex(),
                 TextColumn::make('user.name')
                     ->label('PASIEN')
                     ->formatStateUsing(function (ForumQuestion $record): HtmlString {

@@ -2,10 +2,11 @@
 
 namespace App\Services\Orders;
 
-use App\Models\BundleProductItem;
+
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\Models\StockHistory;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -34,7 +35,7 @@ class ProductStockService
     ];
 
     /**
-     * Deduct product stock for every product/bundle item in the order.
+     * Deduct product stock for every product item in the order.
      * Safe to call multiple times — uses an `is_stock_deducted` flag on the order
      * to prevent double deduction.
      */
@@ -51,10 +52,10 @@ class ProductStockService
                 return;
             }
 
-            $lockedOrder->loadMissing(['items.product', 'items.bundle.productItems']);
+            $lockedOrder->loadMissing(['items.product']);
 
             foreach ($lockedOrder->items as $item) {
-                $this->deductForItem($item);
+                $this->deductForItem($item, $lockedOrder);
             }
 
             $lockedOrder->update(['is_stock_deducted' => true]);
@@ -110,17 +111,13 @@ class ProductStockService
         return in_array(strtolower((string) $status), self::RESERVING_STATUSES, true);
     }
 
-    private function deductForItem(OrderItem $item): void
+    private function deductForItem(OrderItem $item, Order $order): void
     {
         $qty = max(1, (int) $item->qty);
 
         if ($item->item_type === 'product' && $item->product_id) {
-            $this->decrementProductStock((int) $item->product_id, $qty);
+            $this->decrementProductStock((int) $item->product_id, $qty, $order);
             return;
-        }
-
-        if ($item->item_type === 'bundle' && $item->bundle_id) {
-            $this->decrementBundleProductsStock((int) $item->bundle_id, $qty);
         }
     }
 
@@ -133,13 +130,20 @@ class ProductStockService
         }
     }
 
-    private function decrementProductStock(int $productId, int $qty): void
+    private function decrementProductStock(int $productId, int $qty, ?Order $order = null): void
     {
         $product = Product::lockForUpdate()->find($productId);
         if (!$product) return;
 
         $newStock = max(0, (int) $product->stok - $qty);
         $product->update(['stok' => $newStock]);
+
+        StockHistory::create([
+            'product_id' => $productId,
+            'order_id'   => $order?->order_id,
+            'jenis'      => 'keluar',
+            'jumlah'     => $qty,
+        ]);
     }
 
     private function incrementProductStock(int $productId, int $qty, ?Order $order = null): void
@@ -152,6 +156,13 @@ class ProductStockService
 
         $product->update(['stok' => $stockAfter]);
 
+        StockHistory::create([
+            'product_id' => $productId,
+            'order_id'   => $order?->order_id,
+            'jenis'      => 'masuk',
+            'jumlah'     => $qty,
+        ]);
+
         Log::info('[Cancel Approved]', [
             'order_id' => $order?->order_id,
             'order' => $order?->kode_order,
@@ -163,17 +174,5 @@ class ProductStockService
         ]);
     }
 
-    /**
-     * Bundle deduction — for every product in the bundle, deduct (itemQty × bundleQty).
-     */
-    private function decrementBundleProductsStock(int $bundleId, int $bundleQty): void
-    {
-        $bundleProducts = BundleProductItem::where('bundle_id', $bundleId)->get();
-
-        foreach ($bundleProducts as $bp) {
-            $productQty = (int) ($bp->qty ?? 1) * $bundleQty;
-            $this->decrementProductStock((int) $bp->product_id, $productQty);
-        }
-    }
 
 }

@@ -10,10 +10,7 @@ use App\Models\Treatment;
  *
  * Aturan:
  *   - Default komisi = 10% dari harga treatment (kolom `treatments.harga`).
- *   - Untuk item bertipe `bundle`, komisi = 10% dari harga bundle (promo
- *     kalau ada, fallback ke harga normal). Bundle satu paket = satu
- *     handler, anggap 1 unit komisi.
- *   - Untuk item bertipe non-treatment / non-bundle (mis. consultation),
+ *   - Untuk item bertipe non-treatment (mis. consultation),
  *     komisi 0 — fee konsultasi sudah dipegang langsung oleh dokter.
  *   - `qty` >= 1: komisi dikalikan qty supaya kalau klinik menjual
  *     paket multi-sesi, komisi staff tetap proporsional.
@@ -82,10 +79,6 @@ class TreatmentCommissionCalculator
 
         if ($type === 'treatment') {
             return (int) ($item->treatment?->harga ?? 0);
-        }
-
-        if ($type === 'bundle' && $item->bundle) {
-            return (int) ($item->bundle->harga_promo ?: $item->bundle->harga_normal);
         }
 
         // consultation, product, dsb. → tidak menghasilkan komisi treatment.

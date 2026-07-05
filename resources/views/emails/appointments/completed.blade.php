@@ -6,13 +6,13 @@
 
     $items = $appointment->loadMissing([
         'items.treatment',
-        'items.bundle',
+        
         'items.consultation',
     ])->items;
 
     $fmt = fn ($n) => 'Rp ' . number_format((int) ($n ?? 0), 0, ',', '.');
 
-    $orderItems = $order?->loadMissing(['items.product', 'items.treatment', 'items.bundle'])->items ?? collect();
+    $orderItems = $order?->loadMissing(['items.product', 'items.treatment'])->items ?? collect();
 @endphp
 <!DOCTYPE html>
 <html lang="id">
@@ -120,9 +120,9 @@
         @php
             $rows = $orderItems->isNotEmpty()
                 ? $orderItems->map(function ($oi) {
-                    $name = $oi->product?->nama
-                        ?? $oi->treatment?->nama
-                        ?? $oi->bundle?->nama
+                    $name = $oi->treatment?->nama
+                        ?? $oi->consultation?->nama
+                        ?? $oi->product?->nama
                         ?? $oi->description
                         ?? ucfirst((string) $oi->item_type);
                     return [
@@ -135,12 +135,10 @@
                 })
                 : $items->map(function ($it) {
                     $name = $it->treatment?->nama
-                        ?? $it->bundle?->nama
                         ?? $it->consultation?->nama
                         ?? ucfirst((string) $it->item_type);
                     $price = match (true) {
                         (bool) $it->treatment    => (int) $it->treatment->harga,
-                        (bool) $it->bundle       => (int) ($it->bundle->harga_promo ?: $it->bundle->harga_normal),
                         (bool) $it->consultation => (int) $it->consultation->harga,
                         default                  => 0,
                     };

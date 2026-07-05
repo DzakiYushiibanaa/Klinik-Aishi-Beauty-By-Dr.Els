@@ -63,8 +63,6 @@ class EditProfile extends Page implements HasForms
             'name'           => $user->name,
             'email'          => $user->email,
             'phone'          => $user->phone,
-            'tanggal_lahir'  => $user->tanggal_lahir,
-            'jenis_kelamin'  => $user->jenis_kelamin,
         ]);
     }
 
@@ -126,21 +124,6 @@ class EditProfile extends Page implements HasForms
                             ->tel()
                             ->maxLength(20)
                             ->placeholder('+62 8xx xxxx xxxx'),
-
-                        DatePicker::make('tanggal_lahir')
-                            ->label('Tanggal Lahir')
-                            ->native(false)
-                            ->displayFormat('d F Y')
-                            ->maxDate(now()),
-
-                        Select::make('jenis_kelamin')
-                            ->label('Jenis Kelamin')
-                            ->options([
-                                'Laki-laki' => 'Laki-laki',
-                                'Perempuan' => 'Perempuan',
-                            ])
-                            ->native(false)
-                            ->placeholder('Pilih jenis kelamin'),
                     ]),
             ])
             ->statePath('data');
@@ -156,8 +139,6 @@ class EditProfile extends Page implements HasForms
         $payload = [
             'name'          => $data['name'],
             'phone'         => $data['phone'] ?? null,
-            'tanggal_lahir' => $data['tanggal_lahir'] ?? null,
-            'jenis_kelamin' => $data['jenis_kelamin'] ?? null,
         ];
 
         if (! empty($data['password'])) {

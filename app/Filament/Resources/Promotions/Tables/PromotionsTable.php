@@ -15,6 +15,7 @@ class PromotionsTable
     {
         return $table
             ->columns([
+                \Filament\Tables\Columns\TextColumn::make("No")->rowIndex(),
                 TextColumn::make('kode')->label('Kode')->searchable()->sortable(),
                 TextColumn::make('nama')->label('Nama')->searchable(),
                 TextColumn::make('jenis')->label('Jenis')->sortable(),

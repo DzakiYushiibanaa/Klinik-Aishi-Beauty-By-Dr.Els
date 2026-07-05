@@ -82,13 +82,7 @@ class DokterForm
                                 ->required()
                                 ->maxLength(255),
 
-                            TextInput::make('pengalaman_tahun')
-                                ->label('Pengalaman (Tahun)')
-                                ->numeric()
-                                ->minValue(0)
-                                ->maxValue(60)
-                                ->default(0)
-                                ->placeholder('0'),
+
                         ]),
                     ]),
 

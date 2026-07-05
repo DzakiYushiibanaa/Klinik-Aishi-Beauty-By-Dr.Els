@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\Orders\Schemas;
 
-use App\Models\Bundle;
+
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\Promotion;
@@ -158,8 +158,6 @@ class PosCreateOrderForm
         $user = User::create([
             'name'          => $data['name'],
             'phone'         => $data['phone'] ?? null,
-            'tanggal_lahir' => $data['tanggal_lahir'] ?? null,
-            'jenis_kelamin' => $data['jenis_kelamin'] ?? null,
         ]);
 
         $user->assignRole('pasien');
@@ -211,7 +209,6 @@ class PosCreateOrderForm
                             ->options([
                                 'product'   => 'Produk',
                                 'treatment' => 'Treatment',
-                                'bundle'    => 'Bundle',
                             ])
                             ->required()
                             ->live()
@@ -221,7 +218,6 @@ class PosCreateOrderForm
                                 $set('produk_layanan_id', null);
                                 $set('product_id', null);
                                 $set('treatment_id', null);
-                                $set('bundle_id', null);
                                 $set('description', null);
                                 $set('harga_satuan', 0);
                                 $set('subtotal', 0);
@@ -230,7 +226,6 @@ class PosCreateOrderForm
                         Select::make('produk_layanan_id')
                             ->label(fn (Get $get) => match ($get('item_type')) {
                                 'treatment' => 'Pilih Treatment',
-                                'bundle'    => 'Pilih Bundle',
                                 default     => 'Pilih Produk',
                             })
                             ->placeholder('Pilih dari daftar...')
@@ -290,7 +285,6 @@ class PosCreateOrderForm
 
                         Hidden::make('product_id')->dehydrated(true),
                         Hidden::make('treatment_id')->dehydrated(true),
-                        Hidden::make('bundle_id')->dehydrated(true),
                         Hidden::make('description')->dehydrated(true),
                     ]),
             ]);
@@ -397,7 +391,7 @@ class PosCreateOrderForm
     // ═══════════════════════════════════════════════════════
 
     /**
-     * Return options for the selected type (product / treatment / bundle).
+     * Return options for the selected type (product / treatment).
      * Keys are numeric IDs — no composite strings, fully compatible with Filament.
      */
     private static function itemOptionsByType(?string $type): array
@@ -419,20 +413,14 @@ class PosCreateOrderForm
                 ])
                 ->toArray(),
 
-            'bundle' => Bundle::where('is_active', true)
-                ->orderBy('nama')
-                ->get()
-                ->mapWithKeys(fn ($b) => [
-                    $b->bundle_id => $b->nama . ' — Rp ' . number_format(self::resolveBundlePrice($b), 0, ',', '.'),
-                ])
-                ->toArray(),
+
 
             default => [],
         };
     }
 
     /**
-     * Handle selection of a product / treatment / bundle.
+     * Handle selection of a product / treatment.
      * Populates ID, description, harga_satuan, subtotal based on the active item_type.
      */
     private static function handleItemSelection(?int $id, Set $set, Get $get): void
@@ -444,12 +432,10 @@ class PosCreateOrderForm
         // Reset all type-specific IDs first
         $set('product_id', null);
         $set('treatment_id', null);
-        $set('bundle_id', null);
 
         [$price, $description] = match ($type) {
             'product'   => self::resolveProduct((string) $id, $set),
             'treatment' => self::resolveTreatment((string) $id, $set),
-            'bundle'    => self::resolveBundle((string) $id, $set),
             default     => [0, ''],
         };
 
@@ -477,26 +463,7 @@ class PosCreateOrderForm
         return [(int) $t->harga, $t->nama];
     }
 
-    /** @return array{0:int,1:string} */
-    private static function resolveBundle(string $id, Set $set): array
-    {
-        $b = Bundle::find($id);
-        if (!$b) return [0, ''];
-        $set('bundle_id', $b->bundle_id);
-        $price = self::resolveBundlePrice($b);
-        return [$price, 'Bundle: ' . $b->nama];
-    }
 
-    /**
-     * Get bundle effective price: harga_promo if > 0, otherwise harga_normal.
-     */
-    private static function resolveBundlePrice(Bundle $bundle): int
-    {
-        $promo = (int) ($bundle->harga_promo ?? 0);
-        $normal = (int) ($bundle->harga_normal ?? 0);
-
-        return $promo > 0 ? $promo : $normal;
-    }
 
     /**
      * Recalc subtotal for a single cart item (called inside repeater context).

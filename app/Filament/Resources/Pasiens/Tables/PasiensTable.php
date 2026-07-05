@@ -22,6 +22,7 @@ class PasiensTable
         return $table
             ->defaultSort('pasien_id', 'desc')
             ->columns([
+                \Filament\Tables\Columns\TextColumn::make("No")->rowIndex(),
                 ImageColumn::make('foto_profil_path')
                     ->label('FOTO')
                     ->disk('public')

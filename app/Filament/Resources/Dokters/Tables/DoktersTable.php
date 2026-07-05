@@ -23,6 +23,7 @@ class DoktersTable
         return $table
             ->defaultSort('dokter_id', 'desc')
             ->columns([
+                \Filament\Tables\Columns\TextColumn::make("No")->rowIndex(),
                 ImageColumn::make('foto_profil_path')
                     ->label('')
                     ->disk('public')
@@ -70,11 +71,6 @@ class DoktersTable
                         ';
                     }),
 
-                TextColumn::make('pengalaman_tahun')
-                    ->label('PENGALAMAN')
-                    ->formatStateUsing(fn ($state) => ($state ?? 0) . ' Tahun')
-                    ->sortable(),
-
                 ToggleColumn::make('status_praktik')
                     ->label('Status Praktik')
                     ->getStateUsing(fn (Dokter $record) => strtolower($record->status_praktik ?? '') === 'aktif')
@@ -100,7 +96,7 @@ class DoktersTable
                         return [
                             'kode_dokter'      => $record?->kode_dokter,
                             'status_praktik'   => $record?->status_praktik,
-                            'pengalaman_tahun' => $record?->pengalaman_tahun,
+
                             'foto_profil_path' => $record?->foto_profil_path,
                             'user_name'        => $record?->user?->name,
                             'user_email'       => $record?->user?->email,
@@ -124,7 +120,7 @@ class DoktersTable
                         return [
                             'kode_dokter'      => $record?->kode_dokter,
                             'status_praktik'   => $record?->status_praktik,
-                            'pengalaman_tahun' => $record?->pengalaman_tahun,
+
                             'foto_profil_path' => $record?->foto_profil_path,
                             'user_name'        => $record?->user?->name,
                             'user_email'       => $record?->user?->email,
@@ -149,7 +145,7 @@ class DoktersTable
 
                         $record->update([
                             'kode_dokter'      => $data['kode_dokter'] ?? $record->kode_dokter,
-                            'pengalaman_tahun' => $data['pengalaman_tahun'] ?? null,
+
                             'status_praktik'   => $data['status_praktik'] ?? 'aktif',
                             'foto_profil_path' => $data['foto_profil_path'] ?? null,
                         ]);

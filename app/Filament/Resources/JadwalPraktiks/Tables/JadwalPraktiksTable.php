@@ -20,6 +20,7 @@ class JadwalPraktiksTable
                 )
             )
             ->columns([
+                \Filament\Tables\Columns\TextColumn::make("No")->rowIndex(),
                 TextColumn::make('tenagaMedis.name')->label('Tenaga Medis')->searchable(),
                 TextColumn::make('jenis_layanan')->label('Layanan')->sortable(),
                 TextColumn::make('hari')->label('Hari')->sortable(),

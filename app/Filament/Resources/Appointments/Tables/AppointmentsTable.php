@@ -43,7 +43,7 @@ class AppointmentsTable
                 // Ensure item relations are eager-loaded for the LAYANAN & MEDIS column.
                 $query->with([
                     'items.treatment',
-                    'items.bundle',
+                    
                     'items.consultation',
                     'pasien',
                     'dokter',
@@ -82,6 +82,7 @@ class AppointmentsTable
                 }
             })
             ->columns([
+                \Filament\Tables\Columns\TextColumn::make("No")->rowIndex(),
                 TextColumn::make('pasien.name')
                     ->label('PASIEN & ID')
                     ->weight('bold')
@@ -107,7 +108,6 @@ class AppointmentsTable
                             return match (true) {
                                 $item->item_type === 'consultation' && $item->consultation => $item->consultation->nama . $suffix,
                                 $item->item_type === 'treatment' && $item->treatment       => $item->treatment->nama . $suffix,
-                                $item->item_type === 'bundle' && $item->bundle             => 'Bundle: ' . $item->bundle->nama . $suffix,
                                 default                                                     => null,
                             };
                         })->filter()->values();
@@ -317,7 +317,7 @@ class AppointmentsTable
                     ->modalContent(function (Appointment $record) {
                         $appointment = Appointment::with([
                             'items.treatment',
-                            'items.bundle',
+                            
                             'items.consultation',
                             'pasien.pasienProfile',
                             'dokter',
@@ -379,7 +379,7 @@ class AppointmentsTable
                     ->modalCancelActionLabel('Batal')
                     ->modalWidth('sm')
                     ->modalFooterActionsAlignment(Alignment::End)
-                    ->visible(fn (Appointment $record) => $record->status === 'diajukan' && Filament::auth()->user()->hasRole('admin'))
+                    ->visible(false)
                     ->action(function (Appointment $record) {
                         
                         $record->update(['status' => 'disetujui']);
@@ -391,7 +391,7 @@ class AppointmentsTable
 
                         // 🔔 WhatsApp ke pasien (best-effort).
                         try {
-                            $fresh = Appointment::with(['items.treatment', 'items.bundle', 'items.consultation', 'dokter', 'terapis', 'pasien'])
+                            $fresh = Appointment::with(['items.treatment', 'items.consultation', 'dokter', 'terapis', 'pasien'])
                                 ->find($record->appointment_id);
                             if ($fresh) {
                                 app(FonnteService::class)->sendAppointmentApproved($fresh);
@@ -417,7 +417,7 @@ class AppointmentsTable
                     ->modalCancelActionLabel('Batal')
                     ->modalWidth('sm')
                     ->modalFooterActionsAlignment(Alignment::End)
-                    ->visible(fn (Appointment $record) => $record->status === 'diajukan' && Filament::auth()->user()->hasRole('admin'))
+                    ->visible(false)
                     ->action(function (Appointment $record) {
                         
                         $record->update(['status' => 'batal']);
@@ -429,7 +429,7 @@ class AppointmentsTable
 
                         // 🔔 WhatsApp ke pasien (best-effort).
                         try {
-                            $fresh = Appointment::with(['items.treatment', 'items.bundle', 'items.consultation', 'dokter', 'terapis', 'pasien'])
+                            $fresh = Appointment::with(['items.treatment', 'items.consultation', 'dokter', 'terapis', 'pasien'])
                                 ->find($record->appointment_id);
                             if ($fresh) {
                                 app(FonnteService::class)->sendAppointmentCancelledByClinic($fresh, $fresh->cancel_reason);
@@ -458,10 +458,8 @@ class AppointmentsTable
                     ->modalCancelActionLabel('Batal')
                     ->modalFooterActionsAlignment(Alignment::End)
                     ->visible(fn (Appointment $record): bool => in_array($record->status, ['akan_datang', 'diproses', 'disetujui'], true)
-                        && (
-                            self::canManageStaff()
-                            || self::userAssignedToAppointment($record)
-                        ))
+                        && auth()->user()->hasAnyRole(['dokter', 'terapis'])
+                    )
                     ->schema(fn (Appointment $record) => MulaiLayananForm::schema($record))
                     ->modalSubmitAction(function ($action) {
                         // Konfirmasi sebelum benar-benar finalisasi.
@@ -492,9 +490,13 @@ Hasil pemeriksaan akan disimpan ke rekam medis pasien dan tagihan akan diteruska
                             return;
                         }
 
+                        $isNewOrder = $result['is_new_order'] ?? false;
+
                         Notification::make()
                             ->title('Layanan berhasil diselesaikan')
-                            ->body('Hasil pemeriksaan tersimpan dan tagihan telah diteruskan ke proses pembayaran.')
+                            ->body($isNewOrder
+                                ? 'Hasil pemeriksaan tersimpan dan tagihan telah diteruskan ke proses pembayaran.'
+                                : 'Hasil pemeriksaan tersimpan. Tidak ada tagihan baru yang ditambahkan.')
                             ->success()
                             ->duration(6000)
                             ->send();
@@ -626,7 +628,7 @@ Hasil pemeriksaan akan disimpan ke rekam medis pasien dan tagihan akan diteruska
                             }
 
                             try {
-                                $fresh = Appointment::with(['items.treatment', 'items.bundle', 'items.consultation', 'dokter', 'terapis', 'pasien'])
+                                $fresh = Appointment::with(['items.treatment', 'items.consultation', 'dokter', 'terapis', 'pasien'])
                                     ->find($record->appointment_id);
                                 if ($fresh) {
                                     app(FonnteService::class)->sendAppointmentCancelledByClinic($fresh, $fresh->cancel_reason);
@@ -905,7 +907,7 @@ Hasil pemeriksaan akan disimpan ke rekam medis pasien dan tagihan akan diteruska
             ]);
         });
 
-        $fresh = $record->fresh(['items.treatment', 'items.bundle', 'items.consultation', 'dokter', 'terapis', 'pasien']);
+        $fresh = $record->fresh(['items.treatment', 'items.consultation', 'dokter', 'terapis', 'pasien']);
 
         if ($fresh?->pasien) {
             $fresh->pasien->notify(new AppointmentStatusChanged($fresh, 'Jadwal Diubah'));

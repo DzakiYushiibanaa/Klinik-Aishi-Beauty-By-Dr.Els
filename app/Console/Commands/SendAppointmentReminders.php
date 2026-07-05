@@ -28,7 +28,7 @@ class SendAppointmentReminders extends Command
 
         $appointments = Appointment::with([
                 'items.treatment',
-                'items.bundle',
+                
                 'items.consultation',
                 'dokter',
                 'terapis',

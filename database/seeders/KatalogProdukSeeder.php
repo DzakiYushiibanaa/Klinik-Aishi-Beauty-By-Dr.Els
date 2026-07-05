@@ -15,8 +15,6 @@ class KatalogProdukSeeder extends Seeder
     public function run(): void
     {
         $now = Carbon::now();
-        // Kadaluarsa 2 tahun kedepan dari sekarang
-        $expiredDate = $now->copy()->addYears(2)->toDateString();
 
         // Ambil kategori pertama sebagai default
         $category = DB::table('product_categories')->first();
@@ -81,8 +79,7 @@ class KatalogProdukSeeder extends Seeder
                 'deskripsi'           => $p['deskripsi'],
                 'harga'               => 100000,
                 'berat_gram'          => $p['berat'],
-                'stok'                => 100,
-                'tanggal_kadaluarsa'  => $expiredDate,
+                'stok'                => rand(10, 100),
                 'foto_path'           => $fotoPath,
                 'product_category_id' => $catId,
                 'is_active'           => true,

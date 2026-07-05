@@ -13,7 +13,7 @@ use Illuminate\Notifications\Notification;
  *
  * Dikirim via DB (bell) + Mail. Email versi detail mirip nota/invoice:
  * kode appointment, kode order, dokter/terapis, breakdown item (konsultasi +
- * treatment/bundle + produk tambahan), total pembayaran.
+ * treatment + produk tambahan), total pembayaran.
  */
 class AppointmentCompleted extends Notification
 {

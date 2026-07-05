@@ -15,6 +15,7 @@ class TreatmentCategoriesTable
     {
         return $table
             ->columns([
+                \Filament\Tables\Columns\TextColumn::make("No")->rowIndex(),
                 TextColumn::make('nama')
                     ->label('Nama')
                     ->searchable()
@@ -27,6 +28,21 @@ class TreatmentCategoriesTable
                     ->tooltip(fn ($state): ?string => filled($state) ? $state : null)
                     ->placeholder('—')
                     ->wrap(),
+
+                TextColumn::make('ditangani_oleh')
+                    ->label('Ditangani Oleh')
+                    ->state(function (\App\Models\TreatmentCategory $record): array {
+                        $types = [];
+                        if ($record->doctor_allowed) $types[] = 'Dokter';
+                        if ($record->therapist_allowed) $types[] = 'Terapis';
+                        return empty($types) ? ['Dokter'] : $types;
+                    })
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'Dokter' => 'info',
+                        'Terapis' => 'success',
+                        default => 'gray',
+                    }),
 
                 ToggleColumn::make('is_active')
                     ->label('Status')

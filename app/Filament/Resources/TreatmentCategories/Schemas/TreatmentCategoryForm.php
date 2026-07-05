@@ -25,6 +25,14 @@ class TreatmentCategoryForm
             ->rows(4)
             ->columnSpanFull(),
 
+        Toggle::make('doctor_allowed')
+            ->label('Bisa Ditangani Oleh Dokter')
+            ->default(true),
+
+        Toggle::make('therapist_allowed')
+            ->label('Bisa Ditangani Oleh Terapis')
+            ->default(true),
+
         Toggle::make('is_active')
             ->label('Aktif')
             ->default(true),

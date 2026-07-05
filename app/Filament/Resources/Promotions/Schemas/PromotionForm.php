@@ -24,7 +24,7 @@ class PromotionForm
                     ->options([
                         'order' => 'Order',
                         'treatment' => 'Treatment',
-                        'bundle' => 'Bundle',
+
                         'product' => 'Produk',
                     ])->required(),
 
