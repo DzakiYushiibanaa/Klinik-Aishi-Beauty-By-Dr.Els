@@ -36,7 +36,7 @@
     if ($rm->appointment?->items?->isNotEmpty()) {
         // Skip item type "consultation" — konsultasi bukan treatment medis.
         $items = $rm->appointment->items->filter(
-            fn ($i) => in_array(strtolower((string) $i->item_type), ['treatment', 'bundle'], true)
+            fn ($i) => in_array(strtolower((string) $i->item_type), ['treatment'], true)
         )->values();
 
         $dokterHandlerDetails = $items
@@ -44,7 +44,7 @@
             ->map(function ($i) {
                 $serviceName = strtolower((string) $i->item_type) === 'treatment'
                     ? ($i->treatment?->nama ?? 'Treatment')
-                    : ($i->bundle ? 'Bundle: '.$i->bundle->nama : 'Bundle');
+                    : 'Treatment';
 
                 return [
                     'name' => $i->handler->name,
@@ -58,7 +58,7 @@
             ->map(function ($i) {
                 $serviceName = strtolower((string) $i->item_type) === 'treatment'
                     ? ($i->treatment?->nama ?? 'Treatment')
-                    : ($i->bundle ? 'Bundle: '.$i->bundle->nama : 'Bundle');
+                    : 'Treatment';
 
                 return [
                     'name' => $i->handler->name,
@@ -78,7 +78,7 @@
             if (!$treatmentName) {
                 $treatmentName = match (true) {
                     strtolower((string) $first->item_type) === 'treatment' && $first->treatment => $first->treatment->nama,
-                    strtolower((string) $first->item_type) === 'bundle'    && $first->bundle    => 'Bundle: '.$first->bundle->nama,
+
                     default => null,
                 };
 

@@ -45,7 +45,6 @@ class RolesAndUsersSeeder extends Seeder
 
                 // optional (akan keisi kalau kolomnya ada)
                 'phone' => '081234567890',
-                'jenis_kelamin' => 'laki-laki',
                 'is_member' => $role === 'pasien' ? 1 : 0,
             ];
 

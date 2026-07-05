@@ -428,7 +428,7 @@
                 $appointment = $payment['appointment'] ?? null;
 
                 // Eager-load relasi item supaya nama tampil dengan benar.
-                $order->loadMissing(['items.product', 'items.treatment', 'items.bundle', 'items.consultation']);
+                $order->loadMissing(['items.product', 'items.treatment', 'items.consultation']);
 
                 // Group item per kategori untuk rendering yang clean.
                 $groupedItems = [
@@ -441,7 +441,7 @@
                     $bucket = match ($type) {
                         'consultation' => 'Konsultasi',
                         'treatment'    => 'Treatment',
-                        'bundle'       => 'Treatment',
+
                         'product'      => 'Produk',
                         default        => 'Produk',
                     };
@@ -454,7 +454,6 @@
                 $resolveItemName = function ($item) {
                     return $item->product?->nama
                         ?? $item->treatment?->nama
-                        ?? ($item->bundle ? 'Bundle: '.$item->bundle->nama : null)
                         ?? $item->consultation?->nama
                         ?? $item->description
                         ?? 'Item';
@@ -1392,16 +1391,13 @@
                                                     @foreach($latestPraKonsul->rekomendasiItems as $item)
                                                         @php 
                                                             $tipe = $item->item_tipe;
-                                                            $obj = $tipe === 'Produk' ? $item->product : ($tipe === 'Treatment' ? $item->treatment : $item->bundle);
+                                                            $obj = $tipe === 'Produk' ? $item->product : ($tipe === 'Treatment' ? $item->treatment : null);
                                                         @endphp
                                                         <div class="bg-white border border-[#E8E0D8] rounded-xl p-4 shadow-sm hover:border-[#CFAF53]/40 transition-colors relative overflow-hidden">
                                                             <div class="flex items-center gap-2 mb-4 border-b border-[#E8E0D8]/60 pb-3">
                                                                 @if($tipe === 'Treatment')
                                                                     <svg class="w-4 h-4 text-[#CFAF53]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                                                                     <p class="text-xs font-bold text-[#8C7A63] uppercase tracking-wider">Treatment Rekomendasi</p>
-                                                                @elseif($tipe === 'Bundle')
-                                                                    <svg class="w-4 h-4 text-[#CFAF53]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                                                    <p class="text-xs font-bold text-[#8C7A63] uppercase tracking-wider">Bundle Rekomendasi</p>
                                                                 @else
                                                                     <svg class="w-4 h-4 text-[#CFAF53]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
                                                                     <p class="text-xs font-bold text-[#8C7A63] uppercase tracking-wider">Produk Rekomendasi</p>
@@ -1441,7 +1437,7 @@
                                                                         @if($tipe === 'Treatment')
                                                                             <a href="{{ route('appointment.select') }}" class="inline-flex items-center justify-center px-5 py-2 text-xs font-bold text-white bg-[#1A1A1A] rounded-lg hover:bg-[#333] hover:shadow-lg hover:shadow-[#1A1A1A]/20 transition-all w-full sm:w-auto text-center">Buat Janji Temu</a>
                                                                         @else
-                                                                            <form action="{{ $tipe === 'Bundle' ? route('cart.add_bundle', $obj->bundle_id ?? 0) : route('cart.add', $obj->product_id ?? 0) }}" method="POST" class="inline-block flex-1 sm:flex-none">
+                                                                            <form action="{{ route('cart.add', $obj->product_id ?? 0) }}" method="POST" class="inline-block flex-1 sm:flex-none">
                                                                                 @csrf
                                                                                 <button type="submit" class="w-full inline-flex items-center justify-center px-5 py-2 text-xs font-bold text-[#1A1A1A] bg-[#FAF8F5] border border-[#E8E0D8] rounded-lg hover:bg-white hover:border-[#CFAF53] transition-all shadow-sm">+ Keranjang</button>
                                                                             </form>

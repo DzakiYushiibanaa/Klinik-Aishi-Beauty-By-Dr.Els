@@ -22,7 +22,7 @@
 
     $items = $appointment->loadMissing([
         'items.treatment',
-        'items.bundle',
+        
         'items.consultation',
     ])->items;
 
@@ -31,12 +31,10 @@
     // Resolve price per item for preview total
     $rows = $items->map(function ($it) {
         $name = $it->treatment?->nama
-            ?? ($it->bundle ? 'Bundle: ' . $it->bundle->nama : null)
             ?? $it->consultation?->nama
             ?? ucfirst((string) $it->item_type);
         $price = match (true) {
             (bool) $it->treatment    => (int) $it->treatment->harga,
-            (bool) $it->bundle       => (int) ($it->bundle->harga_promo ?: $it->bundle->harga_normal),
             (bool) $it->consultation => (int) $it->consultation->harga,
             default                  => 0,
         };

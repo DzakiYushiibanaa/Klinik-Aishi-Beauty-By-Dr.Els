@@ -130,14 +130,7 @@ class JadwalPraktikSeeder extends Seeder
             $user->phone = '08' . random_int(111111111, 999999999);
         }
 
-        if (Schema::hasColumn('users', 'tanggal_lahir') && empty($user->tanggal_lahir)) {
-            $user->tanggal_lahir = '2000-01-01';
-        }
 
-        // ini yang kamu tanyain: jenis_kelamin pasti perempuan jika kolomnya ada
-        if (Schema::hasColumn('users', 'jenis_kelamin')) {
-            $user->jenis_kelamin = 'perempuan';
-        }
 
         if (Schema::hasColumn('users', 'email_verified_at') && empty($user->email_verified_at)) {
             $user->email_verified_at = $now;
@@ -160,9 +153,7 @@ class JadwalPraktikSeeder extends Seeder
         if (Schema::hasColumn('dokter', 'kode_dokter')) {
             $payload['kode_dokter'] = sprintf('DKR-%03d', $no);
         }
-        if (Schema::hasColumn('dokter', 'pengalaman_tahun')) {
-            $payload['pengalaman_tahun'] = random_int(2, 10);
-        }
+
         if (Schema::hasColumn('dokter', 'status_praktik')) {
             $payload['status_praktik'] = 'aktif';
         }

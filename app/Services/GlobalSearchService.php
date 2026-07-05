@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Models\Appointment;
-use App\Models\Bundle;
+
 use App\Models\Dokter;
 use App\Models\Order;
 use App\Models\Pasien;
@@ -21,7 +21,7 @@ use Illuminate\Support\Collection;
  *
  * Mendukung pencarian lintas entity:
  * Pasien, Treatment, Produk, Appointment, Transaksi (Order),
- * Dokter, Terapis, Rekam Medis, Promo, Bundle, Menu admin.
+ * Dokter, Terapis, Rekam Medis, Promo, Menu admin.
  *
  * Format response: array of groups, dengan struktur:
  *   - type: string (label kategori)
@@ -58,7 +58,7 @@ class GlobalSearchService
             $this->searchTherapists(),
             $this->searchMedicalRecords(),
             $this->searchPromotions(),
-            $this->searchBundles(),
+
             $this->searchMenu(),
         ])->filter(fn ($g) => !empty($g['items']))
           ->values()
@@ -356,35 +356,6 @@ class GlobalSearchService
         ];
     }
 
-    protected function searchBundles(): array
-    {
-        $q = $this->query;
-        $rows = Bundle::query()
-            ->where(function ($w) use ($q) {
-                $w->where('nama', 'like', "%{$q}%")
-                  ->orWhere('kode', 'like', "%{$q}%");
-            })
-            ->orderBy('nama')
-            ->limit($this->limit)
-            ->get(['bundle_id', 'nama', 'kode', 'jenis', 'harga_promo', 'harga_normal', 'is_active']);
-
-        return [
-            'type' => 'Paket Bundle',
-            'icon' => 'gift',
-            'items' => $rows->map(function ($b) {
-                $harga = $b->harga_promo ?: $b->harga_normal;
-                return [
-                    'type' => 'bundle',
-                    'title' => $b->nama,
-                    'subtitle' => 'Rp ' . number_format($harga, 0, ',', '.') . ' • ' . ucfirst($b->jenis ?? '—'),
-                    'url' => url("/admin/bundles/{$b->bundle_id}/edit"),
-                    'badge' => $b->is_active ? null : 'Nonaktif',
-                    'initial' => 'B',
-                ];
-            })->toArray(),
-        ];
-    }
-
     /** Static menu / halaman admin. */
     protected function searchMenu(): array
     {
@@ -396,7 +367,7 @@ class GlobalSearchService
             ['title' => 'Kategori Treatment',       'desc' => 'Master kategori treatment',            'url' => url('/admin/treatment-categories'),           'keywords' => 'kategori treatment category'],
             ['title' => 'Produk',                   'desc' => 'Master data produk',                   'url' => url('/admin/products'),                       'keywords' => 'produk product katalog'],
             ['title' => 'Kategori Produk',          'desc' => 'Master kategori produk',               'url' => url('/admin/product-categories'),             'keywords' => 'kategori produk category'],
-            ['title' => 'Bundle',                   'desc' => 'Paket bundle treatment & produk',      'url' => url('/admin/bundles'),                        'keywords' => 'bundle paket package'],
+
             ['title' => 'Transaksi',                'desc' => 'Daftar order & pembayaran',            'url' => url('/admin/orders'),                         'keywords' => 'transaksi order pembayaran invoice'],
             ['title' => 'Pasien',                   'desc' => 'Master data pasien',                   'url' => url('/admin/pasiens'),                        'keywords' => 'pasien patient member pelanggan'],
             ['title' => 'Dokter',                   'desc' => 'Master data dokter',                   'url' => url('/admin/dokters'),                        'keywords' => 'dokter doctor'],

@@ -9,9 +9,6 @@
                     $totalHarga += $item->treatment->harga * $item->qty;
                     $totalDurasi += $item->treatment->durasi_menit * $item->qty;
                     $itemsList[] = ['nama' => $item->treatment->nama, 'qty' => $item->qty, 'harga' => $item->treatment->harga];
-                } elseif ($item->item_type === 'bundle' && $item->bundle) {
-                    $totalHarga += $item->bundle->harga * $item->qty;
-                    $itemsList[] = ['nama' => $item->bundle->nama, 'qty' => $item->qty, 'harga' => $item->bundle->harga];
                 }
             }
         }

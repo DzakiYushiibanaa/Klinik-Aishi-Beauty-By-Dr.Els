@@ -17,7 +17,7 @@ class OrderInvoiceController extends Controller
         try {
             $order = Order::where('user_id', auth()->id())
                 ->where('kode_order', $kode_order)
-                ->with(['items.product', 'items.treatment', 'items.bundle', 'user.pasienProfile'])
+                ->with(['items.product', 'items.treatment', 'user.pasienProfile'])
                 ->firstOrFail();
 
             \Log::info('Email: Order found, generating PDF...');

@@ -14,7 +14,6 @@ class AppointmentItem extends Model
         'appointment_id',
         'item_type',
         'treatment_id',
-        'bundle_id',
         'consultation_id',
         'qty',
         // Handler & komisi (10% default).
@@ -39,10 +38,6 @@ class AppointmentItem extends Model
         return $this->belongsTo(Treatment::class, 'treatment_id', 'treatment_id');
     }
 
-    public function bundle(): BelongsTo
-    {
-        return $this->belongsTo(Bundle::class, 'bundle_id', 'bundle_id');
-    }
 
     public function consultation(): BelongsTo
     {

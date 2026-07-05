@@ -15,6 +15,11 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
+use Filament\Actions\ActionGroup;
+use Filament\Actions\Action;
+use Filament\Forms\Components\TextInput;
+use Illuminate\Support\Facades\DB;
+use App\Models\Product;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 
@@ -25,6 +30,7 @@ class ProductsTable
         return $table
             ->modifyQueryUsing(fn (Builder $query) => $query->withoutGlobalScopes([SoftDeletingScope::class]))
             ->columns([
+                \Filament\Tables\Columns\TextColumn::make("No")->rowIndex(),
                 ImageColumn::make('foto_path')
                     ->label('FOTO')
                     ->disk('public')
@@ -95,17 +101,58 @@ class ProductsTable
                     ->label('Produk Dihapus'),
             ])
             ->recordActions([
-                EditAction::make()
-                    ->slideOver()
-                    ->stickyModalFooter()
-                    ->modalHeading('Edit Product')
-                    ->modalWidth('xl')
-                    ->modalSubmitActionLabel('Simpan Perubahan')
-                    ->modalCancelActionLabel('Cancel')
-                    ->modalFooterActionsAlignment(\Filament\Support\Enums\Alignment::End),
-                DeleteAction::make(),
-                RestoreAction::make(),
-                ForceDeleteAction::make(),
+                ActionGroup::make([
+                    Action::make('tambah_stok')
+                        ->label('Tambah Stok')
+                        ->icon('heroicon-o-plus-circle')
+                        ->color('success')
+                        ->modalHeading(fn (Product $record) => 'Tambah Stok: ' . $record->nama)
+                        ->modalDescription('Masukkan jumlah stok yang akan ditambahkan ke gudang.')
+                        ->modalSubmitActionLabel('Simpan')
+                        ->modalWidth('sm')
+                        ->form([
+                            TextInput::make('jumlah')
+                                ->label('Jumlah Stok Masuk')
+                                ->numeric()
+                                ->minValue(1)
+                                ->required()
+                                ->prefix('+'),
+                        ])
+                        ->action(function (array $data, Product $record): void {
+                            $qty = (int) $data['jumlah'];
+                            DB::transaction(function () use ($record, $qty) {
+                                $product = Product::lockForUpdate()->find($record->product_id);
+                                $product->stok += $qty;
+                                $product->save();
+
+                                \App\Models\StockHistory::create([
+                                    'product_id' => $product->product_id,
+                                    'order_id'   => null,
+                                    'jenis'      => 'masuk',
+                                    'jumlah'     => $qty,
+                                ]);
+                            });
+                            
+                            \Filament\Notifications\Notification::make()
+                                ->title('Stok berhasil ditambahkan')
+                                ->success()
+                                ->send();
+                        }),
+                        
+                    \Filament\Actions\EditAction::make()
+                        ->slideOver()
+                        ->stickyModalFooter()
+                        ->modalHeading('Edit Product')
+                        ->modalWidth('xl')
+                        ->modalSubmitActionLabel('Simpan Perubahan')
+                        ->modalCancelActionLabel('Cancel')
+                        ->modalFooterActionsAlignment(\Filament\Support\Enums\Alignment::End),
+                    \Filament\Actions\DeleteAction::make(),
+                    \Filament\Actions\RestoreAction::make(),
+                    \Filament\Actions\ForceDeleteAction::make(),
+                ])
+                ->icon('heroicon-m-ellipsis-vertical')
+                ->tooltip('Aksi'),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

@@ -109,7 +109,7 @@ class CatalogSeeder extends Seeder
             |--------------------------------------------------------------------------
             | Kolom wajib sesuai ERD:
             | product_category_id, nama, deskripsi, harga, berat_gram, stok,
-            | tanggal_kadaluarsa, foto_path, is_active, created_at, updated_at
+            | foto_path, is_active, created_at, updated_at
             */
             $products = [
                 [
@@ -118,9 +118,8 @@ class CatalogSeeder extends Seeder
                     'deskripsi' => 'Pembersih wajah lembut untuk pemakaian harian, bantu bersihkan tanpa bikin kulit ketarik.',
                     'harga' => 85000,
                     'berat_gram' => 120,
-                    'stok' => 50,
-                    'tanggal_kadaluarsa' => $now->copy()->addYears(2)->toDateString(),
-                    'foto_path' => 'seed/products/gentle-cleanser.jpg',
+                    'stok' => 100,
+                    'foto_path' => 'products/night-cream-acne.png',
                     'is_active' => true,
                 ],
                 [
@@ -130,7 +129,6 @@ class CatalogSeeder extends Seeder
                     'harga' => 135000,
                     'berat_gram' => 50,
                     'stok' => 35,
-                    'tanggal_kadaluarsa' => $now->copy()->addYears(2)->toDateString(),
                     'foto_path' => 'seed/products/ceramide-moisturizer.jpg',
                     'is_active' => true,
                 ],
@@ -140,9 +138,8 @@ class CatalogSeeder extends Seeder
                     'deskripsi' => 'Perlindungan UV untuk harian, tekstur ringan dan nyaman dipakai.',
                     'harga' => 125000,
                     'berat_gram' => 40,
-                    'stok' => 40,
-                    'tanggal_kadaluarsa' => $now->copy()->addYears(2)->toDateString(),
-                    'foto_path' => 'seed/products/sunscreen-spf50.jpg',
+                    'stok' => 100,
+                    'foto_path' => 'products/sunscreen-acne.png',
                     'is_active' => true,
                 ],
                 [
@@ -151,9 +148,8 @@ class CatalogSeeder extends Seeder
                     'deskripsi' => 'Gel totol jerawat untuk bantu kempesin jerawat aktif dan mengurangi kemerahan.',
                     'harga' => 95000,
                     'berat_gram' => 15,
-                    'stok' => 60,
-                    'tanggal_kadaluarsa' => $now->copy()->addYears(2)->toDateString(),
-                    'foto_path' => 'seed/products/acne-spot-gel.jpg',
+                    'stok' => 100,
+                    'foto_path' => 'products/facial-wash-aha.png',
                     'is_active' => true,
                 ],
                 [
@@ -163,7 +159,6 @@ class CatalogSeeder extends Seeder
                     'harga' => 99000,
                     'berat_gram' => 200,
                     'stok' => 30,
-                    'tanggal_kadaluarsa' => $now->copy()->addYears(2)->toDateString(),
                     'foto_path' => 'seed/products/body-lotion.jpg',
                     'is_active' => true,
                 ],

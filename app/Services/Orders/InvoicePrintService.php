@@ -21,7 +21,7 @@ class InvoicePrintService
      */
     public function renderText(Order $order): string
     {
-        $order->loadMissing(['items.product', 'items.treatment', 'items.bundle', 'pasien', 'dibuatOleh']);
+        $order->loadMissing(['items.product', 'items.treatment', 'pasien', 'dibuatOleh']);
 
         $lines = [];
 
@@ -130,9 +130,7 @@ class InvoicePrintService
         if ($item->item_type === 'treatment' && $item->treatment) {
             return $item->treatment->nama;
         }
-        if ($item->item_type === 'bundle' && $item->bundle) {
-            return 'Bundle: ' . $item->bundle->nama;
-        }
+
         return $item->description ?: ucfirst((string) $item->item_type);
     }
 

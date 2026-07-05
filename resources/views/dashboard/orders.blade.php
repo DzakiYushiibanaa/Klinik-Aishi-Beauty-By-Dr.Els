@@ -23,7 +23,7 @@
         'waybill' => $o->shipping_waybill,
         'shipping_address' => $o->shipping_address ?? null,
         'items' => $o->items->map(fn($i) => [
-            'name' => $i->product?->nama ?? $i->treatment?->nama ?? $i->bundle?->nama ?? $i->description ?? 'Item',
+            'name' => $i->product?->nama ?? $i->treatment?->nama ?? $i->description ?? 'Item',
             'qty' => $i->qty,
             'price' => $i->harga_satuan ?? 0,
             'foto' => $i->product?->foto_path ?? $i->treatment?->foto_path ?? null,
@@ -205,24 +205,24 @@
                     {{-- Status Icon --}}
                     <div class="flex items-center gap-2 text-sm shrink-0">
                         <template x-if="getComboStatus(order)==='belum_bayar'">
-                            <span class="flex items-center gap-1.5 text-amber-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Menunggu Pembayaran</span>
+                            <span class="flex items-center gap-1.5 text-amber-600">Menunggu Pembayaran</span>
                         </template>
                         <template x-if="getComboStatus(order)==='cancel_requested'">
-                            <span class="flex items-center gap-1.5 text-orange-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg> Menunggu Konfirmasi Pembatalan</span>
+                            <span class="flex items-center gap-1.5 text-orange-600">Menunggu Konfirmasi Pembatalan</span>
                         </template>
                         <template x-if="getComboStatus(order)==='dikemas'">
-                            <span class="flex items-center gap-1.5 text-blue-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg> Sedang Dikemas</span>
+                            <span class="flex items-center gap-1.5 text-blue-600">Sedang Dikemas</span>
                         </template>
                         <template x-if="getComboStatus(order)==='dikirim'">
-                            <span class="flex items-center gap-1.5 text-indigo-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l2-1 2 1 2-1 2 1m0 0V6a1 1 0 011-1h2a1 1 0 011 1v4l4 2v6h-3m-7 0h7m-7 0a2 2 0 11-4 0m11 0a2 2 0 11-4 0"/></svg> Sedang Dikirim</span>
+                            <span class="flex items-center gap-1.5 text-indigo-600">Sedang Dikirim</span>
                         </template>
                         <template x-if="getComboStatus(order)==='selesai' || getComboStatus(order)==='sudah_dibayar'">
-                            <span class="flex items-center gap-1.5 text-emerald-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Selesai</span>
+                            <span class="flex items-center gap-1.5 text-emerald-600">Selesai</span>
                         </template>
                         <template x-if="getComboStatus(order)==='dibatalkan'">
                             <div class="flex flex-col">
-                                <span class="flex items-center gap-1.5 text-rose-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Dibatalkan</span>
-                                <span class="text-[10px] text-slate-400 mt-0.5 ml-5" x-text="getCancelReason(order)"></span>
+                                <span class="flex items-center gap-1.5 text-rose-600">Dibatalkan</span>
+                                <span class="text-[10px] text-slate-400 mt-0.5" x-text="getCancelReason(order)"></span>
                             </div>
                         </template>
                     </div>
@@ -242,7 +242,7 @@
                         </div>
 
                         {{-- Action Button: Bayar Sekarang + Batalkan Pesanan --}}
-                        <template x-if="getComboStatus(order)==='belum_bayar'">
+                        <template x-if="['belum_bayar', 'dikemas', 'sudah_dibayar'].includes(getComboStatus(order))">
                             <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                                 <button @click.stop="window.confirmDialog({
                                             title: 'Batalkan Pesanan?',
@@ -258,10 +258,12 @@
                                     @csrf
                                     @method('PATCH')
                                 </form>
-                                <button @click.stop="processPayment(order.kode, $event)" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-[#D4A017] hover:bg-[#b58812] text-white text-sm font-bold rounded-full transition-colors shadow-lg shadow-[#D4A017]/20 disabled:opacity-75 disabled:cursor-not-allowed">
-                                    Bayar Sekarang
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
-                                </button>
+                                <template x-if="getComboStatus(order)==='belum_bayar'">
+                                    <button @click.stop="processPayment(order.kode, $event)" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-[#D4A017] hover:bg-[#b58812] text-white text-sm font-bold rounded-full transition-colors shadow-lg shadow-[#D4A017]/20 disabled:opacity-75 disabled:cursor-not-allowed">
+                                        Bayar Sekarang
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                                    </button>
+                                </template>
                             </div>
                         </template>
                     </div>

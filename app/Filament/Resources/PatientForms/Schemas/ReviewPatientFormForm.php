@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\PatientForms\Schemas;
 
-use App\Models\Bundle;
+
 use App\Models\PatientForm;
 use App\Models\Product;
 use App\Models\Treatment;
@@ -10,6 +10,7 @@ use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\Hidden;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Illuminate\Support\Facades\Storage;
@@ -119,19 +120,8 @@ class ReviewPatientFormForm
                                 ->reorderable(false)
                                 ->defaultItems(0)
                                 ->schema([
-                                    Select::make('item_type')
-                                        ->label('Tipe')
-                                        ->options([
-                                            'treatment' => 'Treatment',
-                                            'bundle'    => 'Bundle',
-                                        ])
-                                        ->default('treatment')
-                                        ->reactive()
-                                        ->required()
-                                        ->afterStateUpdated(function ($state, $set) {
-                                            $set('treatment_id', null);
-                                            $set('bundle_id', null);
-                                        }),
+                                    Hidden::make('item_type')
+                                        ->default('treatment'),
 
                                     Select::make('treatment_id')
                                         ->label('Treatment')
@@ -143,21 +133,9 @@ class ReviewPatientFormForm
                                         )
                                         ->searchable()
                                         ->preload()
-                                        ->visible(fn ($get) => ($get('item_type') ?? 'treatment') === 'treatment')
-                                        ->required(fn ($get) => ($get('item_type') ?? 'treatment') === 'treatment'),
+                                        ->required(),
 
-                                    Select::make('bundle_id')
-                                        ->label('Bundle')
-                                        ->options(fn () => Bundle::query()
-                                            ->where('is_active', true)
-                                            ->orderBy('nama')
-                                            ->pluck('nama', 'bundle_id')
-                                            ->all()
-                                        )
-                                        ->searchable()
-                                        ->preload()
-                                        ->visible(fn ($get) => $get('item_type') === 'bundle')
-                                        ->required(fn ($get) => $get('item_type') === 'bundle'),
+
 
                                     Textarea::make('catatan')
                                         ->label('Catatan (opsional)')
@@ -212,11 +190,10 @@ class ReviewPatientFormForm
         $form->loadMissing(['rekomendasiItems']);
 
         $treatments = $form->rekomendasiItems
-            ->filter(fn ($i) => $i->treatment_id || $i->bundle_id)
+            ->filter(fn ($i) => $i->treatment_id)
             ->map(fn ($i) => [
-                'item_type'    => $i->treatment_id ? 'treatment' : 'bundle',
+                'item_type'    => 'treatment',
                 'treatment_id' => $i->treatment_id,
-                'bundle_id'    => $i->bundle_id,
                 'catatan'      => $i->catatan,
             ])
             ->values()

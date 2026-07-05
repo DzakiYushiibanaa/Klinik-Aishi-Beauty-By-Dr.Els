@@ -63,15 +63,7 @@ class PatientFormForm
                                 return $pasien->getKey();
                             }),
 
-                        Select::make('tipe_form')
-                            ->label('Tipe Form')
-                            ->options([
-                                'pra_konsul' => 'Pra Konsultasi',
-                                'registrasi_member' => 'Registrasi Member',
-                                'offline_intake' => 'Offline Intake',
-                            ])
-                            ->required()
-                            ->default('pra_konsul'),
+
                     ])->columns(2),
 
                 Section::make('Keluhan dan Bukti Foto')

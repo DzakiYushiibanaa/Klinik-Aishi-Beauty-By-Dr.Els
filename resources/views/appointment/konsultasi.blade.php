@@ -430,7 +430,7 @@ function konsultasiWizard() {
         nama_pasien: '{{ $user->name }}',
         nomor_wa: '{{ $user->phone }}',
         email: '{{ $user->email }}',
-        tanggal_lahir: '{{ $user->tanggal_lahir }}',
+        tanggal_lahir: '{{ $user->pasienProfile?->tanggal_lahir }}',
 
         // Data jadwal dari backend
         jadwalData: @json($jadwals),

@@ -150,7 +150,7 @@
             @forelse($order->items as $item)
             <tr>
                 <td>
-                    <span class="info-bold">{{ $item->product->nama ?? $item->treatment->nama ?? $item->bundle->nama ?? $item->description ?? 'Item' }}</span>
+                    <span class="info-bold">{{ $item->product->nama ?? $item->treatment->nama ?? $item->description ?? 'Item' }}</span>
                 </td>
                 <td class="text-center">{{ $item->qty }}</td>
                 <td class="text-right">Rp {{ number_format($item->harga_satuan ?? 0, 0, ',', '.') }}</td>

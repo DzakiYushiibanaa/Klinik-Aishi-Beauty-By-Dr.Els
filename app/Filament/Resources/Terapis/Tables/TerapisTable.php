@@ -24,6 +24,7 @@ class TerapisTable
         return $table
             ->defaultSort('terapis_id', 'desc')
             ->columns([
+                \Filament\Tables\Columns\TextColumn::make("No")->rowIndex(),
                 ImageColumn::make('foto_profil_path')
                     ->label('')
                     ->disk('public')

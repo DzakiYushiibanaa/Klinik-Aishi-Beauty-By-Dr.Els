@@ -402,7 +402,7 @@
                         <div class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3.5 text-sm text-[#1A1A1A]" x-text="nomor_wa || '+62 812 3456 7890'"></div>
                     </div>
                     <div>
-                        <label class="block text-sm font-semibold text-[#1A1A1A] mb-2">Email <span class="text-gray-400 font-normal">(Opsional)</span></label>
+                        <label class="block text-sm font-semibold text-[#1A1A1A] mb-2">Email</label>
                         <div class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3.5 text-sm text-[#1A1A1A]" x-text="email || 'contoh@email.com'"></div>
                     </div>
                 </div>

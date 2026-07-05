@@ -132,7 +132,7 @@ class PraKonsulController extends Controller
         $form = new PatientForm();
         $form->pasien_id = \App\Models\Pasien::where('user_id', auth()->id())->value('pasien_id');
         $form->dokter_id = null;
-        $form->tipe_form = 'pra_konsul';
+
 
         $form->golongan_darah         = $data['golongan_darah'] ?? null;
         $form->riwayat_penyakit       = $data['riwayat_penyakit'] ?? null;

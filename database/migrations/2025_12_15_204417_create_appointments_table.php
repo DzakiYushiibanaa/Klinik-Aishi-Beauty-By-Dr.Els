@@ -26,7 +26,7 @@ return new class extends Migration
             $table->unsignedBigInteger('treatment_id')->nullable(); // wajib kalau jenis=treatment
 
             $table->dateTime('tanggal_jam');
-            $table->string('status')->default('diajukan'); // diajukan, disetujui, batal, selesai, tidak_hadir
+            $table->string('status')->default('disetujui'); // disetujui, diajukan, batal, selesai, tidak_hadir
 
             $table->text('catatan_pasien')->nullable();
             $table->text('catatan_klinik')->nullable();

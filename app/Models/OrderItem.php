@@ -10,7 +10,7 @@ class OrderItem extends Model
     protected $primaryKey = 'order_item_id';
 
     protected $fillable = [
-        'order_id','appointment_id','product_id','treatment_id','bundle_id','consultation_id',
+        'order_id','appointment_id','product_id','treatment_id','consultation_id',
         'item_type','description','qty','harga_satuan','diskon','subtotal',
     ];
 
@@ -41,10 +41,7 @@ class OrderItem extends Model
         return $this->belongsTo(Treatment::class, 'treatment_id', 'treatment_id');
     }
 
-    public function bundle()
-    {
-        return $this->belongsTo(Bundle::class, 'bundle_id', 'bundle_id');
-    }
+    
 
     public function consultation()
     {

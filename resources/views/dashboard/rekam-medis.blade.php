@@ -33,7 +33,7 @@
             @foreach($rekamMedis as $rm)
                 @php
                     /* ── Layanan: ambil dari appointment items, pisahkan
-                          consultation vs treatment/bundle, dedup nama. */
+                          consultation vs treatment, dedup nama. */
                     $items = $rm->appointment?->items ?? collect();
 
                     $consultationNames = $items
@@ -44,11 +44,8 @@
                         ->values();
 
                     $treatmentNames = $items
-                        ->filter(fn ($i) => in_array(strtolower((string) $i->item_type), ['treatment', 'bundle'], true))
-                        ->map(fn ($i) => $i->item_type === 'bundle'
-                            ? 'Bundle: ' . ($i->bundle?->nama ?? '')
-                            : $i->treatment?->nama
-                        )
+                        ->filter(fn ($i) => in_array(strtolower((string) $i->item_type), ['treatment'], true))
+                        ->map(fn ($i) => $i->treatment?->nama)
                         ->filter()
                         ->unique()
                         ->values();

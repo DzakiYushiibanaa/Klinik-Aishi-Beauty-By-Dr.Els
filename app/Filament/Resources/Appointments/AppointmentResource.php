@@ -45,7 +45,7 @@ class AppointmentResource extends Resource
         // 2. Eager load relasi (biar enteng query-nya)
         $query->with([
             'items.treatment',
-            'items.bundle',
+            
             'items.consultation',
             'pasien',
             'dokter',

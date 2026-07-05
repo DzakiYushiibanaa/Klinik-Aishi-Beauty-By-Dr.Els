@@ -62,6 +62,11 @@ class PatientFormResource extends Resource
         return $query;
     }
 
+    public static function canCreate(): bool
+    {
+        return false;
+    }
+
     public static function shouldRegisterNavigation(): bool
     {
         /** @var User|null $user */

@@ -390,7 +390,7 @@ class FonnteService
 
         $ringkasanProduk = $order->items
             ->take(3)
-            ->map(fn ($i) => '- '.($i->product?->nama ?? $i->treatment?->nama ?? $i->bundle?->nama ?? $i->description ?? 'Item').' x'.((int) $i->qty))
+            ->map(fn ($i) => '- '.($i->product?->nama ?? $i->treatment?->nama ?? $i->description ?? 'Item').' x'.((int) $i->qty))
             ->implode("\n");
 
         if ($order->items->count() > 3) {
@@ -522,16 +522,14 @@ class FonnteService
         // tidak kosong kalau dokter belum sempat menulis diagnosa.
         $ringkasan = trim((string) ($form->diagnosa ?: ($form->keluhan_utama ?: '-')));
 
-        // Pisahkan rekomendasi item per kategori (treatment+bundle, produk).
-        $form->loadMissing(['rekomendasiItems.treatment', 'rekomendasiItems.product', 'rekomendasiItems.bundle']);
+        // Pisahkan rekomendasi item per kategori (treatment, produk).
+        $form->loadMissing(['rekomendasiItems.treatment', 'rekomendasiItems.product']);
 
         $treatments = collect();
         $products   = collect();
         foreach (($form->rekomendasiItems ?? collect()) as $item) {
             if ($item->treatment_id && $item->treatment) {
                 $treatments->push($item->treatment->nama);
-            } elseif ($item->bundle_id && $item->bundle) {
-                $treatments->push('Bundle: '.$item->bundle->nama);
             } elseif ($item->product_id && $item->product) {
                 $products->push($item->product->nama);
             }
@@ -650,7 +648,7 @@ class FonnteService
         }
 
         $items = $a->items?->filter(
-            fn ($i) => in_array(strtolower((string) $i->item_type), ['treatment', 'bundle'], true)
+            fn ($i) => in_array(strtolower((string) $i->item_type), ['treatment'], true)
         )?->values();
 
         if (!$items || $items->isEmpty()) {
@@ -660,7 +658,7 @@ class FonnteService
         $first = $items->first();
         $name = match (true) {
             strtolower((string) $first->item_type) === 'treatment' && $first->treatment => $first->treatment->nama,
-            strtolower((string) $first->item_type) === 'bundle'    && $first->bundle    => 'Bundle: '.$first->bundle->nama,
+
             default => ucfirst($jenis),
         };
 

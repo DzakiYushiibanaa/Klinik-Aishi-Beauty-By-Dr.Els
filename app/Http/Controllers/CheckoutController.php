@@ -121,6 +121,19 @@ class CheckoutController extends Controller
                         if (!empty($dataArray)) {
                             foreach ($dataArray as $service) {
                                 if (isset($service['service'], $service['cost'], $service['etd'])) {
+                                    $serviceName = strtoupper($service['service']);
+                                    
+                                    // Jika berat di bawah 5kg, jangan tampilkan layanan kargo/trucking
+                                    // karena biaya minimum charge-nya bisa sangat mahal untuk barang kecil
+                                    if ($weight < 5000 && (
+                                        str_contains($serviceName, 'JTR') ||
+                                        str_contains($serviceName, 'TRUCK') ||
+                                        str_contains($serviceName, 'CARGO') ||
+                                        str_contains($serviceName, 'KARGO')
+                                    )) {
+                                        continue;
+                                    }
+
                                     $results[] = [
                                         'courier_code' => strtoupper($code),
                                         'service'      => $service['service'],
@@ -348,6 +361,13 @@ class CheckoutController extends Controller
                     if ($prod) {
                         $prod->decrement('stok', $qty);
                         $stockDeducted = true;
+
+                        \App\Models\StockHistory::create([
+                            'product_id' => $prod->product_id,
+                            'order_id'   => $order->order_id,
+                            'jenis'      => 'keluar',
+                            'jumlah'     => $qty,
+                        ]);
                     }
                 }
                 
@@ -359,6 +379,13 @@ class CheckoutController extends Controller
                             if($bItem->product) {
                                 $bItem->product->decrement('stok', $bItem->qty * $qty);
                                 $stockDeducted = true;
+
+                                \App\Models\StockHistory::create([
+                                    'product_id' => $bItem->product->product_id,
+                                    'order_id'   => $order->order_id,
+                                    'jenis'      => 'keluar',
+                                    'jumlah'     => $bItem->qty * $qty,
+                                ]);
                             }
                         }
                     }

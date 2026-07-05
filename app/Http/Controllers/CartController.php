@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
-use App\Models\Bundle;
+
 use Illuminate\Http\Request;
 
 class CartController extends Controller
@@ -49,7 +49,7 @@ class CartController extends Controller
                 'type'       => 'product',
                 'id'         => $product->product_id,
                 'product_id' => $product->product_id,
-                'bundle_id'  => null,
+
                 'nama'       => $product->nama,
                 'harga'      => (int) $product->harga,
                 'berat_gram' => (int) $product->berat_gram,
@@ -73,64 +73,6 @@ class CartController extends Controller
         return redirect()->route('cart.index')->with('success', $message);
     }
 
-    // ==========================================
-    // 2. ADD BUNDLE (FIXED - Kalkulasi Berat Real)
-    // ==========================================
-    public function addBundle(Request $request, Bundle $bundle)
-    {
-        abort_unless($bundle->is_active, 404);
-
-        $qty  = max(1, (int) $request->input('qty', 1));
-        $cart = $this->cart();
-        $key  = 'bundle_' . $bundle->bundle_id;
-
-        $alreadyExists = isset($cart[$key]);
-
-        if ($alreadyExists) {
-            $cart[$key]['qty'] = min(99, max((int) $cart[$key]['qty'], $qty));
-            $this->putCart($cart);
-
-            $message = 'Jumlah paket di keranjang Anda diperbarui.';
-        } else {
-            // 🔥 HITUNG BERAT REAL DARI ISI BUNDLE
-            $totalBerat = 0;
-            $bundle->load(['productItems.product', 'treatmentItems.treatment']);
-            foreach ($bundle->productItems as $item) {
-                if ($item->product) {
-                    $totalBerat += (int) $item->product->berat_gram * (int) $item->qty;
-                }
-            }
-            $totalBerat = max($totalBerat, 100);
-
-            $harga = $bundle->harga_promo > 0 ? $bundle->harga_promo : $bundle->harga_normal;
-
-            $cart[$key] = [
-                'type'       => 'bundle',
-                'id'         => $bundle->bundle_id,
-                'product_id' => null,
-                'bundle_id'  => $bundle->bundle_id,
-                'nama'       => $bundle->nama,
-                'harga'      => (int) $harga,
-                'berat_gram' => $totalBerat,
-                'foto_path'  => $bundle->foto_path,
-                'qty'        => $qty,
-            ];
-            $this->putCart($cart);
-
-            $message = 'Paket hemat berhasil ditambahkan ke keranjang.';
-        }
-
-        if ($request->expectsJson() || $request->ajax()) {
-            return response()->json([
-                'success'    => true,
-                'message'    => $message,
-                'name'       => $bundle->nama,
-                'cart_count' => collect($this->cart())->sum('qty'),
-            ]);
-        }
-
-        return back()->with('success', $message);
-    }
 
     // ==========================================
     // 3. UPDATE

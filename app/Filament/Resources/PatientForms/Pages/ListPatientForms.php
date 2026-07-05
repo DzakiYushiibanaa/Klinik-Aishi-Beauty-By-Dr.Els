@@ -13,21 +13,6 @@ class ListPatientForms extends ListRecords
 
     protected function getHeaderActions(): array
     {
-        return [
-            CreateAction::make()
-                ->label('New Patient Form')
-                ->icon('heroicon-o-plus')
-                ->color('primary')
-                ->model(\App\Models\PatientForm::class)
-                ->form(fn ($form) => PatientFormForm::configure($form))
-                ->slideOver()
-                ->stickyModalFooter()
-                ->modalHeading('Create Patient Form')
-                ->modalWidth('2xl')
-                ->modalSubmitActionLabel('Simpan')
-                ->modalCancelActionLabel('Batalkan')
-                ->modalFooterActionsAlignment(\Filament\Support\Enums\Alignment::End)
-                ->createAnother(false),
-        ];
+        return [];
     }
 }

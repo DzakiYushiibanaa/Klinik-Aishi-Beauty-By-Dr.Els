@@ -109,7 +109,7 @@
             <div>
                 <label class="block text-xs font-bold text-slate-500 mb-1">Tanggal Lahir</label>
                 <x-date-picker name="tanggal_lahir"
-                               :value="old('tanggal_lahir', $user->tanggal_lahir)"
+                               :value="old('tanggal_lahir', $user->pasienProfile?->tanggal_lahir)"
                                placeholder="dd/mm/yyyy" />
             </div>
 
@@ -117,11 +117,11 @@
                 <label class="block text-xs font-bold text-slate-500 mb-2">Jenis Kelamin</label>
                 <div class="flex gap-4">
                     <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="jenis_kelamin" value="L" {{ old('jenis_kelamin', $user->jenis_kelamin) == 'L' ? 'checked' : '' }} class="text-[#CFAF53] focus:ring-[#CFAF53]">
+                        <input type="radio" name="jenis_kelamin" value="L" {{ old('jenis_kelamin', $user->pasienProfile?->jenis_kelamin) == 'L' ? 'checked' : '' }} class="text-[#CFAF53] focus:ring-[#CFAF53]">
                         <span class="text-sm text-slate-700">Laki-laki</span>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="jenis_kelamin" value="P" {{ old('jenis_kelamin', $user->jenis_kelamin) == 'P' ? 'checked' : '' }} class="text-[#CFAF53] focus:ring-[#CFAF53]">
+                        <input type="radio" name="jenis_kelamin" value="P" {{ old('jenis_kelamin', $user->pasienProfile?->jenis_kelamin) == 'P' ? 'checked' : '' }} class="text-[#CFAF53] focus:ring-[#CFAF53]">
                         <span class="text-sm text-slate-700">Perempuan</span>
                     </label>
                 </div>
@@ -375,9 +375,6 @@
 
         <div class="mt-8 flex justify-end">
             <button type="submit" form="profile-form" class="alamat-submit">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                </svg>
                 <span>Simpan Alamat</span>
             </button>
         </div>

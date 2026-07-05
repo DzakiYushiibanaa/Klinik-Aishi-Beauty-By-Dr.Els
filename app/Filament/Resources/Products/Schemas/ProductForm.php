@@ -72,11 +72,6 @@ class ProductForm
                                 ->numeric()
                                 ->default(0)
                                 ->required(),
-
-                            DatePicker::make('tanggal_kadaluarsa')
-                                ->label('Tanggal Kadaluarsa')
-                                ->native(false)
-                                ->displayFormat('d M Y'),
                         ]),
                     ]),
 

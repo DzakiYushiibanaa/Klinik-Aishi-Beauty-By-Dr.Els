@@ -34,7 +34,6 @@ class RekomendasiItemsRelationManager extends RelationManager
                 ->afterStateUpdated(function ($state, $set) {
                     if ($state) {
                         $set('treatment_id', null);
-                        $set('bundle_id', null);
                     }
                 }),
                 Select::make('treatment_id')
@@ -47,22 +46,9 @@ class RekomendasiItemsRelationManager extends RelationManager
                 ->afterStateUpdated(function ($state, $set) {
                     if ($state) {
                         $set('product_id', null);
-                        $set('bundle_id', null);
                     }
                 }),
-                Select::make('bundle_id')
-                ->label('Bundle')
-                ->relationship('bundle', 'nama')
-                ->searchable()
-                ->preload()
-                ->nullable()
-                ->reactive()
-                ->afterStateUpdated(function ($state, $set) {
-                    if ($state) {
-                        $set('product_id', null);
-                        $set('treatment_id', null);
-                    }
-                }),
+
                 Textarea::make('catatan')
                     ->label('catatan')
                     ->rows(3)
@@ -75,6 +61,7 @@ class RekomendasiItemsRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('catatan')
             ->columns([
+                TextColumn::make('No')->rowIndex(),
                 TextColumn::make('catatan')
                     ->searchable(),
                 TextColumn::make('item_tipe')

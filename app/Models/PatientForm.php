@@ -10,7 +10,7 @@ class PatientForm extends Model
     protected $primaryKey = 'patient_form_id';
 
     protected $fillable = [
-        'pasien_id','dokter_id','tipe_form',
+        'pasien_id','dokter_id',
         'golongan_darah','riwayat_penyakit',
         'jenis_kulit','skincare_sebelumnya','periode_skincare_bulan',
         'pernah_facial','pernah_skin_booster','pernah_laser','pernah_inject_infus',

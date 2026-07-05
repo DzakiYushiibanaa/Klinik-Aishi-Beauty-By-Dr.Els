@@ -25,10 +25,7 @@ class PatientFormObserver
 
     public function updated(PatientForm $form): void
     {
-        // Skip kalau bukan form pra-konsultasi.
-        if (($form->tipe_form ?? null) !== 'pra_konsul') {
-            return;
-        }
+
 
         // Pastikan status memang berubah pada save ini.
         if (!$form->wasChanged('status')) {
@@ -53,7 +50,7 @@ class PatientFormObserver
                 'reviewer',
                 'rekomendasiItems.treatment',
                 'rekomendasiItems.product',
-                'rekomendasiItems.bundle',
+
             ]);
             app(FonnteService::class)->sendPraKonsulReviewed($form);
         } catch (\Throwable $e) {

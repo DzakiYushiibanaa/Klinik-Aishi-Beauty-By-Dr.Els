@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\RekamMedis\Tables;
 
-use App\Models\Bundle;
+
 use App\Models\Product;
 use App\Models\RekamMedis;
 use App\Models\Treatment;
@@ -34,6 +34,7 @@ class RekamMedisTable
         return $table
             ->defaultSort('rekam_medis_id', 'desc')
             ->columns([
+                \Filament\Tables\Columns\TextColumn::make("No")->rowIndex(),
                 self::columnTanggalKunjungan(),
                 self::columnPasien(),
                 self::columnDokter(),
@@ -76,7 +77,7 @@ class RekamMedisTable
                                     ->rows(3),
 
                                 Repeater::make('tindakan_items')
-                                    ->label('Tindakan (Treatment / Bundle)')
+                                    ->label('Tindakan (Treatment)')
                                     ->addActionLabel('+ Tambah Tindakan')
                                     ->defaultItems(0)
                                     ->reorderable(false)
@@ -86,14 +87,12 @@ class RekamMedisTable
                                                 ->label('Tipe')
                                                 ->options([
                                                     'treatment' => 'Treatment',
-                                                    'bundle'    => 'Bundle',
                                                 ])
                                                 ->default('treatment')
                                                 ->required()
                                                 ->reactive()
                                                 ->afterStateUpdated(fn ($state, $set) => [
                                                     $set('treatment_id', null),
-                                                    $set('bundle_id', null),
                                                 ]),
 
                                             Select::make('treatment_id')
@@ -112,22 +111,7 @@ class RekamMedisTable
                                                 ->required(fn (Get $get) => $get('item_type') === 'treatment')
                                                 ->reactive(),
 
-                                            Select::make('bundle_id')
-                                                ->label('Bundle')
-                                                ->options(fn () => Bundle::query()
-                                                    ->where('is_active', true)
-                                                    ->orderBy('nama')
-                                                    ->get()
-                                                    ->mapWithKeys(function ($b) {
-                                                        $price = (int) ($b->harga_promo ?: $b->harga_normal);
-                                                        return [$b->bundle_id => $b->nama . ' — Rp ' . number_format($price, 0, ',', '.')];
-                                                    })
-                                                )
-                                                ->searchable()
-                                                ->preload()
-                                                ->visible(fn (Get $get) => $get('item_type') === 'bundle')
-                                                ->required(fn (Get $get) => $get('item_type') === 'bundle')
-                                                ->reactive(),
+
                                         ]),
 
                                         TextInput::make('qty')
@@ -402,7 +386,7 @@ class RekamMedisTable
                     $firstType = strtolower((string) $record->appointment->items->first()->item_type);
                     $jenis = match ($firstType) {
                         'consultation' => 'konsultasi',
-                        'treatment', 'bundle' => 'treatment',
+                        'treatment' => 'treatment',
                         default => '',
                     };
                 }
@@ -563,7 +547,7 @@ class RekamMedisTable
             ->modalContent(function (RekamMedis $record) {
                 $rm = RekamMedis::with([
                     'appointment.items.treatment',
-                    'appointment.items.bundle',
+
                     'appointment.items.consultation',
                     'appointment.items.handler',
                     'pasien.pasienProfile',
@@ -626,7 +610,7 @@ class RekamMedisTable
      * Aturan:
      *   - Prioritas 1: field `tindakan` yang diisi manual oleh dokter
      *     (boleh berisi catatan / treatment custom).
-     *   - Prioritas 2: appointment items dengan tipe `treatment` atau `bundle`.
+     *   - Prioritas 2: appointment items dengan tipe `treatment`.
      *   - Item `consultation` SENGAJA DI-SKIP karena konsultasi bukan
      *     treatment medis. Untuk RM dari appointment konsultasi murni
      *     yang belum diisi tindakan, method ini mengembalikan null
@@ -641,14 +625,14 @@ class RekamMedisTable
             return strip_tags($record->tindakan);
         }
 
-        // 2) Fallback ke appointment items, hanya tipe treatment & bundle.
+        // 2) Fallback ke appointment items, hanya tipe treatment.
         $items = $record->appointment?->items;
         if (!$items || $items->isEmpty()) {
             return null;
         }
 
         $treatmentItems = $items->filter(
-            fn ($i) => in_array(strtolower((string) $i->item_type), ['treatment', 'bundle'], true)
+            fn ($i) => in_array(strtolower((string) $i->item_type), ['treatment'], true)
         )->values();
 
         if ($treatmentItems->isEmpty()) {
@@ -658,7 +642,6 @@ class RekamMedisTable
         $first = $treatmentItems->first();
         $name = match (true) {
             strtolower((string) $first->item_type) === 'treatment' && $first->treatment => $first->treatment->nama,
-            strtolower((string) $first->item_type) === 'bundle'    && $first->bundle    => 'Bundle: '.$first->bundle->nama,
             default => null,
         };
 
@@ -676,7 +659,7 @@ class RekamMedisTable
 
     /**
      * Hydrate the edit form:
-     * - tindakan_items: read from appointment_items (treatment/bundle only)
+     * - tindakan_items: read from appointment_items (treatment only)
      * - regimen_items:  parse from produk_rekomendasi text if stored as "Nama x2, Nama2"
      *   (best-effort — matching against existing active products)
      */
@@ -687,12 +670,11 @@ class RekamMedisTable
 
         if ($appointment) {
             $tindakanItems = $appointment->items()
-                ->whereIn('item_type', ['treatment', 'bundle'])
+                ->whereIn('item_type', ['treatment'])
                 ->get()
                 ->map(fn ($i) => [
                     'item_type'    => $i->item_type,
                     'treatment_id' => $i->treatment_id,
-                    'bundle_id'    => $i->bundle_id,
                     'qty'          => (int) ($i->qty ?? 1),
                 ])
                 ->all();
@@ -752,8 +734,7 @@ class RekamMedisTable
         // Render tindakan text
         $tindakanRows = array_values(array_filter((array) ($data['tindakan_items'] ?? []), function ($row) {
             $type = $row['item_type'] ?? null;
-            return ($type === 'treatment' && ! empty($row['treatment_id']))
-                || ($type === 'bundle' && ! empty($row['bundle_id']));
+            return ($type === 'treatment' && ! empty($row['treatment_id']));
         }));
 
         $data['tindakan'] = self::renderTindakanText($tindakanRows);
@@ -785,9 +766,6 @@ class RekamMedisTable
 
             if ($row['item_type'] === 'treatment') {
                 $name = Treatment::query()->whereKey($row['treatment_id'])->value('nama');
-            } elseif ($row['item_type'] === 'bundle') {
-                $bundleNama = Bundle::query()->whereKey($row['bundle_id'])->value('nama');
-                $name = $bundleNama ? 'Bundle: ' . $bundleNama : null;
             }
 
             if ($name) {
@@ -814,7 +792,7 @@ class RekamMedisTable
     }
 
     /**
-     * Replace the linked appointment's treatment/bundle items with the rows
+     * Replace the linked appointment's treatment items with the rows
      * submitted from the rekam medis edit modal. Consultation items are preserved.
      */
     private static function syncAppointmentTreatments(RekamMedis $record, array $rows): void
@@ -822,14 +800,13 @@ class RekamMedisTable
         $appointment = $record->appointment;
         if (! $appointment) return;
 
-        $appointment->items()->whereIn('item_type', ['treatment', 'bundle'])->delete();
+        $appointment->items()->whereIn('item_type', ['treatment'])->delete();
 
         foreach ($rows as $row) {
             $type = $row['item_type'];
             $appointment->items()->create([
                 'item_type'    => $type,
                 'treatment_id' => $type === 'treatment' ? (int) $row['treatment_id'] : null,
-                'bundle_id'    => $type === 'bundle' ? (int) $row['bundle_id'] : null,
                 'qty'          => max(1, (int) ($row['qty'] ?? 1)),
             ]);
         }

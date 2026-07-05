@@ -20,7 +20,6 @@ return new class extends Migration
         $table->integer('harga');
         $table->integer('berat_gram')->default(0);
         $table->integer('stok')->default(0);
-        $table->date('tanggal_kadaluarsa')->nullable();
         $table->string('foto_path')->nullable();
         $table->boolean('is_active')->default(true);
 

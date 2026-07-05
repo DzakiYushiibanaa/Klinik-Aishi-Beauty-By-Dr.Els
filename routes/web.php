@@ -1,7 +1,7 @@
 <?php
 
 use App\Http\Controllers\AppointmentController;
-use App\Http\Controllers\BundleController;
+
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\DashboardController;
@@ -30,13 +30,6 @@ Route::get('/shop/{product}', [ShopController::class, 'show'])->name('shop.show'
 // 
 Route::get('/treatment', [TreatmentController::class, 'index'])->name('treatment.index');
 Route::get('/treatment/{treatment}', [TreatmentController::class, 'show'])->name('treatment.show');
-
-// ============================
-// BUNDLE 
-// ============================
-// 
-Route::get('/bundle', [BundleController::class, 'index'])->name('bundle.index');
-Route::get('/bundle/{bundle}', [BundleController::class, 'show'])->name('bundle.show');
 
 Route::get('/forum', [ForumController::class, 'index'])->name('forum.index');
 Route::get('/forum/{id}', [ForumController::class, 'show'])
@@ -76,7 +69,7 @@ Route::middleware(['auth'])->group(function () {
     // ============================
     Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
     Route::post('/cart/add/{product}', [CartController::class, 'add'])->name('cart.add');
-    Route::post('/cart/add-bundle/{bundle}', [CartController::class, 'addBundle'])->name('cart.add_bundle');
+
     Route::post('/cart/update', [CartController::class, 'update'])->name('cart.update');
     Route::post('/cart/remove/{product}', [CartController::class, 'remove'])->name('cart.remove');
 

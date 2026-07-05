@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\Log;
 /**
  * Finalizes an appointment "Mulai Layanan" workflow:
  *
- * 1. Syncs the appointment's linked items (konsultasi + treatments/bundles from form).
+ * 1. Syncs the appointment's linked items (konsultasi + treatments from form).
  * 2. Creates/updates the medical record (Rekam Medis) from the form data.
  * 3. Creates an Order (transaksi) that bundles all appointment items + any extra products.
  * 4. Marks the appointment as selesai.
@@ -39,13 +39,13 @@ class StartServiceFinalizer
     public function complete(Appointment $appointment, array $data): array
     {
         // Validasi: setiap item treatment wajib punya handler.
-        // Bundle tetap optional supaya tidak memblokir flow lama.
+
         $this->assertHandlerSelected($data);
 
         return DB::transaction(function () use ($appointment, $data) {
             // 1. Pastikan appointment_items konsisten dengan input form.
             $this->syncAppointmentItems($appointment, $data);
-            $appointment->refresh()->load(['items.treatment', 'items.bundle', 'items.consultation']);
+            $appointment->refresh()->load(['items.treatment', 'items.consultation']);
 
             // 2. Rekam medis (upsert per appointment)
             $rekamMedis = $this->upsertRekamMedis($appointment, $data);
@@ -58,16 +58,24 @@ class StartServiceFinalizer
                 'status' => 'selesai',
             ]);
 
-            app(ConsultationMembershipService::class)
-                ->activateIfEligibleForOrder($order->fresh(['items.consultation', 'items.appointment.items.consultation']));
+            if ($order) {
+                app(ConsultationMembershipService::class)
+                    ->activateIfEligibleForOrder($order->fresh(['items.consultation', 'items.appointment.items.consultation']));
+            }
+
+            // Temukan existing order untuk pass ke notifyCustomer kalau $order null
+            $notifyOrder = $order ?? Order::whereHas('items', function ($q) use ($appointment) {
+                $q->where('appointment_id', $appointment->appointment_id);
+            })->latest()->first();
 
             // 5. Notifikasi ke customer
-            $this->notifyCustomer($appointment->fresh(), $order);
+            $this->notifyCustomer($appointment->fresh(), $notifyOrder);
 
             return [
-                'appointment' => $appointment->fresh(),
-                'rekam_medis' => $rekamMedis,
-                'order'       => $order,
+                'appointment'  => $appointment->fresh(),
+                'rekam_medis'  => $rekamMedis,
+                'order'        => $notifyOrder,
+                'is_new_order' => $order !== null,
             ];
         });
     }
@@ -83,7 +91,7 @@ class StartServiceFinalizer
 
         foreach ($rows as $row) {
             $type = $row['item_type'] ?? null;
-            if ($type !== 'treatment') continue; // bundle/lain optional.
+            if ($type !== 'treatment') continue;
 
             // Treatment id boleh kosong di repeater (row baru belum diisi);
             // kalau tidak ada treatment_id, anggap row akan di-skip oleh syncAppointmentItems.
@@ -143,26 +151,24 @@ class StartServiceFinalizer
             ]);
         }
 
-        // Treatment / Bundle — the form always submits the full list (default-loaded from DB),
+        // Treatment — the form always submits the full list (default-loaded from DB),
         // so we mirror it back: delete existing follow-ups then recreate from submitted rows.
         // This lets users add OR remove items via the modal.
         $follow = array_values(array_filter((array) ($data['treatment_items'] ?? []), function ($row) {
             $type = $row['item_type'] ?? null;
-            return ($type === 'treatment' && ! empty($row['treatment_id']))
-                || ($type === 'bundle' && ! empty($row['bundle_id']));
+            return ($type === 'treatment' && ! empty($row['treatment_id']));
         }));
 
-        $appointment->items()->whereIn('item_type', ['treatment', 'bundle'])->delete();
+        $appointment->items()->whereIn('item_type', ['treatment'])->delete();
 
         foreach ($follow as $row) {
             $type = $row['item_type'];
 
             // Buat item dulu lalu hitung komisi via calculator (butuh
-            // relasi treatment/bundle yang ter-load).
+            // relasi treatment yang ter-load).
             $item = $appointment->items()->create([
                 'item_type'    => $type,
                 'treatment_id' => $type === 'treatment' ? (int) $row['treatment_id'] : null,
-                'bundle_id'    => $type === 'bundle' ? (int) $row['bundle_id'] : null,
                 'qty'          => max(1, (int) ($row['qty'] ?? 1)),
                 'handled_by_type' => $row['handled_by_type'] ?? null,
                 'handled_by_id'   => isset($row['handled_by_id']) && $row['handled_by_id'] !== ''
@@ -173,7 +179,7 @@ class StartServiceFinalizer
             ]);
 
             // Hitung & persist nominal komisi.
-            $item->loadMissing(['treatment', 'bundle']);
+            $item->loadMissing(['treatment']);
             $amount = TreatmentCommissionCalculator::forItem($item);
             if ($item->commission_amount !== $amount) {
                 $item->commission_amount = $amount;
@@ -231,8 +237,8 @@ class StartServiceFinalizer
     protected function resolveTindakanText(Appointment $appointment): ?string
     {
         $items = $appointment->items()
-            ->whereIn('item_type', ['treatment', 'bundle'])
-            ->with(['treatment', 'bundle'])
+            ->whereIn('item_type', ['treatment'])
+            ->with(['treatment'])
             ->get();
 
         if ($items->isEmpty()) {
@@ -240,8 +246,7 @@ class StartServiceFinalizer
         }
 
         return $items->map(function (AppointmentItem $it) {
-            $name = $it->treatment?->nama
-                ?? ($it->bundle ? 'Bundle: ' . $it->bundle->nama : null);
+            $name = $it->treatment?->nama;
             $qty = (int) ($it->qty ?? 1);
             return $name ? ($name . ($qty > 1 ? " x{$qty}" : '')) : null;
         })->filter()->implode(', ');
@@ -312,56 +317,58 @@ class StartServiceFinalizer
         return $handlerId ? (int) $handlerId : ($appointment->terapis_id ? (int) $appointment->terapis_id : null);
     }
 
-    protected function createOrder(Appointment $appointment, array $data): Order
+    protected function createOrder(Appointment $appointment, array $data): ?Order
     {
-        $items = [];
+        $itemsToBill = [];
 
         // (a) Konsultasi
         if ($appointment->jenis === 'konsultasi') {
             $consultationId = (int) ($data['consultation_id'] ?? 0);
             if ($consultationId && $c = Consultation::find($consultationId)) {
-                $items[] = [
-                    'item_type'       => 'consultation',
-                    'treatment_id'    => null,
-                    'bundle_id'       => null,
-                    'product_id'      => null,
-                    'consultation_id' => $consultationId,
-                    'description'     => $c->nama,
-                    'qty'             => 1,
-                    'harga_satuan'    => (int) $c->harga,
-                    'subtotal'        => (int) $c->harga,
-                ];
+                $alreadyBilled = OrderItem::where('appointment_id', $appointment->appointment_id)
+                                    ->where('item_type', 'consultation')
+                                    ->where('consultation_id', $consultationId)
+                                    ->exists();
+                if (! $alreadyBilled) {
+                    $itemsToBill[] = [
+                        'item_type'       => 'consultation',
+                        'treatment_id'    => null,
+                        'product_id'      => null,
+                        'consultation_id' => $consultationId,
+                        'description'     => $c->nama,
+                        'qty'             => 1,
+                        'harga_satuan'    => (int) $c->harga,
+                        'subtotal'        => (int) $c->harga,
+                    ];
+                }
             }
         }
 
-        // (b) Treatment / Bundle dari appointment_items (sudah di-sync di step 1)
-        foreach ($appointment->items()->whereIn('item_type', ['treatment', 'bundle'])->with(['treatment', 'bundle'])->get() as $it) {
+        // (b) Treatment dari appointment_items (sudah di-sync di step 1)
+        foreach ($appointment->items()->whereIn('item_type', ['treatment'])->with(['treatment'])->get() as $it) {
             $qty = max(1, (int) ($it->qty ?? 1));
 
             if ($it->item_type === 'treatment' && $it->treatment) {
-                $price = (int) $it->treatment->harga;
-                $items[] = [
-                    'item_type'    => 'treatment',
-                    'treatment_id' => $it->treatment_id,
-                    'bundle_id'    => null,
-                    'product_id'   => null,
-                    'description'  => $it->treatment->nama,
-                    'qty'          => $qty,
-                    'harga_satuan' => $price,
-                    'subtotal'     => $price * $qty,
-                ];
-            } elseif ($it->item_type === 'bundle' && $it->bundle) {
-                $price = (int) ($it->bundle->harga_promo ?: $it->bundle->harga_normal);
-                $items[] = [
-                    'item_type'    => 'bundle',
-                    'treatment_id' => null,
-                    'bundle_id'    => $it->bundle_id,
-                    'product_id'   => null,
-                    'description'  => 'Bundle: ' . $it->bundle->nama,
-                    'qty'          => $qty,
-                    'harga_satuan' => $price,
-                    'subtotal'     => $price * $qty,
-                ];
+                $alreadyBilledQty = OrderItem::where('appointment_id', $appointment->appointment_id)
+                                    ->where('item_type', 'treatment')
+                                    ->where('treatment_id', $it->treatment_id)
+                                    ->sum('qty');
+
+                $unbilledQty = max(0, $qty - $alreadyBilledQty);
+
+                if ($unbilledQty > 0) {
+                    $price = (int) $it->treatment->harga;
+                    $itemsToBill[] = [
+                        'item_type'       => 'treatment',
+                        'treatment_id'    => $it->treatment_id,
+                        'product_id'      => null,
+                        'consultation_id' => null,
+                        'description'     => $it->treatment->nama,
+                        'qty'             => $unbilledQty,
+                        'harga_satuan'    => $price,
+                        'subtotal'        => $price * $unbilledQty,
+                    ];
+                }
             }
         }
 
@@ -371,19 +378,23 @@ class StartServiceFinalizer
             if (! $product) continue;
             $qty = $row['qty'];
             $price = (int) $product->harga;
-            $items[] = [
-                'item_type'    => 'product',
-                'treatment_id' => null,
-                'bundle_id'    => null,
-                'product_id'   => $row['product_id'],
-                'description'  => $product->nama . ' (regimen)',
-                'qty'          => $qty,
-                'harga_satuan' => $price,
-                'subtotal'     => $price * $qty,
+            $itemsToBill[] = [
+                'item_type'       => 'product',
+                'treatment_id'    => null,
+                'product_id'      => $row['product_id'],
+                'consultation_id' => null,
+                'description'     => $product->nama . ' (regimen)',
+                'qty'             => $qty,
+                'harga_satuan'    => $price,
+                'subtotal'        => $price * $qty,
             ];
         }
 
-        $subtotal    = array_sum(array_column($items, 'subtotal'));
+        if (empty($itemsToBill)) {
+            return null; // Tidak ada item baru yang perlu ditagihkan
+        }
+
+        $subtotal    = array_sum(array_column($itemsToBill, 'subtotal'));
         $grand_total = $subtotal; // no discount/ongkir in offline flow
 
         $kodeOrder = $this->generateKodeOrder();
@@ -406,14 +417,13 @@ class StartServiceFinalizer
             'paid_at'         => $isPaid ? now() : null,
         ]);
 
-        foreach ($items as $row) {
+        foreach ($itemsToBill as $row) {
             OrderItem::create([
                 'order_id'        => $order->order_id,
                 'appointment_id'  => $appointment->appointment_id,
                 'product_id'      => $row['product_id'],
                 'treatment_id'    => $row['treatment_id'],
-                'bundle_id'       => $row['bundle_id'],
-                'consultation_id' => $row['consultation_id'] ?? null,
+                'consultation_id' => $row['consultation_id'],
                 'item_type'       => $row['item_type'],
                 'description'     => $row['description'],
                 'qty'             => $row['qty'],

@@ -16,6 +16,7 @@ class TreatmentsTable
     {
         return $table
             ->columns([
+                \Filament\Tables\Columns\TextColumn::make("No")->rowIndex(),
                 TextColumn::make('layanan')
                     ->label('LAYANAN')
                     ->html()

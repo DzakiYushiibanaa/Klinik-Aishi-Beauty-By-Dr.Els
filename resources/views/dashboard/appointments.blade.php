@@ -161,10 +161,22 @@
                             $aptStatus = 'disetujui';
                         }
                         $totalDurasi = 0; $totalHarga = 0;
-                        foreach($apt->items as $item) {
-                            if($item->item_type == 'treatment' && $item->treatment) { $totalDurasi += $item->treatment->durasi_menit * $item->qty; $totalHarga += $item->treatment->harga * $item->qty; }
-                            elseif($item->item_type == 'bundle' && $item->bundle) { $totalHarga += $item->bundle->harga * $item->qty; }
-                            elseif($item->item_type == 'consultation' && $item->consultation) { $totalDurasi += $item->consultation->durasi_menit * $item->qty; $totalHarga += $item->consultation->harga * $item->qty; }
+                        $displayItems = count($apt->orderItems) > 0 ? $apt->orderItems : $apt->items;
+                        foreach($displayItems as $item) {
+                            if (isset($item->subtotal)) {
+                                $itemPrice = $item->subtotal;
+                            } else {
+                                $itemPrice = match($item->item_type) {
+                                    'treatment' => $item->treatment ? $item->treatment->harga * $item->qty : 0,
+                                    'consultation' => $item->consultation ? $item->consultation->harga * $item->qty : 0,
+                                    'product' => $item->product ? $item->product->harga * $item->qty : 0,
+                                    default => 0,
+                                };
+                            }
+                            $totalHarga += $itemPrice;
+
+                            if($item->item_type == 'treatment' && $item->treatment) { $totalDurasi += $item->treatment->durasi_menit * $item->qty; }
+                            elseif($item->item_type == 'consultation' && $item->consultation) { $totalDurasi += $item->consultation->durasi_menit * $item->qty; }
                         }
                         $statusLabel = match($aptStatus) { 'diajukan' => 'Diajukan', 'disetujui', 'akan_datang', 'diproses' => 'Disetujui', 'menunggu_pembayaran' => 'Belum Bayar', 'selesai' => 'Selesai', 'batal' => 'Dibatalkan', default => ucfirst(str_replace('_', ' ', (string) $apt->status)) };
                         $statusBadge = match($aptStatus) { 'diajukan' => 'bg-amber-50 text-amber-700 border-amber-200', 'disetujui' => 'bg-blue-50 text-blue-700 border-blue-200', 'menunggu_pembayaran' => 'bg-amber-50 text-amber-600 border-amber-200', 'selesai' => 'bg-emerald-50 text-emerald-700 border-emerald-200', 'batal' => 'bg-rose-50 text-rose-700 border-rose-200', default => 'bg-slate-50 text-slate-600 border-slate-200' };
@@ -182,7 +194,17 @@
                         };
 
                         // Relasi: status pembayaran dari order
-                        $relatedOrder = $appointmentOrderMap[$apt->appointment_id] ?? null;
+                        $relatedOrders = $appointmentOrderMap[$apt->appointment_id] ?? collect();
+                        $paidOrders = collect();
+                        $pendingOrder = null;
+                        
+                        if ($relatedOrders->isNotEmpty()) {
+                            $paidOrders = $relatedOrders->where('status', 'sudah_dibayar');
+                            $pendingOrder = $relatedOrders->where('status', 'menunggu_pembayaran')->first();
+                        }
+                        
+                        $relatedOrder = $pendingOrder ?: ($paidOrders->sortByDesc('created_at')->first() ?: $relatedOrders->sortByDesc('created_at')->first());
+                        
                         $payLabel = null;
                         $payBadge = null;
                         $payFilterKey = 'semua';
@@ -213,7 +235,7 @@
                             }
                         }
 
-                        $searchableText = strtolower(addslashes($staffName . ' ' . $apt->jenis . ' ' . collect($apt->items)->map(function($i) { return $i->treatment?->nama ?? $i->bundle?->nama ?? $i->consultation?->nama ?? ''; })->implode(' ')));
+                        $searchableText = strtolower(addslashes($staffName . ' ' . $apt->jenis . ' ' . collect($apt->items)->map(function($i) { return $i->treatment?->nama ?? $i->consultation?->nama ?? ''; })->implode(' ')));
                     @endphp
 
                     @php
@@ -429,20 +451,32 @@
                             @endif
 
                             {{-- Rincian Accordion --}}
-                            @if(count($apt->items) > 0)
+                            @if(count($displayItems) > 0)
                                 <div class="mt-3 pt-3 border-t border-[#E8E0D8]/40">
                                     <button @click="showRincian = !showRincian" class="flex items-center gap-1.5 text-sm font-bold text-[#CFAF53] hover:text-[#8C7A63] transition-colors">
                                         <svg :class="showRincian ? 'rotate-180' : ''" class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                                        <span x-text="showRincian ? 'Tutup Rincian' : 'Lihat Rincian ({{ count($apt->items) }} Item)'"></span>
+                                        <span x-text="showRincian ? 'Tutup Rincian' : 'Lihat Rincian ({{ count($displayItems) }} Item)'"></span>
                                     </button>
                                     <div x-show="showRincian" x-collapse class="mt-3 space-y-2">
-                                        @foreach($apt->items as $item)
+                                        @foreach($displayItems as $item)
+                                            @php
+                                                if (isset($item->subtotal)) {
+                                                    $itemPrice = $item->subtotal;
+                                                } else {
+                                                    $itemPrice = match($item->item_type) {
+                                                        'treatment' => $item->treatment ? $item->treatment->harga * $item->qty : 0,
+                                                        'consultation' => $item->consultation ? $item->consultation->harga * $item->qty : 0,
+                                                        'product' => $item->product ? $item->product->harga * $item->qty : 0,
+                                                        default => 0,
+                                                    };
+                                                }
+                                            @endphp
                                             @if($item->item_type == 'treatment' && $item->treatment)
-                                                <div class="flex justify-between text-sm"><span class="text-slate-600">{{ $item->treatment->nama }}</span><span class="font-medium text-[#1A1A1A]">Rp {{ number_format($item->treatment->harga, 0, ',', '.') }}</span></div>
-                                            @elseif($item->item_type == 'bundle' && $item->bundle)
-                                                <div class="flex justify-between text-sm"><span class="text-slate-600">{{ $item->bundle->nama }}</span><span class="font-medium text-[#1A1A1A]">Rp {{ number_format($item->bundle->harga, 0, ',', '.') }}</span></div>
+                                                <div class="flex justify-between text-sm"><span class="text-slate-600">{{ $item->treatment->nama }} {!! $item->qty > 1 ? "<span class='text-xs opacity-50'>x{$item->qty}</span>" : "" !!}</span><span class="font-medium text-[#1A1A1A]">Rp {{ number_format($itemPrice, 0, ',', '.') }}</span></div>
                                             @elseif($item->item_type == 'consultation' && $item->consultation)
-                                                <div class="flex justify-between text-sm"><span class="text-slate-600">{{ $item->consultation->nama }}</span><span class="font-medium text-[#1A1A1A]">Rp {{ number_format($item->consultation->harga, 0, ',', '.') }}</span></div>
+                                                <div class="flex justify-between text-sm"><span class="text-slate-600">{{ $item->consultation->nama }} {!! $item->qty > 1 ? "<span class='text-xs opacity-50'>x{$item->qty}</span>" : "" !!}</span><span class="font-medium text-[#1A1A1A]">Rp {{ number_format($itemPrice, 0, ',', '.') }}</span></div>
+                                            @elseif($item->item_type == 'product' && $item->product)
+                                                <div class="flex justify-between text-sm"><span class="text-slate-600">{{ $item->product->nama }} {!! $item->qty > 1 ? "<span class='text-xs opacity-50'>x{$item->qty}</span>" : "" !!}</span><span class="font-medium text-[#1A1A1A]">Rp {{ number_format($itemPrice, 0, ',', '.') }}</span></div>
                                             @endif
                                         @endforeach
                                         <div class="flex justify-between mt-2 pt-2 border-t border-[#E8E0D8]/40 font-bold text-sm">
@@ -579,16 +613,16 @@
                                                     <div class="space-y-3">
                                                         <div>
                                                             <p class="text-[10px] text-slate-400">Kode Pesanan</p>
-                                                            <p class="text-sm font-bold text-[#1A1A1A]">{{ $relatedOrder->kode_order }}</p>
+                                                            <p class="text-sm font-bold text-[#1A1A1A]">{{ $paidOrders->pluck('kode_order')->join(', ') }}</p>
                                                         </div>
                                                         <div>
                                                             <p class="text-[10px] text-slate-400">Tanggal Transaksi</p>
-                                                            <p class="text-sm font-bold text-[#1A1A1A]">{{ $relatedOrder->paid_at ? $relatedOrder->paid_at->translatedFormat('d M Y') : $relatedOrder->created_at->translatedFormat('d M Y') }}</p>
+                                                            <p class="text-sm font-bold text-[#1A1A1A]">{{ $paidOrders->sortByDesc('paid_at')->first()?->paid_at?->translatedFormat('d M Y') ?? $relatedOrder->created_at->translatedFormat('d M Y') }}</p>
                                                         </div>
                                                         <div>
                                                             <p class="text-[10px] text-slate-400">Metode Pembayaran</p>
                                                             @php
-                                                                $channelDisplay = $relatedOrder->payment_channel ?? $relatedOrder->payment_method ?? '-';
+                                                                $channels = $paidOrders->map(fn($o) => $o->payment_channel ?? $o->payment_method ?? '-')->unique();
                                                                 $channelLabels = [
                                                                     'qris' => 'QRIS',
                                                                     'bca' => 'Bank BCA (VA)',
@@ -611,9 +645,9 @@
                                                                     'web_redirect' => 'Midtrans',
                                                                     'midtrans_snap' => 'Midtrans',
                                                                 ];
-                                                                $displayLabel = $channelLabels[strtolower($channelDisplay)] ?? strtoupper($channelDisplay);
+                                                                $displayLabels = $channels->map(fn($c) => $channelLabels[strtolower($c)] ?? strtoupper($c))->join(', ');
                                                             @endphp
-                                                            <p class="text-sm font-bold text-[#1A1A1A]">{{ $displayLabel }}</p>
+                                                            <p class="text-sm font-bold text-[#1A1A1A]">{{ $displayLabels ?: '-' }}</p>
                                                         </div>
                                                         <div>
                                                             <p class="text-[10px] text-slate-400">Jadwal Treatment</p>
@@ -628,16 +662,16 @@
                                                 <table class="w-full text-left border-collapse">
                                                     <thead class="bg-[#FAF8F5] border-b border-[#E8E0D8]/60">
                                                         <tr>
-                                                            <th class="py-3 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Treatment</th>
+                                                            <th class="py-3 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Item</th>
                                                             <th class="py-3 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">Qty</th>
                                                             <th class="py-3 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">Harga</th>
                                                             <th class="py-3 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">Subtotal</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody class="divide-y divide-[#E8E0D8]/40">
-                                                        @foreach($relatedOrder->items as $notaItem)
+                                                        @foreach($paidOrders->pluck('items')->flatten() as $notaItem)
                                                             @php
-                                                                $notaName = $notaItem->treatment?->nama ?? $notaItem->bundle?->nama ?? $notaItem->consultation?->nama ?? $notaItem->description ?? 'Item';
+                                                                $notaName = $notaItem->treatment?->nama ?? $notaItem->consultation?->nama ?? $notaItem->product?->nama ?? $notaItem->description ?? 'Item';
                                                                 $notaPrice = $notaItem->harga_satuan;
                                                                 $notaQty = $notaItem->qty;
                                                             @endphp
@@ -664,12 +698,12 @@
                                             <div class="flex justify-end">
                                                 <div class="w-full sm:w-72 space-y-2.5">
                                                     @php
-                                                        $notaSubtotal    = (int) ($relatedOrder->subtotal ?? $relatedOrder->grand_total);
-                                                        $notaDiskon      = (int) ($relatedOrder->diskon_total ?? 0);
-                                                        $notaOngkir      = (int) ($relatedOrder->ongkir ?? 0);
-                                                        $notaGrand       = (int) ($relatedOrder->grand_total ?? 0);
-                                                        $notaCashRcvd    = (int) ($relatedOrder->cash_received ?? 0);
-                                                        $notaIsCash      = strtolower((string) ($relatedOrder->payment_method ?? '')) === 'cash';
+                                                        $notaSubtotal    = (int) $paidOrders->sum(fn($o) => $o->subtotal ?? $o->grand_total);
+                                                        $notaDiskon      = (int) $paidOrders->sum('diskon_total');
+                                                        $notaOngkir      = (int) $paidOrders->sum('ongkir');
+                                                        $notaGrand       = (int) $paidOrders->sum('grand_total');
+                                                        $notaCashRcvd    = (int) $paidOrders->sum('cash_received');
+                                                        $notaIsCash      = $channels->map(fn($c) => strtolower((string)$c))->contains('cash');
                                                         $notaKembalian   = $notaIsCash && $notaCashRcvd > 0 ? max(0, $notaCashRcvd - $notaGrand) : 0;
                                                     @endphp
 
@@ -916,11 +950,6 @@
                                         <p class="text-[0.8rem] font-bold text-[#CFAF53] uppercase tracking-widest mb-1.5">Jadwal Baru</p>
                                         <p class="text-[1.05rem] font-extrabold text-[#CFAF53] leading-snug"><span x-text="displayDate"></span> • Jam <span x-text="newJam"></span> WIB</p>
                                     </div>
-                                </div>
-
-                                <div class="mt-5 p-4 bg-amber-50 border border-amber-200 rounded-xl flex gap-3 items-start">
-                                    <svg class="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                    <p class="text-[0.9rem] text-amber-800 leading-relaxed">Perubahan jadwal akan mengubah status menjadi <span class="font-bold">Diajukan</span> dan perlu dikonfirmasi ulang oleh admin.</p>
                                 </div>
 
                                 <form action="{{ route('appointments.reschedule', $apt->appointment_id) }}" method="POST" class="mt-6">

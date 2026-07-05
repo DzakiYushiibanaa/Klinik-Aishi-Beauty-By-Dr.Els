@@ -22,6 +22,7 @@ class PatientFormsTable
         return $table
             ->modifyQueryUsing(fn (Builder $query) => $query->with(['pasien.user', 'dokter', 'reviewer']))
             ->columns([
+                \Filament\Tables\Columns\TextColumn::make("No")->rowIndex(),
                 TextColumn::make('patient_form_id')->label('ID')->sortable(),
 
                 TextColumn::make('pasien_name')
@@ -43,21 +44,6 @@ class PatientFormsTable
                                     ->orWhere('email', 'like', "%{$search}%")
                               );
                         });
-                    }),
-                TextColumn::make('tipe_form')
-                    ->label('Tipe')
-                    ->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'pra_konsul', 'Konsultasi Baru' => 'purple',
-                        'offline_intake', 'Follow Up' => 'success',
-                        'treatment', 'Treatment' => 'warning',
-                        default => 'gray',
-                    })
-                    ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'pra_konsul' => 'Konsultasi Baru',
-                        'offline_intake' => 'Follow Up',
-                        'treatment' => 'Treatment',
-                        default => ucfirst(str_replace('_', ' ', $state)),
                     }),
                 TextColumn::make('status')
                     ->label('Status')
@@ -126,8 +112,7 @@ class PatientFormsTable
             ->icon('heroicon-o-clipboard-document-check')
             ->color('primary')
             ->visible(fn (PatientForm $record): bool =>
-                $record->tipe_form === 'pra_konsul'
-                && in_array($record->status, ['baru', 'submitted', 'menunggu'], true)
+                in_array($record->status, ['baru', 'submitted', 'menunggu'], true)
                 && (Filament::auth()->user()?->hasAnyRole(['dokter', 'admin', 'super_admin']) ?? false)
             )
             ->requiresConfirmation()
@@ -190,8 +175,7 @@ class PatientFormsTable
             ->icon('heroicon-o-pencil-square')
             ->color(fn (PatientForm $record) => $record->status === 'direkomendasikan' ? 'gray' : 'info')
             ->visible(fn (PatientForm $record): bool =>
-                $record->tipe_form === 'pra_konsul'
-                && in_array($record->status, ['ditinjau', 'in_review', 'reviewed', 'direkomendasikan'], true)
+                in_array($record->status, ['ditinjau', 'in_review', 'reviewed', 'direkomendasikan'], true)
                 && (Filament::auth()->user()?->hasAnyRole(['dokter', 'admin', 'super_admin']) ?? false)
             )
             ->slideOver()
@@ -210,7 +194,7 @@ class PatientFormsTable
             )
             ->schema(fn (PatientForm $record) => ReviewPatientFormForm::schema($record->fresh()))
             ->modalSubmitActionLabel('Kirim Rekomendasi')
-            ->modalCancelActionLabel('Periksa Lagi')
+            ->modalCancelActionLabel('Cancel')
             ->modalIcon('heroicon-o-paper-airplane')
             ->modalIconColor('primary')
             ->modalAlignment(Alignment::Start)

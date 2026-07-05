@@ -14,6 +14,7 @@ class ForumAnswersTable
     {
         return $table
             ->columns([
+                \Filament\Tables\Columns\TextColumn::make("No")->rowIndex(),
                 TextColumn::make('question.title')
                     ->searchable(),
                 TextColumn::make('dokter.name')

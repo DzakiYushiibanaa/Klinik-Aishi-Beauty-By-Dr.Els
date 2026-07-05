@@ -17,7 +17,7 @@ class OrderShippingUpdated extends Notification
     public function __construct(Order $order)
     {
         // Eager-load relasi yang dipakai email view supaya tidak N+1.
-        $this->order = $order->loadMissing(['items.product', 'items.bundle', 'pasien.pasienProfile']);
+        $this->order = $order->loadMissing(['items.product', 'pasien.pasienProfile']);
     }
 
     /**

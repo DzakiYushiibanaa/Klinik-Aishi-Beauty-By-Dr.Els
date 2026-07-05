@@ -7,6 +7,32 @@
         <header class="pay-header">
             <h1 class="pay-header__title">Selesaikan Pembayaran</h1>
             <p class="pay-header__subtitle">Pesanan Anda siap diproses setelah pembayaran berhasil.</p>
+            
+            {{-- Stepper --}}
+            <ol class="checkout-stepper" aria-label="Progress checkout">
+                <li class="checkout-stepper__step checkout-stepper__step--done">
+                    <span class="checkout-stepper__dot">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                        </svg>
+                    </span>
+                    <span class="checkout-stepper__label">Keranjang</span>
+                </li>
+                <li class="checkout-stepper__connector" aria-hidden="true"></li>
+                <li class="checkout-stepper__step checkout-stepper__step--done">
+                    <span class="checkout-stepper__dot">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                        </svg>
+                    </span>
+                    <span class="checkout-stepper__label">Pengiriman</span>
+                </li>
+                <li class="checkout-stepper__connector" aria-hidden="true"></li>
+                <li class="checkout-stepper__step checkout-stepper__step--active">
+                    <span class="checkout-stepper__dot">3</span>
+                    <span class="checkout-stepper__label">Pembayaran</span>
+                </li>
+            </ol>
         </header>
 
         {{-- ───── MAIN CARD ───── --}}
@@ -38,8 +64,6 @@
                                 $itemImage = asset('storage/' . $item->product->foto_path);
                             } elseif ($item->item_type === 'treatment' && $item->treatment?->foto_path) {
                                 $itemImage = asset('storage/' . $item->treatment->foto_path);
-                            } elseif ($item->item_type === 'bundle' && $item->bundle?->foto_path) {
-                                $itemImage = asset('storage/' . $item->bundle->foto_path);
                             }
                         @endphp
                         <li class="pay-item">
@@ -164,6 +188,74 @@
         font-size: 0.9375rem;
         color: #64748B;
         line-height: 1.55;
+    }
+
+    /* ════════ STEPPER ════════ */
+    .checkout-stepper {
+        list-style: none;
+        margin: 1.25rem auto 0;
+        padding: 0.625rem 0.875rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.625rem;
+        background: #ffffff;
+        border: 1px solid rgba(232, 224, 216, 0.7);
+        border-radius: 9999px;
+        box-shadow: 0 1px 2px rgba(26, 26, 26, 0.03);
+        overflow-x: auto;
+        scrollbar-width: none;
+        max-width: 100%;
+    }
+    .checkout-stepper::-webkit-scrollbar { display: none; }
+    .checkout-stepper__step {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        white-space: nowrap;
+    }
+    .checkout-stepper__dot {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        border-radius: 9999px;
+        background: #ffffff;
+        color: #94A3B8;
+        border: 1.5px solid #E2E8F0;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 0.6875rem;
+        font-weight: 800;
+        flex-shrink: 0;
+    }
+    .checkout-stepper__dot svg { width: 12px; height: 12px; }
+    .checkout-stepper__step--done .checkout-stepper__dot {
+        background: linear-gradient(135deg, #CFAF53 0%, #B8956F 100%);
+        border-color: transparent;
+        color: #ffffff;
+        box-shadow: 0 2px 6px -2px rgba(184, 149, 111, 0.5);
+    }
+    .checkout-stepper__step--active .checkout-stepper__dot {
+        background: rgba(207, 175, 83, 0.14);
+        border-color: rgba(184, 149, 111, 0.55);
+        color: #B8956F;
+    }
+    .checkout-stepper__label {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #94A3B8;
+    }
+    .checkout-stepper__step--done .checkout-stepper__label,
+    .checkout-stepper__step--active .checkout-stepper__label { color: #1A1A1A; }
+    .checkout-stepper__connector {
+        flex: 0 0 24px;
+        height: 1.5px;
+        background: #E2E8F0;
+        border-radius: 9999px;
+    }
+    @media (min-width: 768px) {
+        .checkout-stepper__connector { flex-basis: 32px; }
     }
 
     /* ════════ MAIN CARD ════════ */
