@@ -6,6 +6,7 @@ use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Appointments\Schemas\AppointmentForm;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
+use App\Filament\Resources\Appointments\Support\AppointmentItemSync;
 
 class ListAppointments extends ListRecords
 {
@@ -29,16 +30,16 @@ class ListAppointments extends ListRecords
                 ->mutateFormDataUsing(function (array $data) {
                     // Capture values that are not columns on the appointments table so Filament
                     // doesn't try to write them. They're persisted from ->after() below.
-                    $data = AppointmentForm::captureAndStripConsultationId($data, 'new');
-                    $data = AppointmentForm::captureAndStripFollowupItems($data, 'new');
+                    $data = AppointmentItemSync::captureAndStripConsultationId($data, 'new');
+                    $data = AppointmentItemSync::captureAndStripFollowupItems($data, 'new');
                     return $data;
                 })
                 ->after(function ($record) {
-                    AppointmentForm::syncConsultationItem(
+                    AppointmentItemSync::syncConsultationItem(
                         $record,
-                        AppointmentForm::consumeConsultationId('new'),
+                        AppointmentItemSync::consumeConsultationId('new'),
                     );
-                    AppointmentForm::syncFollowupItems($record->fresh(), 'new');
+                    AppointmentItemSync::syncFollowupItems($record->fresh(), 'new');
                 }),
         ];
     }

@@ -19,12 +19,12 @@ use Illuminate\Support\Facades\Log;
 class SendAppointmentReminders extends Command
 {
     protected $signature = 'appointments:send-reminders';
-    protected $description = 'Kirim pengingat WhatsApp untuk appointment yang dijadwalkan besok.';
+    protected $description = 'Kirim pengingat WhatsApp untuk appointment yang dijadwalkan hari ini.';
 
     public function handle(FonnteService $fonnte): int
     {
-        $tomorrowStart = now()->copy()->addDay()->startOfDay();
-        $tomorrowEnd   = now()->copy()->addDay()->endOfDay();
+        $todayStart = now()->startOfDay();
+        $todayEnd   = now()->endOfDay();
 
         $appointments = Appointment::with([
                 'items.treatment',
@@ -34,11 +34,11 @@ class SendAppointmentReminders extends Command
                 'terapis',
                 'pasien.pasienProfile',
             ])
-            ->whereIn('status', ['diajukan', 'disetujui'])
-            ->whereBetween('tanggal_jam', [$tomorrowStart, $tomorrowEnd])
+            ->whereIn('status', ['disetujui'])
+            ->whereBetween('tanggal_jam', [$todayStart, $todayEnd])
             ->get();
 
-        $this->info("Menemukan {$appointments->count()} appointment besok.");
+        $this->info("Menemukan {$appointments->count()} appointment hari ini.");
 
         $sent = 0;
         $skipped = 0;

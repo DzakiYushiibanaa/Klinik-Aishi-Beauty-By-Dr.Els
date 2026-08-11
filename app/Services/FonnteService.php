@@ -169,7 +169,7 @@ class FonnteService
             '',
             'Halo Kak '.$nama.' 👋',
             '',
-            'Besok Anda memiliki jadwal appointment di Aishi Beauty ✨',
+            'Hari ini Anda memiliki jadwal appointment di Aishi Beauty ✨',
             '',
             '🆔 No. Appointment:',
             $this->kodeAppointment($appointment),

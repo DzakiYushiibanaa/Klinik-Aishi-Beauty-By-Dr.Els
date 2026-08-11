@@ -89,6 +89,11 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasOne(\App\Models\Terapis::class, 'user_id', 'id');
     }
 
+    public function apotekerProfile()
+    {
+        return $this->hasOne(\App\Models\Apoteker::class, 'user_id', 'id');
+    }
+
     public function pasienProfile()
     {
         return $this->hasOne(\App\Models\Pasien::class, 'user_id', 'id');

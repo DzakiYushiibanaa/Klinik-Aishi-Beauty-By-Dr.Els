@@ -77,6 +77,7 @@ class PraKonsulController extends Controller
         $rules = [
             'golongan_darah'         => ['nullable', 'in:A,B,AB,O,-'],
             'riwayat_penyakit'       => ['nullable', 'string'],
+            'riwayat_alergi'         => ['nullable', 'string'],
             'jenis_kulit'            => ['nullable', 'in:Kering,Berminyak,Kombinasi,Sensitif,Normal'],
             'skincare_sebelumnya'    => ['nullable', 'string', 'max:2000'],
             'periode_skincare_bulan' => ['nullable', 'integer', 'min:0', 'max:240'],
@@ -136,6 +137,7 @@ class PraKonsulController extends Controller
 
         $form->golongan_darah         = $data['golongan_darah'] ?? null;
         $form->riwayat_penyakit       = $data['riwayat_penyakit'] ?? null;
+        $form->riwayat_alergi         = $data['riwayat_alergi'] ?? null;
         $form->jenis_kulit            = $data['jenis_kulit'] ?? null;
         $form->skincare_sebelumnya    = $data['skincare_sebelumnya'] ?? null;
         $form->periode_skincare_bulan = $data['periode_skincare_bulan'] ?? null;

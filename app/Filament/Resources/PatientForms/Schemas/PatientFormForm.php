@@ -119,6 +119,11 @@ class PatientFormForm
                             ->label('Riwayat Penyakit')
                             ->rows(3)
                             ->columnSpanFull(),
+
+                        Textarea::make('riwayat_alergi')
+                            ->label('Riwayat Alergi (Obat / Zat Kimia)')
+                            ->rows(3)
+                            ->columnSpanFull(),
                     ])->columns(2),
 
                 Section::make('Riwayat Skincare dan Treatment')

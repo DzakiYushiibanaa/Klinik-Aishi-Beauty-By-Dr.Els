@@ -568,7 +568,7 @@ class AppointmentController extends Controller
         }
 
         // 2. Cek Status
-        if (!in_array($appointment->status, ['diajukan', 'disetujui'])) {
+        if (!in_array($appointment->status, ['disetujui'])) {
             return back()->with('error', 'Janji temu ini tidak dapat dibatalkan lagi.');
         }
 
@@ -690,7 +690,7 @@ class AppointmentController extends Controller
         }
 
         // 2. Cek Status
-        if (!in_array($appointment->status, ['diajukan', 'disetujui'])) {
+        if (!in_array($appointment->status, ['disetujui'])) {
             return back()->with('error', 'Janji temu ini tidak dapat diubah lagi.');
         }
 

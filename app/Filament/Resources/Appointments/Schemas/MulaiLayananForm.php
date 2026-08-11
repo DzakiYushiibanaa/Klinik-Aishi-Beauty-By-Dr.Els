@@ -7,7 +7,8 @@ use App\Models\Appointment;
 use App\Models\Consultation;
 use App\Models\Product;
 use App\Models\Treatment;
-use App\Models\User;
+
+use App\Services\Appointments\TreatmentHandlerResolver;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
@@ -21,24 +22,6 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Illuminate\Support\HtmlString;
-
-/**
- * Form schema untuk modal "Mulai Layanan" pada tabel Appointments.
- *
- * Workflow yang ingin dicapai:
- *   - Dokter / terapis fokus pada pemeriksaan + diagnosa + rekomendasi.
- *   - Pembayaran TIDAK ditangani di sini — diteruskan ke admin/frontdesk
- *     melalui order yang otomatis dibuat oleh StartServiceFinalizer
- *     dengan default `status = menunggu_pembayaran`.
- *   - Untuk appointment konsultasi, dokter bisa menambahkan treatment
- *     lanjutan di hari yang sama via section "Treatment Lanjutan Hari Ini"
- *     (toggle-gated) tanpa perlu membuat appointment baru.
- *
- * Output ke StartServiceFinalizer::complete():
- *   consultation_id (jika konsultasi), treatment_items[] (dengan handler
- *   per item), keluhan, diagnosa, foto_sebelum_path, foto_sesudah_path,
- *   produk_rekomendasi_items[], catatan_lanjutan.
- */
 class MulaiLayananForm
 {
     /**
@@ -72,8 +55,8 @@ class MulaiLayananForm
                 Placeholder::make('pasien_card')
                     ->hiddenLabel()
                     ->content(function () use ($appointment): HtmlString {
-                        $nama = e($appointment->pasien?->name ?? '-');
-                        $rm   = e($appointment->pasien?->pasienProfile?->no_rekam_medis ?? '');
+                        $nama = $appointment->pasien?->name ?? '-';
+                        $rm   = $appointment->pasien?->pasienProfile?->no_rekam_medis ?? '';
 
                         $jenis = strtolower((string) $appointment->jenis);
                         $jenisLabel = match ($jenis) {
@@ -92,7 +75,6 @@ class MulaiLayananForm
                             : '-';
 
                         $statusMap = [
-                            'diajukan'    => ['Diajukan',     '#FEF3C7', '#92400E'],
                             'akan_datang' => ['Disetujui',    '#DCFCE7', '#166534'],
                             'disetujui'   => ['Disetujui',    '#DCFCE7', '#166534'],
                             'diproses'    => ['Disetujui',    '#DCFCE7', '#166534'],
@@ -102,39 +84,18 @@ class MulaiLayananForm
                         [$statusLabel, $statusBg, $statusColor] = $statusMap[strtolower((string) $appointment->status)]
                             ?? ['Diproses', '#DBEAFE', '#1E40AF'];
 
-                        return new HtmlString('
-                            <div style="padding:18px 20px; background:linear-gradient(135deg,#FAF8F5 0%,#FFFFFF 100%); border:1px solid #EDE8E3; border-radius:14px;">
-                                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;">
-                                    <div style="min-width:0;">
-                                        <div style="font-size:1.15rem; font-weight:700; color:#1A1A1A; line-height:1.3;">'.$nama.'</div>
-                                        '.($rm ? '<div style="font-size:0.85rem; color:#8A8078; margin-top:4px; font-variant-numeric:tabular-nums;">'.$rm.'</div>' : '').'
-                                        <div style="display:flex; gap:14px; align-items:center; margin-top:10px; flex-wrap:wrap;">
-                                            <span style="display:inline-flex; align-items:center; gap:6px; font-size:0.875rem; color:#1A1A1A; font-weight:500;">
-                                                <svg width="16" height="16" fill="none" stroke="#B8956F" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
-                                                '.e($jenisLabel).'
-                                            </span>
-                                            <span style="font-size:0.875rem; color:#8A8078;">·</span>
-                                            <span style="display:inline-flex; align-items:center; gap:6px; font-size:0.875rem; color:#1A1A1A;">
-                                                <svg width="16" height="16" fill="none" stroke="#B8956F" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                                                '.e($tanggal).' • '.e($jam).' WIB
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <span style="display:inline-block; padding:5px 12px; background:'.$statusBg.'; color:'.$statusColor.'; font-size:0.75rem; font-weight:600; border-radius:9999px; flex-shrink:0;">
-                                        '.e($statusLabel).'
-                                    </span>
-                                </div>
-                            </div>
-                        ');
+                        return new HtmlString(
+                            view('filament.appointments.ringkasan-pasien-card', compact(
+                                'nama', 'rm', 'jenisLabel', 'tanggal', 'jam',
+                                'statusLabel', 'statusBg', 'statusColor'
+                            ))->render()
+                        );
                     }),
             ]);
     }
 
     // ═══════════════════════════════════════════════════════════
     //  SECTION 2: DETAIL LAYANAN
-    //
-    //  Konsultasi → hanya Select konsultasi.
-    //  Treatment  → Repeater treatment_items (treatment utama).
     // ═══════════════════════════════════════════════════════════
     private static function sectionDetailLayanan(Appointment $appointment): Section
     {
@@ -216,11 +177,6 @@ class MulaiLayananForm
 
     // ═══════════════════════════════════════════════════════════
     //  SECTION 5: TREATMENT LANJUTAN HARI INI
-    //
-    //  Hanya untuk appointment konsultasi. Toggle ON membuka repeater
-    //  treatment + estimasi subtotal real-time. Treatment yang ditambah
-    //  ikut tersimpan ke appointment_items dan order saat finalisasi
-    //  via StartServiceFinalizer (tanpa perlu membuat appointment baru).
     // ═══════════════════════════════════════════════════════════
     private static function sectionTreatmentLanjutan(Appointment $appointment): Section
     {
@@ -254,7 +210,7 @@ class MulaiLayananForm
                     ->visible(fn (Get $get): bool => (bool) $get('add_followup_treatments'))
                     ->content(function (Get $get): HtmlString {
                         $items = (array) ($get('treatment_items') ?? []);
-                        $total = self::calculateTreatmentSubtotal($items);
+                        $total = TreatmentHandlerResolver::calculateTreatmentSubtotal($items);
                         return new HtmlString('
                             <div style="display:flex; justify-content:flex-end; align-items:baseline; gap:10px; padding:12px 0 4px; border-top:1px solid #EDE8E3; margin-top:8px;">
                                 <span style="font-size:0.875rem; color:#8A8078;">Estimasi Subtotal</span>
@@ -332,7 +288,7 @@ class MulaiLayananForm
             ->addActionLabel('+ Tambah Treatment')
             ->defaultItems(0)
             ->default(function () use ($appointment) {
-                [$defaultType, $defaultId] = self::resolveDefaultHandler($appointment);
+                [$defaultType, $defaultId] = TreatmentHandlerResolver::resolveDefaultHandler($appointment);
 
                 return $appointment->items()
                     ->whereIn('item_type', ['treatment'])
@@ -371,7 +327,7 @@ class MulaiLayananForm
                         ->reactive()
                         ->columnSpanFull()
                         ->afterStateUpdated(function ($state, Set $set, Get $get) use ($appointment) {
-                            $allowedTypes = self::resolveAllowedHandlerTypes((int) $state);
+                            $allowedTypes = TreatmentHandlerResolver::resolveAllowedHandlerTypes((int) $state);
                             $currentType  = $get('handled_by_type');
 
                             // Reset kalau tipe yang sudah dipilih tidak valid lagi.
@@ -385,9 +341,9 @@ class MulaiLayananForm
                                 return; // sudah ada handler yang valid.
                             }
 
-                            $defaultId = self::resolveDefaultHandlerIdForTreatment((int) $state, $appointment);
+                            $defaultId = TreatmentHandlerResolver::resolveDefaultHandlerIdForTreatment((int) $state, $appointment);
                             $set('handled_by_id', $defaultId);
-                            $set('handled_by_type', $defaultId ? self::resolveSelectedHandlerType($defaultId) : null);
+                            $set('handled_by_type', $defaultId ? TreatmentHandlerResolver::resolveSelectedHandlerType($defaultId) : null);
                         }),
 
 
@@ -407,10 +363,10 @@ class MulaiLayananForm
 
                     Select::make('handled_by_id')
                         ->label('Dokter / Terapis')
-                        ->placeholder(fn (Get $get): string => self::isDoctorOnlyTreatment((int) $get('treatment_id'))
+                        ->placeholder(fn (Get $get): string => TreatmentHandlerResolver::isDoctorOnlyTreatment((int) $get('treatment_id'))
                             ? 'Pilih dokter'
                             : 'Pilih petugas')
-                        ->options(fn (Get $get): array => self::handlerOptionsForTreatment((int) $get('treatment_id')))
+                        ->options(fn (Get $get): array => TreatmentHandlerResolver::handlerOptionsForTreatment((int) $get('treatment_id')))
                         ->searchable()
                         ->native(false)
                         ->rules([
@@ -420,7 +376,7 @@ class MulaiLayananForm
                                         return;
                                     }
 
-                                    $fail(self::isDoctorOnlyTreatment((int) $get('treatment_id'))
+                                    $fail(TreatmentHandlerResolver::isDoctorOnlyTreatment((int) $get('treatment_id'))
                                         ? 'Pilih dokter yang menangani treatment ini.'
                                         : 'Pilih dokter/terapis yang menangani treatment ini.');
                                 };
@@ -428,204 +384,13 @@ class MulaiLayananForm
                         ])
                         ->dehydrated()
                         ->reactive()
-                        ->afterStateUpdated(fn ($state, Set $set) => $set('handled_by_type', $state ? self::resolveSelectedHandlerType((int) $state) : null))
-                        ->helperText(fn (Get $get): ?string => self::handlerHelperText((int) $get('treatment_id')))
+                        ->afterStateUpdated(fn ($state, Set $set) => $set('handled_by_type', $state ? TreatmentHandlerResolver::resolveSelectedHandlerType((int) $state) : null))
+                        ->helperText(fn (Get $get): ?string => TreatmentHandlerResolver::handlerHelperText((int) $get('treatment_id')))
                         ->columnSpan(['md' => 2]),
                 ]),
             ]);
     }
 
-    /**
-     * Hitung total estimasi tagihan dari array treatment_items
-     * yang masih dalam state form (belum tersimpan ke DB).
-     *
-     * Treatment → harga_treatment × qty.
-     */
-    private static function calculateTreatmentSubtotal(array $items): int
-    {
-        if (empty($items)) {
-            return 0;
-        }
-
-        $treatmentIds = collect($items)
-            ->pluck('treatment_id')
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
-
-
-
-        $treatmentPrices = $treatmentIds
-            ? Treatment::whereIn('treatment_id', $treatmentIds)->pluck('harga', 'treatment_id')->all()
-            : [];
-
-        $total = 0;
-        foreach ($items as $row) {
-            $type = $row['item_type'] ?? 'treatment';
-            $qty  = max(1, (int) ($row['qty'] ?? 1));
-
-            if ($type === 'treatment' && ! empty($row['treatment_id'])) {
-                $price  = (int) ($treatmentPrices[$row['treatment_id']] ?? 0);
-                $total += $price * $qty;
-            }
-        }
-
-        return $total;
-    }
-
-    /**
-     * Tipe staff yang boleh menangani treatment ini, ditentukan oleh
-     * kategori-nya. Fallback ke ['dokter','terapis'] kalau treatment_id
-     * belum dipilih.
-     *
-     * @return array<int, string>
-     */
-    private static function resolveAllowedHandlerTypes(?int $treatmentId): array
-    {
-        if (! $treatmentId) {
-            return ['dokter', 'terapis'];
-        }
-
-        $treatment = Treatment::with('category')->find($treatmentId);
-        $category  = $treatment?->category;
-
-        return $category?->allowedHandlerTypes() ?? ['dokter', 'terapis'];
-    }
-
-    /**
-     * Daftar staff aktif untuk dropdown handler.
-     *
-     *   - dokter  → user role `dokter` dengan `dokter.status_praktik = aktif`
-     *   - terapis → user role `terapis` dengan `terapis.status_kerja = aktif`
-     *
-     * Memastikan dokter/terapis yang nonaktif (cuti / resign / belum
-     * di-assign profil) tidak ikut tampil di dropdown — menghindari
-     * appointment ter-assign ke staff yang sudah tidak praktik.
-     *
-     * @return array<int, string>
-     */
-    private static function activeStaffOptions(string $type): array
-    {
-        $type = strtolower($type);
-
-        if ($type === 'dokter') {
-            return User::role('dokter')
-                ->whereHas('dokterProfile', fn ($q) =>
-                    $q->whereIn('status_praktik', ['aktif', 'Aktif'])
-                )
-                ->orderBy('name')
-                ->pluck('name', 'id')
-                ->all();
-        }
-
-        if ($type === 'terapis') {
-            return User::role('terapis')
-                ->whereHas('terapisProfile', fn ($q) =>
-                    $q->whereIn('status_kerja', ['aktif', 'Aktif'])
-                )
-                ->orderBy('name')
-                ->pluck('name', 'id')
-                ->all();
-        }
-
-        return [];
-    }
-
-    private static function handlerOptionsForTreatment(?int $treatmentId): array
-    {
-        $allowed = self::resolveAllowedHandlerTypes($treatmentId);
-        $options = [];
-
-        if (in_array('dokter', $allowed, true)) {
-            foreach (self::activeStaffOptions('dokter') as $id => $name) {
-                $options[$id] = 'Dr. ' . $name . ' — Dokter';
-            }
-        }
-
-        if (in_array('terapis', $allowed, true)) {
-            foreach (self::activeStaffOptions('terapis') as $id => $name) {
-                $options[$id] = $name . ' — Terapis';
-            }
-        }
-
-        return $options;
-    }
-
-    private static function resolveDefaultHandlerIdForTreatment(?int $treatmentId, Appointment $appointment): ?int
-    {
-        $allowed = self::resolveAllowedHandlerTypes($treatmentId);
-
-        if ($allowed === ['dokter']) {
-            if ($appointment->dokter_id) {
-                return (int) $appointment->dokter_id;
-            }
-
-            $user = auth()->user();
-
-            return $user?->hasRole('dokter')
-                ? (int) $user->id
-                : null;
-        }
-
-        if ($allowed === ['terapis'] && $appointment->terapis_id) {
-            return (int) $appointment->terapis_id;
-        }
-
-        [$defaultType, $defaultId] = self::resolveDefaultHandler($appointment);
-
-        return $defaultType && in_array($defaultType, $allowed, true)
-            ? $defaultId
-            : null;
-    }
-
-    private static function resolveSelectedHandlerType(?int $userId): ?string
-    {
-        if (! $userId) return null;
-
-        $user = User::find($userId);
-        if (! $user) return null;
-
-        if ($user->hasRole('dokter')) return 'dokter';
-        if ($user->hasRole('terapis')) return 'terapis';
-
-        return null;
-    }
-
-    private static function isDoctorOnlyTreatment(?int $treatmentId): bool
-    {
-        return self::resolveAllowedHandlerTypes($treatmentId) === ['dokter'];
-    }
-
-    private static function handlerHelperText(?int $treatmentId): ?string
-    {
-        return self::isDoctorOnlyTreatment($treatmentId)
-            ? 'Treatment ini hanya dapat ditangani oleh dokter.'
-            : null;
-    }
-
-    /**
-     * Default handler dari appointment utama:
-     *   - jenis konsultasi → dokter (kalau appointment.dokter_id ada)
-     *   - jenis treatment  → prefer terapis, fallback ke dokter
-     *
-     * @return array{0: ?string, 1: ?int}
-     */
-    private static function resolveDefaultHandler(Appointment $appointment): array
-    {
-        if ($appointment->jenis === 'konsultasi' && $appointment->dokter_id) {
-            return ['dokter', (int) $appointment->dokter_id];
-        }
-
-        if ($appointment->terapis_id) {
-            return ['terapis', (int) $appointment->terapis_id];
-        }
-        if ($appointment->dokter_id) {
-            return ['dokter', (int) $appointment->dokter_id];
-        }
-
-        return [null, null];
-    }
 
     // Remove resolveKeluhanFromContext
 

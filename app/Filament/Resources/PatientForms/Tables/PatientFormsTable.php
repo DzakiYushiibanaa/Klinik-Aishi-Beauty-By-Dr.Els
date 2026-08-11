@@ -92,19 +92,6 @@ class PatientFormsTable
             ]);
     }
 
-    /**
-     * Action 1 — "Mulai Review".
-     *
-     * Hanya tampil saat form masih `baru`. Memunculkan modal konfirmasi
-     * Filament native (heading + description + dua tombol). Setelah
-     * dokter klik "Ya, Mulai Review":
-     *
-     *   1. Status diubah ke `ditinjau`, reviewed_by = dokter aktif,
-     *      review_started_at = now() (lewat ReviewSubmissionService::start).
-     *   2. WhatsApp dikirim ke pasien (FonnteService::sendPraKonsulReviewStarted).
-     *   3. Tabel di-refresh — tombol pada baris berubah otomatis menjadi
-     *      "Lanjutkan Review" (action #2 di bawah).
-     */
     private static function actionMulaiReview(): Action
     {
         return Action::make('mulai_review')
@@ -153,18 +140,6 @@ class PatientFormsTable
                 }
             });
     }
-
-    /**
-     * Action 2 — "Lanjutkan Review" / "Lihat Rekomendasi".
-     *
-     * Tampil saat status sudah `ditinjau` atau `direkomendasikan`.
-     * Membuka slide-over panel besar 2-kolom dengan data pasien
-     * (read-only) di kiri dan input dokter di kanan.
-     *
-     * Submit final pakai konfirmasi terpisah lewat wire:confirm
-     * supaya dokter benar-benar yakin sebelum WA hasil rekomendasi
-     * dikirim ke pasien.
-     */
     private static function actionLanjutkanReview(): Action
     {
         return Action::make('lanjutkan_review')
@@ -172,7 +147,7 @@ class PatientFormsTable
                 ? 'Lihat Rekomendasi'
                 : 'Lanjutkan Review'
             )
-            ->icon('heroicon-o-pencil-square')
+            ->icon(fn (PatientForm $record) => $record->status === 'direkomendasikan' ? 'heroicon-o-eye' : 'heroicon-o-pencil-square')
             ->color(fn (PatientForm $record) => $record->status === 'direkomendasikan' ? 'gray' : 'info')
             ->visible(fn (PatientForm $record): bool =>
                 in_array($record->status, ['ditinjau', 'in_review', 'reviewed', 'direkomendasikan'], true)
@@ -193,19 +168,21 @@ class PatientFormsTable
                 ReviewPatientFormForm::defaults($record->fresh())
             )
             ->schema(fn (PatientForm $record) => ReviewPatientFormForm::schema($record->fresh()))
-            ->modalSubmitActionLabel('Kirim Rekomendasi')
-            ->modalCancelActionLabel('Cancel')
-            ->modalIcon('heroicon-o-paper-airplane')
-            ->modalIconColor('primary')
-            ->modalAlignment(Alignment::Start)
-            ->modalSubmitAction(function ($action) {
-                return $action->extraAttributes([
+            ->modalSubmitAction(function (\Filament\Actions\Action $action, PatientForm $record) {
+                if ($record->status === 'direkomendasikan') {
+                    return false;
+                }
+                return $action->label('Kirim Rekomendasi')->extraAttributes([
                     'wire:confirm' => 'Kirim Rekomendasi?
 
 Rekomendasi yang dikirim akan langsung terlihat oleh pasien.
 Pastikan analisa dan rekomendasi treatment / skincare sudah sesuai.',
                 ]);
             })
+            ->modalIcon(fn(PatientForm $record) => $record->status === 'direkomendasikan' ? null : 'heroicon-o-paper-airplane')
+            ->modalIconColor('primary')
+            ->modalAlignment(Alignment::Start)
+            ->modalCancelActionLabel(fn (PatientForm $record) => $record->status === 'direkomendasikan' ? 'Tutup' : 'Cancel')
             ->action(function (array $data, PatientForm $record): void {
                 try {
                     app(ReviewSubmissionService::class)->submit($record, $data);

@@ -60,7 +60,7 @@ class TreatmentSalesReport extends Page
         $user = auth()->user();
         if (!$user) return false;
         if (method_exists($user, 'hasRole') && $user->hasRole('super_admin')) return true;
-        return method_exists($user, 'hasAnyRole') ? $user->hasAnyRole(['admin', 'apoteker']) : false;
+        return method_exists($user, 'hasRole') ? $user->hasRole('admin') : false;
     }
 
     public function mount(): void

@@ -29,7 +29,7 @@ class LandingController extends Controller
         // ─── Stats Hero ──────────────────────────────────
         $stats = $this->buildStats();
 
-        return view('welcome', [
+        return view('landing', [
             'featuredProducts'   => $featuredProducts,
             'featuredTreatments' => $featuredTreatments,
             'stats'              => $stats,

@@ -412,7 +412,6 @@ class GlobalSearchService
     protected static function statusBadge(?string $status): ?string
     {
         return match ($status) {
-            'diajukan' => 'Diajukan',
             'disetujui' => 'Akan Datang',
             'menunggu_pembayaran' => 'Belum Bayar',
             'selesai' => 'Selesai',

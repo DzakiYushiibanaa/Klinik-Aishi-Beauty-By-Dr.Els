@@ -12,7 +12,6 @@
     };
 
     $statusMap = [
-        'diajukan'    => ['Diajukan',   '#FEF3C7', '#92400E'],
         'disetujui'   => ['Disetujui',  '#D1FAE5', '#065F46'],
         'selesai'     => ['Selesai',    '#E0F2FE', '#075985'],
         'batal'       => ['Batal',      '#FEE2E2', '#991B1B'],
@@ -102,22 +101,15 @@
 
         <div style="padding:14px; background:#FAF8F5; border:1px solid #EDE8E3; border-radius:10px;">
             <div style="font-size:10px; font-weight:700; color:#8A8078; text-transform:uppercase; margin-bottom:6px; letter-spacing:0.08em;">
-                {{ $appointment->jenis === 'treatment' ? 'Terapis' : 'Dokter' }}
+                Dokter / Terapis
             </div>
-            @if ($appointment->jenis === 'treatment')
-                <div style="font-size:14px; font-weight:700; color:#111827;">
-                    {{ $appointment->terapis?->name ?? '—' }}
-                </div>
-            @else
-                <div style="font-size:14px; font-weight:700; color:#111827;">
-                    {{ $appointment->dokter ? 'Dr. ' . $appointment->dokter->name : '—' }}
-                </div>
-            @endif
-            @if ($appointment->terapis && $appointment->jenis !== 'treatment')
-                <div style="font-size:12px; color:#8A8078; margin-top:2px;">
-                    Terapis: {{ $appointment->terapis->name }}
-                </div>
-            @endif
+            <div style="font-size:14px; font-weight:700; color:#111827;">
+                @php
+                    $drName = $appointment->dokter ? 'Dr. ' . $appointment->dokter->name : '-';
+                    $trName = $appointment->terapis ? $appointment->terapis->name : '-';
+                @endphp
+                {{ $drName }} / {{ $trName }}
+            </div>
         </div>
     </div>
 

@@ -3,143 +3,19 @@
 <div class="pay-page">
     <div class="pay-page__container">
 
-        {{-- ───── HEADER ───── --}}
         <header class="pay-header">
             <h1 class="pay-header__title">Selesaikan Pembayaran</h1>
             <p class="pay-header__subtitle">Pesanan Anda siap diproses setelah pembayaran berhasil.</p>
-            
-            {{-- Stepper --}}
-            <ol class="checkout-stepper" aria-label="Progress checkout">
-                <li class="checkout-stepper__step checkout-stepper__step--done">
-                    <span class="checkout-stepper__dot">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
-                        </svg>
-                    </span>
-                    <span class="checkout-stepper__label">Keranjang</span>
-                </li>
-                <li class="checkout-stepper__connector" aria-hidden="true"></li>
-                <li class="checkout-stepper__step checkout-stepper__step--done">
-                    <span class="checkout-stepper__dot">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
-                        </svg>
-                    </span>
-                    <span class="checkout-stepper__label">Pengiriman</span>
-                </li>
-                <li class="checkout-stepper__connector" aria-hidden="true"></li>
-                <li class="checkout-stepper__step checkout-stepper__step--active">
-                    <span class="checkout-stepper__dot">3</span>
-                    <span class="checkout-stepper__label">Pembayaran</span>
-                </li>
-            </ol>
+            @include('payment._partials._stepper', ['activeStep' => 3])
         </header>
 
-        {{-- ───── MAIN CARD ───── --}}
         <article class="pay-card" aria-labelledby="pay-section-title">
-            {{-- Order ID inline row --}}
-            <div class="pay-orderid">
-                <span class="pay-orderid__label">Order ID</span>
-                <div class="pay-orderid__value">
-                    <span>#{{ $order->kode_order }}</span>
-                    <button type="button"
-                            class="pay-orderid__copy"
-                            onclick="navigator.clipboard.writeText('{{ $order->kode_order }}'); window.showToast && window.showToast('success', 'Kode pesanan disalin.', 'Berhasil');"
-                            aria-label="Salin kode pesanan">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-
-            {{-- Items --}}
-            <section class="pay-section">
-                <h2 id="pay-section-title" class="pay-section__title">Detail Belanja</h2>
-                <ul class="pay-items" role="list">
-                    @foreach($order->items as $item)
-                        @php
-                            $itemImage = null;
-                            if ($item->item_type === 'product' && $item->product?->foto_path) {
-                                $itemImage = asset('storage/' . $item->product->foto_path);
-                            } elseif ($item->item_type === 'treatment' && $item->treatment?->foto_path) {
-                                $itemImage = asset('storage/' . $item->treatment->foto_path);
-                            }
-                        @endphp
-                        <li class="pay-item">
-                            <div class="pay-item__thumb">
-                                @if($itemImage)
-                                    <img src="{{ $itemImage }}" alt="{{ $item->description }}">
-                                @else
-                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                    </svg>
-                                @endif
-                            </div>
-                            <div class="pay-item__body">
-                                <p class="pay-item__name">{{ $item->description }}</p>
-                                <p class="pay-item__qty">{{ $item->qty }} × Rp {{ number_format($item->harga_satuan, 0, ',', '.') }}</p>
-                            </div>
-                            <p class="pay-item__price">Rp {{ number_format($item->subtotal, 0, ',', '.') }}</p>
-                        </li>
-                    @endforeach
-                </ul>
-            </section>
-
-            {{-- Shipping summary (compact) --}}
-            @if($order->shipping_address)
-                <section class="pay-section pay-section--bordered">
-                    <p class="pay-shipping__label">Dikirim ke</p>
-                    <p class="pay-shipping__address">{{ $order->shipping_address }}</p>
-                    @if($order->shipping_method)
-                        <p class="pay-shipping__courier">
-                            Kurir: <strong>{{ strtoupper($order->shipping_method) }}</strong>
-                        </p>
-                    @endif
-                </section>
-            @endif
-
-            {{-- Cost summary --}}
-            <section class="pay-section pay-section--totals">
-                <dl class="pay-totals">
-                    <div>
-                        <dt>Subtotal</dt>
-                        <dd>Rp {{ number_format($order->subtotal, 0, ',', '.') }}</dd>
-                    </div>
-                    @if($order->diskon_total > 0)
-                        <div class="pay-totals__discount">
-                            <dt>Diskon Promo</dt>
-                            <dd>− Rp {{ number_format($order->diskon_total, 0, ',', '.') }}</dd>
-                        </div>
-                    @endif
-                    <div>
-                        <dt>Biaya Pengiriman</dt>
-                        <dd>{{ $order->ongkir > 0 ? 'Rp ' . number_format($order->ongkir, 0, ',', '.') : '—' }}</dd>
-                    </div>
-                </dl>
-
-                <div class="pay-grand">
-                    <span class="pay-grand__label">Total Tagihan</span>
-                    <span class="pay-grand__value">
-                        <span class="pay-grand__currency">Rp</span>{{ number_format($order->grand_total, 0, ',', '.') }}
-                    </span>
-                </div>
-            </section>
-
-            {{-- CTA --}}
-            <button id="pay-button" type="button" class="pay-cta">
-                <span>Bayar Sekarang</span>
-            </button>
-
-            <p class="pay-secure">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                </svg>
-                Pembayaran aman dan terenkripsi.
-            </p>
+            @include('payment._partials._order_id')
+            @include('payment._partials._order_items')
+            @include('payment._partials._shipping_summary')
+            @include('payment._partials._cost_summary')
         </article>
 
-        {{-- Back link --}}
         <a href="{{ route('dashboard') }}" class="pay-back">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>

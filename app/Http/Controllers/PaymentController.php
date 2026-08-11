@@ -413,7 +413,7 @@ class PaymentController extends Controller
 
                     if ($appointmentIds->isNotEmpty()) {
                         Appointment::whereIn('appointment_id', $appointmentIds)
-                            ->whereIn('status', ['menunggu_pembayaran', 'diajukan'])
+                            ->whereIn('status', ['menunggu_pembayaran'])
                             ->update([
                                 'status'             => 'disetujui',
                                 'payment_expired_at' => null, // hapus deadline karena sudah dibayar

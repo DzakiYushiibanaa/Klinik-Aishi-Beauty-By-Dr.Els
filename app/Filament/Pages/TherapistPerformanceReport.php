@@ -59,7 +59,7 @@ class TherapistPerformanceReport extends Page
         $user = auth()->user();
         if (!$user) return false;
         if (method_exists($user, 'hasRole') && $user->hasRole('super_admin')) return true;
-        return method_exists($user, 'hasAnyRole') ? $user->hasAnyRole(['admin', 'apoteker']) : false;
+        return method_exists($user, 'hasRole') ? $user->hasRole('admin') : false;
     }
 
     public function mount(): void
@@ -174,7 +174,7 @@ class TherapistPerformanceReport extends Page
             'now' => now()->translatedFormat('d M Y H:i'),
         ];
 
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.therapist-performance-report', $data)
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf._partials.therapist-performance-report.index', $data)
             ->setPaper('a4', 'landscape');
 
         return response()->streamDownload(
