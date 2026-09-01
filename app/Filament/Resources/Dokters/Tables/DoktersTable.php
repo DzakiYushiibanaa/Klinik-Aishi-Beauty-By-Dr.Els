@@ -56,6 +56,14 @@ class DoktersTable
                             ->orderBy('users.name', $direction)
                             ->select('dokter.*')
                     ),
+                ToggleColumn::make('status_praktik')
+                    ->label('Status Praktik')
+                    ->getStateUsing(fn (Dokter $record) => strtolower($record->status_praktik ?? '') === 'aktif')
+                    ->updateStateUsing(function (Dokter $record, bool $state) {
+                        $record->update(['status_praktik' => $state ? 'aktif' : 'nonaktif']);
+                        return $state;
+                    })
+                    ->sortable(),
 
                 TextColumn::make('kontak')
                     ->label('KONTAK')
@@ -70,15 +78,7 @@ class DoktersTable
                             </div>
                         ';
                     }),
-
-                ToggleColumn::make('status_praktik')
-                    ->label('Status Praktik')
-                    ->getStateUsing(fn (Dokter $record) => strtolower($record->status_praktik ?? '') === 'aktif')
-                    ->updateStateUsing(function (Dokter $record, bool $state) {
-                        $record->update(['status_praktik' => $state ? 'aktif' : 'nonaktif']);
-                        return $state;
-                    })
-                    ->sortable(),
+                
             ])
             ->filters([
                 //

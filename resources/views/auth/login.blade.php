@@ -6,17 +6,17 @@
         {{-- Card Utama (Grid 2 Kolom) --}}
         <div class="w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl transition-all grid grid-cols-1 md:grid-cols-2">
             
-            {{-- KOLOM KIRI: Visual & Branding (Hidden di Mobile) --}}
+            {{-- KOLOM KIRI: Branding (Hidden di Mobile) --}}
             <div class="relative hidden md:flex flex-col justify-between bg-slate-900 p-10 text-white">
                 
-                {{-- Background Image (Ganti src dengan foto klinik kamu) --}}
+                {{-- Background Image --}}
                 <div class="absolute inset-0 z-0 bg-gradient-to-br from-slate-800 to-[#CFAF53]/20">
-                    {{-- Placeholder Image (Bisa diganti asset('img/login-bg.jpg')) --}}
+                    {{-- Placeholder Image --}}
                     <img src="https://images.unsplash.com/photo-1552693673-1bf958298935?q=80&w=2073&auto=format&fit=crop" 
                         alt="Background Register" 
                         class="h-full w-full object-cover opacity-50 grayscale transition duration-700 hover:grayscale-0 hover:opacity-70 hover:scale-105">
 
-                    {{-- Overlay Gradient biar teks kebaca --}}
+                    {{-- Overlay Gradient --}}
                     <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent"></div>
                 </div>
 

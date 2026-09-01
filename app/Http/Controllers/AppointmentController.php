@@ -34,13 +34,10 @@ class AppointmentController extends Controller
         $user = Auth::user();
 
         if (!$user->phone || !$user->pasienProfile?->tanggal_lahir) {
-            // Simpan URL tujuan ke session (persisten lintas request) supaya
-            // setelah profil dilengkapi user bisa langsung kembali ke flow ini.
+            
             session(['profile_required_redirect' => $request->fullUrl()]);
 
-            // Tidak pakai flash 'error' karena UI sudah ditangani oleh modal
-            // <x-profile-required-modal /> di dashboard. Toast error akan
-            // duplikat dengan modal dan terkesan ribut.
+            
             return redirect('/dashboard')
                 ->with('active_tab', 'profile')
                 ->with('show_profile_required_modal', true);
@@ -618,8 +615,7 @@ class AppointmentController extends Controller
                 // Gabung & Hapus Duplikat ID
                 $recipients = $recipients->merge($admins)->unique('id');
 
-                // C. LOOPING INSERT MANUAL KE TABEL NOTIFICATIONS 🔔
-                // Persis seperti cara di DashboardController
+                // LOOPING INSERT MANUAL KE TABEL NOTIFICATIONS 
                 foreach ($recipients as $user) {
                     try {
                         $jenisLayanan = ucfirst($appointment->jenis);
@@ -663,7 +659,7 @@ class AppointmentController extends Controller
                 }
             });
 
-            // 🔔 WhatsApp notification (best-effort, jangan ganggu UX).
+            // WhatsApp notification
             try {
                 $appointmentForWa = Appointment::with(['items.treatment', 'items.consultation', 'dokter', 'terapis', 'pasien'])
                     ->find($appointment->appointment_id);
@@ -751,7 +747,7 @@ class AppointmentController extends Controller
                 }
             });
 
-            // 🔔 WhatsApp notification: konfirmasi pengajuan ubah jadwal.
+            // WhatsApp notification: konfirmasi pengajuan ubah jadwal.
             try {
                 $appointmentForWa = Appointment::with(['items.treatment', 'items.consultation', 'dokter', 'terapis', 'pasien'])
                     ->find($appointment->appointment_id);

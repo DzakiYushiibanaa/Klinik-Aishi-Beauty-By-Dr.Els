@@ -54,21 +54,7 @@ class User extends Authenticatable implements FilamentUser
         ];
     }
 
-    /**
-     * Tentukan akses ke panel Filament.
-     *
-     * Aturan:
-     *   - Panel "admin" hanya boleh diakses oleh staf klinik
-     *     (super_admin, admin, dokter, terapis, apoteker, kasir).
-     *   - User dengan role `pasien` (atau tanpa role staf sama sekali)
-     *     ditolak masuk dan diarahkan kembali ke /dashboard pasien
-     *     lewat middleware/redirect Filament.
-     *   - Staf yang dinonaktifkan (`dokter.status_praktik != aktif`
-     *     atau `terapis.status_kerja != aktif`) juga ditolak walau
-     *     sesinya masih hidup.
-     *   - Default deny — kalau ada panel baru di masa depan, akses
-     *     harus didefinisikan ulang di sini secara eksplisit.
-     */
+    
     public function canAccessPanel(Panel $panel): bool
     {
         if ($panel->getId() === 'admin') {

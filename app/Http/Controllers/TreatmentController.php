@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Treatment;
-use App\Models\TreatmentCategory; // 🔥 Jangan lupa import ini!
+use App\Models\TreatmentCategory;
 use Illuminate\Http\Request;
 
 class TreatmentController extends Controller

@@ -6,7 +6,7 @@
         {{-- Card Utama (Grid 2 Kolom) --}}
         <div class="w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl transition-all grid grid-cols-1 md:grid-cols-2">
             
-            {{-- KOLOM KIRI: Visual & Branding (Gradient Luxury) --}}
+            {{-- KOLOM KIRI: Branding --}}
             <x-auth-brand-panel
                 titleLine1="Mulai Perjalanan"
                 titleHighlight="Kulit Sehatmu."
