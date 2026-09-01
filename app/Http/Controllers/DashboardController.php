@@ -62,7 +62,7 @@ class DashboardController extends Controller
 
         // ── Overview: Jadwal Mendatang ──
         $upcomingAppointments = Appointment::where('user_id', $user->id)
-            ->whereIn('status', ['diajukan', 'disetujui'])
+            ->whereIn('status', ['disetujui'])
             ->where('tanggal_jam', '>=', now())
             ->with(['dokter', 'terapis', 'items.handler', 'items.treatment'])
             ->orderBy('tanggal_jam', 'asc')
@@ -78,7 +78,7 @@ class DashboardController extends Controller
         // ── Stats Overview ──
         $stats = [
             'total_appointments' => $appointments->count(),
-            'upcoming' => $appointments->whereIn('status', ['diajukan', 'disetujui', 'menunggu_pembayaran'])->count(),
+            'upcoming' => $appointments->whereIn('status', ['disetujui', 'menunggu_pembayaran'])->count(),
             'total_orders' => $orders->count(),
             'active_orders' => $orders->where('order_type', 'produk')->whereIn('status', ['menunggu_pembayaran', 'sudah_dibayar'])->whereNotIn('shipping_status', ['selesai', 'dibatalkan'])->count(),
             'total_rekam_medis' => $rekamMedis->count(),
@@ -86,7 +86,7 @@ class DashboardController extends Controller
 
         // ── Sidebar Badges ──
         $badges = [
-            'appointment' => $appointments->whereIn('status', ['diajukan', 'disetujui', 'menunggu_pembayaran'])->count(),
+            'appointment' => $appointments->whereIn('status', ['disetujui', 'menunggu_pembayaran'])->count(),
             'pra_konsul' => $praKonsuls->whereIn('status', ['baru', 'submitted', 'menunggu', 'ditinjau', 'in_review', 'diproses', 'reviewed', 'direkomendasikan'])->count(),
             'pesanan' => $orders->where('order_type', 'produk')->whereIn('status', ['menunggu_pembayaran', 'sudah_dibayar'])->whereNotIn('shipping_status', ['selesai', 'dibatalkan'])->count(),
         ];

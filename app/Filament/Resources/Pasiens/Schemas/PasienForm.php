@@ -118,21 +118,10 @@ class PasienForm
                             ->columnSpanFull(),
                     ]),
 
-                // ===== Section: Alamat & Foto =====
-                Section::make('Alamat & Foto')
+                // ===== Section: Alamat =====
+                Section::make('Alamat')
                     ->columnSpanFull()
                     ->schema([
-                        FileUpload::make('foto_profil_path')
-                            ->label('Foto Profil')
-                            ->disk('public')
-                            ->directory('pasien')
-                            ->image()
-                            ->imageEditor()
-                            ->maxSize(2048)
-                            ->acceptedFileTypes(['image/svg+xml', 'image/png', 'image/jpeg', 'image/gif'])
-                            ->helperText('SVG, PNG, JPG atau GIF (Rekomendasi 800×800px)')
-                            ->columnSpanFull(),
-
                         Textarea::make('alamat')
                             ->label('Alamat Lengkap')
                             ->placeholder('Masukkan alamat lengkap dengan nama jalan, RT/RW, no rumah...')

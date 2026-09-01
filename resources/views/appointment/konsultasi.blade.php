@@ -109,7 +109,7 @@
                                 
                                 <div class="flex-1">
                                     <h3 class="text-base font-bold text-[#1A1A1A]">{{ $dokter->name }}</h3>
-                                    <p class="text-sm text-gray-500">Spesialis Estetika</p>
+                                    <!-- <p class="text-sm text-gray-500">Spesialis Estetika</p> -->
                                 </div>
 
                                 <input type="radio" name="dokter_display_{{ $dokter->id }}" value="{{ $dokter->id }}" x-model="dokterId" 

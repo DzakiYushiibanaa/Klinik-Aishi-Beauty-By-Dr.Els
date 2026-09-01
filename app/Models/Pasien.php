@@ -25,7 +25,7 @@ class Pasien extends Model
         'provinsi',
         'kode_pos',
         
-        // ✨ TAMBAHAN BARU: Raja Ongkir District Integration
+        // Raja Ongkir District Integration
         'province_id',
         'city_id',
         'district_id',

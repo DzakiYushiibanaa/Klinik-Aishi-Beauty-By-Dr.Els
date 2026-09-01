@@ -11,7 +11,7 @@ class PatientForm extends Model
 
     protected $fillable = [
         'pasien_id','dokter_id',
-        'golongan_darah','riwayat_penyakit',
+        'golongan_darah','riwayat_penyakit','riwayat_alergi',
         'jenis_kulit','skincare_sebelumnya','periode_skincare_bulan',
         'pernah_facial','pernah_skin_booster','pernah_laser','pernah_inject_infus',
         'keluhan_utama',

@@ -39,8 +39,8 @@ class ProductSalesReport extends Page
         }
 
         // Admin & apoteker boleh akses laporan.
-        return method_exists($user, 'hasAnyRole')
-            ? $user->hasAnyRole(['admin', 'apoteker'])
+        return method_exists($user, 'hasRole')
+            ? $user->hasRole('admin')
             : false;
     }
 

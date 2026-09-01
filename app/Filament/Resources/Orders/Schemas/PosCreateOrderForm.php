@@ -25,20 +25,6 @@ use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\HtmlString;
 
-/**
- * POS-style Create Order form.
- *
- * Layout:
- *   ┌─ Info Pelanggan ─────┐ ┌─ Ringkasan & Pembayaran ─┐
- *   │ Pilih Pasien         │ │ Kode Promo + Pakai       │
- *   └──────────────────────┘ │ Metode Pembayaran        │
- *   ┌─ Keranjang Belanja ──┐ │ Customer name            │
- *   │ Produk/Layanan       │ │ Item list (live)         │
- *   │ Qty · Harga          │ │ Subtotal · Diskon        │
- *   │ Diskon · Subtotal    │ │ TOTAL BAYAR              │
- *   └──────────────────────┘ │ [Terima Pembayaran]      │
- *                            └──────────────────────────┘
- */
 class PosCreateOrderForm
 {
     public static function configure(Schema $schema): Schema

@@ -569,7 +569,6 @@ class AdminDashboardService
     public static function statusLabel(?string $status): string
     {
         return match ($status) {
-            'diajukan' => 'Diajukan',
             'disetujui' => 'Akan Datang',
             'menunggu_pembayaran' => 'Belum Bayar',
             'selesai' => 'Selesai',

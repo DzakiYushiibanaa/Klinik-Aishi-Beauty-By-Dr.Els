@@ -6,7 +6,6 @@
 @forelse ($appointments as $a)
     @php
         $statusLabel = match ($a->status) {
-            'diajukan' => 'Diajukan',
             'akan_datang', 'diproses', 'disetujui' => 'Disetujui',
             'selesai' => 'Selesai',
             'batal' => 'Dibatalkan',
