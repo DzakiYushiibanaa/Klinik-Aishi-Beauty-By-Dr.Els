@@ -1,164 +1,54 @@
-# syntax=docker/dockerfile:1.6
+FROM php:8.2-cli
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Klinik Aishi Beauty — Laravel 12 + Filament 4
-# Target: Railway / Docker platforms
-#
-# Multi-stage:
-#   1. deps      — install composer deps + build Vite assets
-#   2. runtime   — PHP 8.3 + Apache production runtime
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-# =============================================================================
-# Stage 1 — Dependencies + Frontend Build
-# =============================================================================
-FROM php:8.3-cli AS deps
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        git \
-        unzip \
-        curl \
-        ca-certificates \
-        libicu-dev \
-        libzip-dev \
-        libpng-dev \
-        libjpeg62-turbo-dev \
-        libfreetype6-dev \
-        libonig-dev \
-        libxml2-dev \
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y --no-install-recommends nodejs \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j"$(nproc)" \
-        pdo_mysql \
-        intl \
-        zip \
-        gd \
-        bcmath \
-        sockets \
-        exif \
-    && curl -sS https://getcomposer.org/installer | php -- \
-        --install-dir=/usr/local/bin \
-        --filename=composer \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-
-# Copy composer manifest
-COPY composer.json composer.lock ./
-
-# Install PHP dependencies
-RUN composer install \
-        --no-dev \
-        --no-interaction \
-        --no-scripts \
-        --no-progress \
-        --prefer-dist \
-        --no-autoloader
-
-# Copy npm manifest
-COPY package.json package-lock.json* ./
-
-# Install node modules
-RUN npm ci --no-audit --no-fund
-
-# Copy application source
-COPY . .
-
-# Generate optimized autoload
-RUN composer dump-autoload \
-        --optimize \
-        --no-dev \
-        --classmap-authoritative
-
-RUN php artisan package:discover --ansi
-
-# Build Vite assets
-RUN npm run build
-
-
-# =============================================================================
-# Stage 2 — Runtime
-# =============================================================================
-FROM php:8.3-apache
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        libicu-dev \
-        libzip-dev \
-        libpng-dev \
-        libjpeg62-turbo-dev \
-        libfreetype6-dev \
-        libonig-dev \
-        libxml2-dev \
-        gettext-base \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j"$(nproc)" \
-        pdo_mysql \
-        mysqli \
-        gd \
-        intl \
-        zip \
-        bcmath \
-        sockets \
-        exif \
-        opcache \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# PHP production config
-RUN { \
-        echo 'memory_limit = 512M'; \
-        echo 'upload_max_filesize = 20M'; \
-        echo 'post_max_size = 20M'; \
-        echo 'max_execution_time = 120'; \
-        echo 'opcache.enable = 1'; \
-        echo 'opcache.memory_consumption = 192'; \
-        echo 'opcache.max_accelerated_files = 20000'; \
-        echo 'opcache.validate_timestamps = 0'; \
-    } > /usr/local/etc/php/conf.d/app.ini
-
-# Apache modules
-# IMPORTANT:
-# Do NOT enable/disable Apache MPM modules manually.
-# php:8.3-apache already has the correct MPM configuration.
-# Apache modules
-RUN a2enmod rewrite headers \
-    && echo "ServerName localhost" > /etc/apache2/conf-available/servername.conf \
-    && a2enconf servername
-
-# Optional composer in runtime
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-
-# Apache vhost template
-COPY docker/apache/vhost.conf /etc/apache2/sites-available/000-default.conf.tmpl
-
+# Set working directory
 WORKDIR /var/www/html
 
-# Copy app from build stage
-COPY --chown=www-data:www-data --from=deps /app ./
+# Install required system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpng-dev \
+    libjpeg62-turbo-dev \
+    libfreetype6-dev \
+    locales \
+    zip \
+    jpegoptim optipng pngquant gifsicle \
+    vim \
+    unzip \
+    git \
+    curl \
+    libzip-dev \
+    libonig-dev \
+    libxml2-dev \
+    libicu-dev \
+    supervisor
 
-# Writable directories
-RUN mkdir -p \
-        storage/framework/sessions \
-        storage/framework/views \
-        storage/framework/cache \
-        storage/framework/testing \
-        storage/logs \
-        bootstrap/cache \
-    && chown -R www-data:www-data storage bootstrap/cache \
-    && chmod -R ug+rwX storage bootstrap/cache
+# Clear apt cache
+RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Entrypoint
-COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
+# Install PHP extensions
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip intl sockets xml
 
-# Railway dynamic port fallback
-ENV PORT=10000
+# Install Node.js & npm (for Vite)
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs
 
-EXPOSE 10000
+# Install Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+# Set permissions for the working directory
+RUN chown -R www-data:www-data /var/www/html
 
-CMD ["apache2-foreground"]
+# Copy the rest of the application
+COPY . /var/www/html
+
+# Switch to non-root user (www-data) if needed, but for simplicity of permissions in local dev we often stick to root or a defined user.
+# Here we'll just allow the entrypoint script or command to handle it.
+
+# Expose Octane port and Vite port
+EXPOSE 8042
+EXPOSE 5173
+
+# Start the application using RoadRunner Octane
+# In a real environment, you'd want a startup script, but this works for development
+CMD bash -c "composer install --no-interaction && npm install && npm run build && php artisan octane:start --server=roadrunner --host=0.0.0.0 --port=8042"

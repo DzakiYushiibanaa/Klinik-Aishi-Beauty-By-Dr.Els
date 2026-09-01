@@ -1,0 +1,50 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: dzakiyushiibanaa/klinik-aishi-beauty-app
+    ports:
+      - "8042:8042"
+      - "5173:5173"
+    environment:
+      - DB_CONNECTION=mysql
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_DATABASE=${DB_DATABASE:-klinik_aishi_beauty_by_dr_els}
+      - DB_USERNAME=${DB_USERNAME:-root}
+      - DB_PASSWORD=${DB_PASSWORD:-password}
+      - APP_URL=http://localhost:8042
+    volumes:
+      - .:/var/www/html
+    networks:
+      - aishi-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  mysql:
+    image: 'mysql:8.0'
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: '${DB_PASSWORD:-password}'
+      MYSQL_DATABASE: '${DB_DATABASE:-klinik_aishi_beauty_by_dr_els}'
+      MYSQL_USER: 'aishi_user'
+      MYSQL_PASSWORD: '${DB_PASSWORD:-password}'
+    volumes:
+      - 'aishi-mysql:/var/lib/mysql'
+    networks:
+      - aishi-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-p${DB_PASSWORD:-password}"]
+      retries: 3
+      timeout: 5s
+
+networks:
+  aishi-network:
+    driver: bridge
+
+volumes:
+  aishi-mysql:
+    driver: local
