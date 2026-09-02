@@ -18,6 +18,7 @@ use App\Models\ProductCategory;
 use App\Models\Treatment;
 use App\Models\Product;
 use App\Models\Consultation;
+use App\Models\JadwalPraktik;
 
 class AishiBeautySeeder extends Seeder
 {
@@ -26,7 +27,6 @@ class AishiBeautySeeder extends Seeder
         // --- Section 1 — Roles & Permissions ---
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
-        $superAdminRole = Role::firstOrCreate(['name' => 'super_admin', 'guard_name' => 'web']);
         $adminRole      = Role::firstOrCreate(['name' => 'admin',       'guard_name' => 'web']);
         $dokterRole     = Role::firstOrCreate(['name' => 'dokter',      'guard_name' => 'web']);
         $terapisRole    = Role::firstOrCreate(['name' => 'terapis',     'guard_name' => 'web']);
@@ -63,20 +63,9 @@ class AishiBeautySeeder extends Seeder
                 ->get()
         );
 
-        $superAdminRole->syncPermissions(Permission::all());
         $adminRole->syncPermissions(Permission::all());
 
         // --- Section 2 — Users (with profile tables) ---
-        $superAdmin = User::firstOrCreate(
-            ['email' => 'superadmin@aishi.test'],
-            [
-                'name'     => 'Super Admin',
-                'password' => Hash::make('password'),
-                'phone'    => null,
-            ]
-        );
-        $superAdmin->syncRoles(['super_admin']);
-
         $admin = User::firstOrCreate(
             ['email' => 'admin@aishi.test'],
             [
@@ -86,6 +75,8 @@ class AishiBeautySeeder extends Seeder
             ]
         );
         $admin->syncRoles(['admin']);
+
+        \Illuminate\Support\Facades\Artisan::call('shield:generate --all');
 
         $dokterUser = User::firstOrCreate(
             ['email' => 'dokter@aishi.test'],
@@ -168,6 +159,43 @@ class AishiBeautySeeder extends Seeder
                 'provinsi'        => null,
             ]
         );
+
+        // --- Section 2.5 — Jadwal Praktik ---
+        $hariKerja = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+        
+        foreach ($hariKerja as $hari) {
+            // Jadwal Dokter
+            JadwalPraktik::firstOrCreate([
+                'user_id'           => $dokterUser->id,
+                'jenis_layanan'     => 'konsultasi',
+                'hari'              => $hari,
+                'jam_mulai'         => '10:00:00',
+                'jam_selesai'       => '18:00:00',
+                'durasi_slot_menit' => 60,
+                'is_active'         => true,
+            ]);
+
+            JadwalPraktik::firstOrCreate([
+                'user_id'           => $dokterUser->id,
+                'jenis_layanan'     => 'treatment',
+                'hari'              => $hari,
+                'jam_mulai'         => '10:00:00',
+                'jam_selesai'       => '18:00:00',
+                'durasi_slot_menit' => 60,
+                'is_active'         => true,
+            ]);
+            
+            // Jadwal Terapis
+            JadwalPraktik::firstOrCreate([
+                'user_id'           => $terapisUser->id,
+                'jenis_layanan'     => 'treatment',
+                'hari'              => $hari,
+                'jam_mulai'         => '09:00:00',
+                'jam_selesai'       => '17:00:00',
+                'durasi_slot_menit' => 60,
+                'is_active'         => true,
+            ]);
+        }
 
         // --- Section 3 — Treatment Categories ---
         $treatmentCategories = [
@@ -298,29 +326,58 @@ class AishiBeautySeeder extends Seeder
 
         $products = [
             // Cleanser
-            ['product_category_id' => $cleanser->product_category_id,  'nama' => 'Facial Wash AHA',          'deskripsi' => 'Kandungan: AHA dan Betaine. Manfaat: Meningkatkan tekstur kulit, mengatasi kulit kusam, dan meningkatkan kandungan kolagen. Detail: 60 ml | BPOM: NA 18221206004.',    'harga' => 97000,  'berat_gram' => 60, 'stok' => 50, 'is_active' => true, 'foto_path' => null],
-            ['product_category_id' => $cleanser->product_category_id,  'nama' => 'Facial Foam Acne Care',     'deskripsi' => 'Kandungan: Salicylic Acid dan Betaine. Manfaat: Mengatasi jerawat, mengurangi peradangan, dan memperbaiki tanda penuaan. Detail: 60 ml | BPOM: NA 18221206069.',   'harga' => 97000,  'berat_gram' => 60, 'stok' => 50, 'is_active' => true, 'foto_path' => null],
-            ['product_category_id' => $cleanser->product_category_id,  'nama' => 'S-DNA Mochiskin Facial Wash','deskripsi' => 'Kandungan: AHA. Manfaat: Mencerahkan kulit dan memperbaiki skin barrier. Detail: BPOM: NA 18241206372.',                                                          'harga' => 120000, 'berat_gram' => 60, 'stok' => 50, 'is_active' => true, 'foto_path' => null],
+            ['product_category_id' => $cleanser->product_category_id,  'nama' => 'Facial Wash AHA',          'deskripsi' => 'Kandungan: AHA dan Betaine. Manfaat: Meningkatkan tekstur kulit, mengatasi kulit kusam, dan meningkatkan kandungan kolagen. Detail: 60 ml | BPOM: NA 18221206004.',    'harga' => 97000,  'berat_gram' => 60, 'stok' => 50, 'is_active' => true, 'image' => 'facial wash AHA.png'],
+            ['product_category_id' => $cleanser->product_category_id,  'nama' => 'Facial Foam Acne Care',     'deskripsi' => 'Kandungan: Salicylic Acid dan Betaine. Manfaat: Mengatasi jerawat, mengurangi peradangan, dan memperbaiki tanda penuaan. Detail: 60 ml | BPOM: NA 18221206069.',   'harga' => 97000,  'berat_gram' => 60, 'stok' => 50, 'is_active' => true, 'image' => 'facial foam acne care.png'],
+            ['product_category_id' => $cleanser->product_category_id,  'nama' => 'S-DNA Mochiskin Facial Wash','deskripsi' => 'Kandungan: AHA. Manfaat: Mencerahkan kulit dan memperbaiki skin barrier. Detail: BPOM: NA 18241206372.',                                                          'harga' => 120000, 'berat_gram' => 60, 'stok' => 50, 'is_active' => true, 'image' => 'S-DNA MOCHISKIN FACIAL WASH.png'],
             // Toner
-            ['product_category_id' => $toner->product_category_id,     'nama' => 'Face Toner AHA',            'deskripsi' => 'Kandungan: AHA dan Witch Hazel. Manfaat: Mengencangkan pori-pori, menyegarkan kulit, dan meningkatkan tekstur kulit. Detail: 60 ml | BPOM: NA 18221206068.',       'harga' => 97000,  'berat_gram' => 60, 'stok' => 50, 'is_active' => true, 'foto_path' => null],
-            ['product_category_id' => $toner->product_category_id,     'nama' => 'Acne Face Toner',           'deskripsi' => 'Kandungan: Salicylic Acid, Witch Hazel, dan Collagen. Manfaat: Eksfoliasi kulit, mengatur produksi minyak, mengurangi hiperpigmentasi, dan mengencangkan pori. Detail: 60 ml | BPOM: NA 18220109233.', 'harga' => 97000, 'berat_gram' => 60, 'stok' => 50, 'is_active' => true, 'foto_path' => null],
+            ['product_category_id' => $toner->product_category_id,     'nama' => 'Face Toner AHA',            'deskripsi' => 'Kandungan: AHA dan Witch Hazel. Manfaat: Mengencangkan pori-pori, menyegarkan kulit, dan meningkatkan tekstur kulit. Detail: 60 ml | BPOM: NA 18221206068.',       'harga' => 97000,  'berat_gram' => 60, 'stok' => 50, 'is_active' => true, 'image' => 'face toner AHA.png'],
+            ['product_category_id' => $toner->product_category_id,     'nama' => 'Acne Face Toner',           'deskripsi' => 'Kandungan: Salicylic Acid, Witch Hazel, dan Collagen. Manfaat: Eksfoliasi kulit, mengatur produksi minyak, mengurangi hiperpigmentasi, dan mengencangkan pori. Detail: 60 ml | BPOM: NA 18220109233.', 'harga' => 97000, 'berat_gram' => 60, 'stok' => 50, 'is_active' => true, 'image' => 'acne face toner.png'],
             // Serum
-            ['product_category_id' => $serum->product_category_id,     'nama' => '24K AA+ Whitening Serum',   'deskripsi' => 'Kandungan: Vitamin C (GOV C), Unshiu Peel, dan Nano Partikel Gold. Manfaat: Mencerahkan kulit, melindungi dari radikal bebas, dan membuat kulit lebih sehat. Detail: 20 ml | BPOM: NA 18231902477.', 'harga' => 235000, 'berat_gram' => 20, 'stok' => 50, 'is_active' => true, 'foto_path' => null],
-            ['product_category_id' => $serum->product_category_id,     'nama' => 'Platinum Acne Serum',       'deskripsi' => 'Kandungan: Vitamin C (GOV C), Unshiu Peel, dan Nano Partikel Silver. Manfaat: Mencerahkan kulit dan menghambat bakteri penyebab jerawat. Detail: BPOM: NA 18230110781.', 'harga' => 235000, 'berat_gram' => 20, 'stok' => 50, 'is_active' => true, 'foto_path' => null],
-            ['product_category_id' => $serum->product_category_id,     'nama' => 'S-DNA Mochiskin Serum with Pitera', 'deskripsi' => 'Kandungan: S-DNA, Pitera, Snail Filtrate, Niacinamide, Poria Cocos Ext, dan Tranexamic Acid. Manfaat: Menstimulasi produksi kolagen, mencerahkan kulit, menghidrasi, dan memperbaiki kerusakan kulit. Detail: 20 ml | BPOM: NA 18241901391.', 'harga' => 285000, 'berat_gram' => 20, 'stok' => 50, 'is_active' => true, 'foto_path' => null],
+            ['product_category_id' => $serum->product_category_id,     'nama' => '24K AA+ Whitening Serum',   'deskripsi' => 'Kandungan: Vitamin C (GOV C), Unshiu Peel, dan Nano Partikel Gold. Manfaat: Mencerahkan kulit, melindungi dari radikal bebas, dan membuat kulit lebih sehat. Detail: 20 ml | BPOM: NA 18231902477.', 'harga' => 235000, 'berat_gram' => 20, 'stok' => 50, 'is_active' => true, 'image' => '24K AA+ whitening serum.png'],
+            ['product_category_id' => $serum->product_category_id,     'nama' => 'Platinum Acne Serum',       'deskripsi' => 'Kandungan: Vitamin C (GOV C), Unshiu Peel, dan Nano Partikel Silver. Manfaat: Mencerahkan kulit dan menghambat bakteri penyebab jerawat. Detail: BPOM: NA 18230110781.', 'harga' => 235000, 'berat_gram' => 20, 'stok' => 50, 'is_active' => true, 'image' => 'platinum acne serum.png'],
+            ['product_category_id' => $serum->product_category_id,     'nama' => 'S-DNA Mochiskin Serum with Pitera', 'deskripsi' => 'Kandungan: S-DNA, Pitera, Snail Filtrate, Niacinamide, Poria Cocos Ext, dan Tranexamic Acid. Manfaat: Menstimulasi produksi kolagen, mencerahkan kulit, menghidrasi, dan memperbaiki kerusakan kulit. Detail: 20 ml | BPOM: NA 18241901391.', 'harga' => 285000, 'berat_gram' => 20, 'stok' => 50, 'is_active' => true, 'image' => 'S-DNA MOCHISKIN SERUM.png'],
             // Day Cream & UV Protection
-            ['product_category_id' => $dayCream->product_category_id,  'nama' => 'Whitening Daily Cream',     'deskripsi' => 'Kandungan: Niacinamide, Vitamin C & E, dan Defensil Plus. Manfaat: Mencerahkan kulit, memperbaiki skin barrier, anti-inflamasi, dan melindungi dari kerusakan lingkungan. Detail: BPOM: NA 18231902489.', 'harga' => 135000, 'berat_gram' => 15, 'stok' => 50, 'is_active' => true, 'foto_path' => null],
-            ['product_category_id' => $dayCream->product_category_id,  'nama' => 'Whitening CC Glow',         'deskripsi' => 'Kandungan: Niacinamide, Vitamin C & E, dan Squalane. Manfaat: Mencerahkan kulit, memperbaiki barrier kulit, mengunci kelembapan, dan mengurangi kemerahan. Detail: BPOM: NA 18230300729.', 'harga' => 135000, 'berat_gram' => 15, 'stok' => 50, 'is_active' => true, 'foto_path' => null],
-            ['product_category_id' => $dayCream->product_category_id,  'nama' => 'UV Protect White',          'deskripsi' => 'Kandungan: Niacinamide, Vitamin C & E, dan Squalane. Manfaat: Perlindungan tanpa white cast, oil free, tidak menyumbat pori, dan mencerahkan kulit. Detail: BPOM: NA 18221701648.', 'harga' => 135000, 'berat_gram' => 15, 'stok' => 50, 'is_active' => true, 'foto_path' => null],
-            ['product_category_id' => $dayCream->product_category_id,  'nama' => 'S-DNA Mochiskin Daily Gel',  'deskripsi' => 'Kandungan: S-DNA, 5x Ceramide, Centella, Collagen, Tranexamic Acid, dan Q10. Manfaat: Merangsang regenerasi sel, mengatasi melasma, mengunci kelembapan, dan mencegah penuaan dini. Detail: BPOM: NA 18240107735.', 'harga' => 180000, 'berat_gram' => 20, 'stok' => 50, 'is_active' => true, 'foto_path' => null],
+            ['product_category_id' => $dayCream->product_category_id,  'nama' => 'Whitening Daily Cream',     'deskripsi' => 'Kandungan: Niacinamide, Vitamin C & E, dan Defensil Plus. Manfaat: Mencerahkan kulit, memperbaiki skin barrier, anti-inflamasi, dan melindungi dari kerusakan lingkungan. Detail: BPOM: NA 18231902489.', 'harga' => 135000, 'berat_gram' => 15, 'stok' => 50, 'is_active' => true, 'image' => 'whitening daily cream.png'],
+            ['product_category_id' => $dayCream->product_category_id,  'nama' => 'Whitening CC Glow',         'deskripsi' => 'Kandungan: Niacinamide, Vitamin C & E, dan Squalane. Manfaat: Mencerahkan kulit, memperbaiki barrier kulit, mengunci kelembapan, dan mengurangi kemerahan. Detail: BPOM: NA 18230300729.', 'harga' => 135000, 'berat_gram' => 15, 'stok' => 50, 'is_active' => true, 'image' => 'whitening cc glow.png'],
+            ['product_category_id' => $dayCream->product_category_id,  'nama' => 'UV Protect White',          'deskripsi' => 'Kandungan: Niacinamide, Vitamin C & E, dan Squalane. Manfaat: Perlindungan tanpa white cast, oil free, tidak menyumbat pori, dan mencerahkan kulit. Detail: BPOM: NA 18221701648.', 'harga' => 135000, 'berat_gram' => 15, 'stok' => 50, 'is_active' => true, 'image' => 'UV protect white.png'],
+            ['product_category_id' => $dayCream->product_category_id,  'nama' => 'S-DNA Mochiskin Daily Gel',  'deskripsi' => 'Kandungan: S-DNA, 5x Ceramide, Centella, Collagen, Tranexamic Acid, dan Q10. Manfaat: Merangsang regenerasi sel, mengatasi melasma, mengunci kelembapan, dan mencegah penuaan dini. Detail: BPOM: NA 18240107735.', 'harga' => 180000, 'berat_gram' => 20, 'stok' => 50, 'is_active' => true, 'image' => 'S-DNA MOCHISKIN DAILY GEL.png'],
             // Night Cream
-            ['product_category_id' => $nightCream->product_category_id,'nama' => 'Liposome Glow Night Cream', 'deskripsi' => 'Kandungan: Q10, Niacinamide, dan Aloe Vera. Manfaat: Anti-aging, antioksidan, menjaga skin barrier, dan mengurangi pigmentasi. Detail: 13 g | BPOM: NA 18240102642.', 'harga' => 180000, 'berat_gram' => 13, 'stok' => 50, 'is_active' => true, 'foto_path' => null],
+            ['product_category_id' => $nightCream->product_category_id,'nama' => 'Liposome Glow Night Cream', 'deskripsi' => 'Kandungan: Q10, Niacinamide, dan Aloe Vera. Manfaat: Anti-aging, antioksidan, menjaga skin barrier, dan mengurangi pigmentasi. Detail: 13 g | BPOM: NA 18240102642.', 'harga' => 180000, 'berat_gram' => 13, 'stok' => 50, 'is_active' => true, 'image' => 'LIPOSOME GLOW.png'],
             // Powder
-            ['product_category_id' => $powder->product_category_id,    'nama' => 'Mochiskin Powder',          'deskripsi' => 'Kandungan: Squalane, TiO2, Octinoxate, dan Magnesium Myristate. Manfaat: Memberikan hasil matte, menahan riasan, melembapkan, dan melindungi dari sinar UV/UVB. Detail: BPOM: NA 18251203013.', 'harga' => 235000, 'berat_gram' => 15, 'stok' => 50, 'is_active' => true, 'foto_path' => null],
+            ['product_category_id' => $powder->product_category_id,    'nama' => 'Mochiskin Powder',          'deskripsi' => 'Kandungan: Squalane, TiO2, Octinoxate, dan Magnesium Myristate. Manfaat: Memberikan hasil matte, menahan riasan, melembapkan, dan melindungi dari sinar UV/UVB. Detail: BPOM: NA 18251203013.', 'harga' => 235000, 'berat_gram' => 15, 'stok' => 50, 'is_active' => true, 'image' => 'DR. ELS MOCHISKIN POWDER.png'],
         ];
 
         foreach ($products as $p) {
+            $fotoPath = $this->copyImage($p['image']);
+            unset($p['image']);
+            $p['foto_path'] = $fotoPath;
             Product::firstOrCreate(['nama' => $p['nama']], $p);
         }
+    }
+
+    /**
+     * Salin gambar produk dari public/assets/img_produk/ ke storage/app/public/products/
+     * dan kembalikan path relatif yang dipakai untuk foto_path.
+     */
+    private function copyImage(string $sourceFile): ?string
+    {
+        $sourcePath = public_path('assets/img_produk/' . $sourceFile);
+        if (! file_exists($sourcePath)) {
+            return null;
+        }
+
+        $ext      = pathinfo($sourceFile, PATHINFO_EXTENSION) ?: 'png';
+        $slug     = preg_replace('/[^a-z0-9]+/i', '-', mb_strtolower(pathinfo($sourceFile, PATHINFO_FILENAME)));
+        $slug     = trim($slug, '-');
+        $destName = 'products/seed-' . $slug . '.' . $ext;
+        $destPath = storage_path('app/public/' . $destName);
+
+        if (! is_dir(dirname($destPath))) {
+            mkdir(dirname($destPath), 0755, true);
+        }
+
+        copy($sourcePath, $destPath);
+
+        return $destName;
     }
 }

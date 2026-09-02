@@ -14,9 +14,12 @@ services:
       - DB_DATABASE=${DB_DATABASE:-klinik_aishi_beauty_by_dr_els}
       - DB_USERNAME=${DB_USERNAME:-root}
       - DB_PASSWORD=${DB_PASSWORD:-password}
-      - APP_URL=http://localhost:8042
+      - APP_URL=${APP_URL:-http://localhost:8042}
     volumes:
+      # Mode Development: Mount seluruh folder lokal
       - .:/var/www/html
+      # Mode Production: Mount khusus folder foto agar aman & permanen
+      - aishi-storage:/var/www/html/storage/app/public
     networks:
       - aishi-network
     depends_on:
@@ -47,4 +50,6 @@ networks:
 
 volumes:
   aishi-mysql:
+    driver: local
+  aishi-storage:
     driver: local

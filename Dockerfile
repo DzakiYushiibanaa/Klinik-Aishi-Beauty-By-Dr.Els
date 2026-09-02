@@ -1,4 +1,4 @@
-FROM php:8.2-cli
+FROM php:8.3-cli
 
 # Set working directory
 WORKDIR /var/www/html
@@ -20,10 +20,8 @@ RUN apt-get update && apt-get install -y \
     libonig-dev \
     libxml2-dev \
     libicu-dev \
-    supervisor
-
-# Clear apt cache
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+    supervisor \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install PHP extensions
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
@@ -36,19 +34,25 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Set permissions for the working directory
-RUN chown -R www-data:www-data /var/www/html
-
-# Copy the rest of the application
+# Copy application files
 COPY . /var/www/html
 
-# Switch to non-root user (www-data) if needed, but for simplicity of permissions in local dev we often stick to root or a defined user.
-# Here we'll just allow the entrypoint script or command to handle it.
+# Install PHP and Node.js dependencies
+RUN composer install --no-interaction --optimize-autoloader --no-dev
+RUN npm install && npm run build
 
-# Expose Octane port and Vite port
+# Install RoadRunner binary
+RUN ./vendor/bin/rr get-binary
+
+# Set permissions
+RUN chown -R www-data:www-data /var/www/html \
+    && chmod -R 775 storage bootstrap/cache
+
+# Make entrypoint executable
+RUN chmod +x docker/entrypoint.sh
+
+# Expose Octane port
 EXPOSE 8042
-EXPOSE 5173
 
-# Start the application using RoadRunner Octane
-# In a real environment, you'd want a startup script, but this works for development
-CMD bash -c "composer install --no-interaction && npm install && npm run build && php artisan octane:start --server=roadrunner --host=0.0.0.0 --port=8042"
+# Start the application using the entrypoint script
+ENTRYPOINT ["docker/entrypoint.sh"]

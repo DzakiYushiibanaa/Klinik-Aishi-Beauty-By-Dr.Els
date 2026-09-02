@@ -1,3 +1,0 @@
-    @include('pdf._partials.doctor-performance-report._summary_table')
-    @include('pdf._partials.doctor-performance-report._weekly_table')
-    @include('pdf._partials.doctor-performance-report._detail_table')

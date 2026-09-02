@@ -1,44 +1,32 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PORT="${PORT:-10000}"
+# Fallback port if not provided by Railway/Docker
+PORT="${PORT:-8042}"
 export PORT
 
-echo "[entrypoint] Preparing Apache MPM"
-
-# Fix Apache MPM:
-# Apache must load exactly one MPM.
-# Remove all active MPM symlinks, then enable only mpm_prefork.
-rm -f /etc/apache2/mods-enabled/mpm_*.load || true
-rm -f /etc/apache2/mods-enabled/mpm_*.conf || true
-
-ln -sf ../mods-available/mpm_prefork.load /etc/apache2/mods-enabled/mpm_prefork.load
-
-if [ -f /etc/apache2/mods-available/mpm_prefork.conf ]; then
-    ln -sf ../mods-available/mpm_prefork.conf /etc/apache2/mods-enabled/mpm_prefork.conf
-fi
-
-echo "[entrypoint] Rendering Apache vhost for port :${PORT}"
-
-if [ -f /etc/apache2/sites-available/000-default.conf.tmpl ]; then
-    envsubst '${PORT}' < /etc/apache2/sites-available/000-default.conf.tmpl > /etc/apache2/sites-available/000-default.conf
-fi
-
-# Force Apache listen to Railway dynamic PORT
-echo "Listen ${PORT}" > /etc/apache2/ports.conf
-
+echo "Clearing caches..."
 php artisan config:clear || true
 php artisan route:clear || true
 php artisan view:clear || true
 php artisan cache:clear || true
+
+echo "Linking storage..."
 php artisan storage:link || true
+
+echo "Optimizing Filament..."
 php artisan filament:optimize-clear || true
 
-php artisan migrate --force || true
+echo "Waiting for database connection..."
+# Loop until artisan command can successfully connect to the database
+while ! php artisan db:show > /dev/null 2>&1; do
+    echo "Database is not ready yet. Retrying in 3 seconds..."
+    sleep 3
+done
+echo "Database connected successfully!"
 
-echo "[entrypoint] Apache config test"
-apache2ctl configtest
+echo "Running migrations and seeders..."
+php artisan migrate --force --seed || true
 
-echo "[entrypoint] Apache starting on :${PORT}"
-
-exec "$@"
+echo "Starting Laravel Octane (RoadRunner) on port ${PORT}..."
+exec php artisan octane:start --server=roadrunner --host=0.0.0.0 --port="${PORT}"
